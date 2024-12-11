@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  select {
+    @apply cursor-pointer;
+  }
+}
+
+@layer components {
+  .metric-card {
+    @apply bg-white rounded-lg p-6 shadow-sm;
+  }
+
+  .nav-link {
+    @apply flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors;
+  }
+
+  .nav-link-active {
+    @apply bg-primary text-white;
+  }
+
+  .nav-link-inactive {
+    @apply text-gray-600 hover:bg-gray-50;
+  }
+
+  .table-header {
+    @apply text-left text-sm font-medium text-gray-500 pb-4;
+  }
+
+  .table-cell {
+    @apply py-4 text-sm text-gray-900;
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-sm font-medium;
+  }
+}
+
+/* Status colors */
+.status-badge.pending {
+  @apply bg-amber-100 text-amber-800;
+}
+
+.status-badge.in-progress {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.status-badge.completed {
+  @apply bg-green-100 text-green-800;
+}

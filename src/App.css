@@ -1,0 +1,36 @@
+.app-container {
+  @apply max-w-7xl mx-auto;
+}
+
+.header {
+  @apply bg-white shadow-sm;
+}
+
+.logo {
+  @apply h-8 w-auto;
+  filter: none;
+}
+
+.logo:hover {
+  filter: brightness(0.9);
+}
+
+.card {
+  @apply p-4 bg-white rounded-lg shadow-sm;
+}
+
+/* Animation du logo en version React */
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logo.animate {
+    animation: logo-spin infinite 20s linear;
+  }
+}
