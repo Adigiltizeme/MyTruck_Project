@@ -1,0 +1,81 @@
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-20px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+.float-animation {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Transitions fluides */
+.smooth-transition {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Effet de parallaxe */
+.parallax-bg {
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+/* Styles pour les cartes */
+.card-hover {
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+}
+
+.card-hover:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Style pour le texte défilant */
+.scroll-text {
+    background: linear-gradient(90deg, transparent, #ffffff, transparent);
+    background-size: 200% 100%;
+    animation: shine 3s infinite;
+}
+
+@keyframes shine {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Styles pour les images de fond */
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.3),
+        rgba(0, 0, 0, 0.7)
+    );
+}
+
+.mtruckH1 {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #EAB10B;
+}
+.secondary {
+    color: #EAB10B;
+}
+
+.mTruckSubTitle {
+    font-weight: 700;
+}

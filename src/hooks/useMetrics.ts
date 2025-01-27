@@ -8,7 +8,7 @@ export const useOptimizedMetrics = (data: MetricData | null) => {
 
     return {
       ...data,
-      performance: calculatePerformance(data.commandes),
+      performance: calculatePerformance(data.commandes as CommandeMetier[]),
       historique: data.historique.map(h => ({
         ...h,
         performance: Number(h.performance.toFixed(1)),

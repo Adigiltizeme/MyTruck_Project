@@ -1,3 +1,5 @@
+import { BasicCommandeMetier } from "./metrics";
+
 export type DeliveryStatus = 'En cours' | 'En attente' | 'Terminée';
 export type DeliveryPriority = 'Urgent' | 'Normal';
 
@@ -38,4 +40,5 @@ export interface Delivery {
 
 export interface DeliveriesTableProps {
     deliveries: Delivery[];
+    commandes: BasicCommandeMetier[];
 }

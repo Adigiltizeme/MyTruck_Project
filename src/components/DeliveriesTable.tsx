@@ -1,77 +1,75 @@
-import { useMemo } from 'react';
-import { CommandeMetier } from '../types/business.types';
-import { formatDate } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { CommandeMetier, PersonnelInfo } from '../types/business.types';
+import { UserRole } from '../types/dashboard.types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface DeliveriesTableProps {
-    commandes?: CommandeMetier[];
-    store?: string;
+    commandes: CommandeMetier[];  // Type explicite ici
+    userRole: UserRole;
 }
 
-type StatutLivraison = 'LIVREE' | 'ENLEVEE' | 'EN COURS DE LIVRAISON' | 'ANNULEE' | 'EN ATTENTE' | 'CONFIRMEE' | 'ECHEC';
+export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
+    commandes,
+    userRole
+}) => {
+    const { user } = useAuth();
 
-interface LivraisonStatusProps {
-    status: StatutLivraison;
-}
-
-const LivraisonStatus: React.FC<LivraisonStatusProps> = ({ status }) => {
-    const getStatusStyle = () => {
-        const baseStyle = 'px-2 py-1 rounded-full text-sm font-medium';
-
-        switch (status) {
-            case 'EN ATTENTE':
-                return `${baseStyle} bg-blue-100 text-blue-800`;
-            case 'CONFIRMEE':
-                return `${baseStyle} bg-indigo-100 text-indigo-800`;
-            case 'ENLEVEE':
-                return `${baseStyle} bg-purple-100 text-purple-800`;
-            case 'EN COURS DE LIVRAISON':
-                return `${baseStyle} bg-yellow-100 text-yellow-800`;
-            case 'LIVREE':
-                return `${baseStyle} bg-green-100 text-green-800`;
-            case 'ANNULEE':
-                return `${baseStyle} bg-red-100 text-red-800`;
-            case 'ECHEC':
-                return `${baseStyle} bg-red-200 text-red-900`;
-            default:
-                return baseStyle;
-        }
+    const STATUS_STYLES = {
+        'EN ATTENTE': 'bg-blue-300 text-blue-1000',
+        'CONFIRMEE': 'bg-indigo-300 text-indigo-1000',
+        'ENLEVEE': 'bg-purple-300 text-purple-1000',
+        'EN COURS DE LIVRAISON': 'bg-yellow-300 text-yellow-1000',
+        'LIVREE': 'bg-green-300 text-green-1000',
+        'ANNULEE': 'bg-red-300 text-red-1000',
+        'ECHEC': 'bg-red-200 text-red-900'
     };
 
-    return (
-        <span className={getStatusStyle()}>
-            {status}
-        </span>
-    );
-};
+    const formatChauffeurInfo = (chauffeurs: PersonnelInfo[]) => {
+        if (!chauffeurs?.length) return 'N/A';
+        const chauffeur = chauffeurs[0];
+        return `${chauffeur.prenom || ''} ${chauffeur.nom || ''}`.trim() || 'N/A';
+    };
 
-const getFormattedDate = (dateStr: string, format?: string) => {
-    const date = new Date(dateStr);
-    return format
-        ? formatDate(date, format, { locale: fr })
-        : formatDate(date, 'dd/MM/yyyy HH:mm', { locale: fr });
-};
+    const filteredCommandes = useMemo(() => {
+        if (user?.role === 'magasin') {
+            return commandes.filter(cmd => cmd.magasin?.id === user.storeId);
+        }
+        return commandes;
+    }, [commandes, user]);
 
-// Filtrer les livraisons selon le magasin sélectionné
-const DeliveriesTable: React.FC<DeliveriesTableProps> = ({ commandes = [] }) => { // Valeur par défaut
-    const recentDeliveries = useMemo(() => {
-    if (!commandes || !commandes.length) return [];
+    const filteredData = useMemo(() => {
+        if (!commandes?.length) return [];
 
-    return [...commandes]
-        .sort((a, b) => new Date(b.dates.livraison).getTime() - new Date(a.dates.livraison).getTime())
-        .slice(0, 5)
-        .map(commande => ({
-            reference: commande.numeroCommande,
-            magasin: commande.store?.name || 'Non spécifié',
-            // Accéder au nom du chauffeur plutôt qu'à l'ID
-            chauffeur: commande.livraison?.chauffeurs.map(chauffeur => chauffeur.nom).join(', ') || 'Non spécifié',
-            status: commande.statuts.livraison,
-            eta: format(new Date(commande.dates.livraison), 'HH:mm', { locale: fr })
-        }));
-}, [commandes]);
+        if (userRole === 'chauffeur') {
+            // Pour l'instant, retournons toutes les commandes pour le test du chauffeur
+            // À ajuster plus tard avec l'ID réel du chauffeur connecté
+            return commandes.filter(cmd =>
+                cmd.chauffeurs?.length > 0
+            );
+        }
+        if (userRole === 'magasin') {
+            // Pour l'instant, retournons toutes les commandes pour le test du magasin
+            // À ajuster plus tard avec l'ID réel du magasin
+            return commandes.filter(cmd => cmd.magasin);
+        }
 
-    if (!commandes?.length) {
+        // Admin voit tout
+        return commandes;
+    }, [commandes, userRole]);
+
+    const recentDeliveries = commandes.slice(0, 5).map(commande => ({
+        reference: commande.numeroCommande,
+        magasin: commande.magasin?.name || 'Non spécifié',
+        chauffeur: commande.chauffeurs?.[0]
+            ? `${commande.chauffeurs[0].prenom} ${commande.chauffeurs[0].nom}`.trim()
+            : 'Non spécifié',
+        status: commande.statuts.livraison,
+        eta: format(new Date(commande.dates.livraison), 'HH:mm', { locale: fr })
+    }));
+
+    if (recentDeliveries.length === 0) {
         return (
             <div className="bg-white rounded-xl p-6">
                 <div className="text-center text-gray-500">
@@ -83,36 +81,48 @@ const DeliveriesTable: React.FC<DeliveriesTableProps> = ({ commandes = [] }) => 
 
     return (
         <div className="bg-white rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-semibold">Livraisons récentes</h2>
-            </div>
-            <table className="min-w-full">
-                <thead>
-                    <tr>
-                        <th className="text-left text-sm font-medium text-gray-500 pb-3">Référence</th>
-                        <th className="text-left text-sm font-medium text-gray-500 pb-3">Magasin</th>
-                        <th className="text-left text-sm font-medium text-gray-500 pb-3">Chauffeur</th>
-                        <th className="text-left text-sm font-medium text-gray-500 pb-3">Statut</th>
-                        <th className="text-left text-sm font-medium text-gray-500 pb-3">ETA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {recentDeliveries.map((delivery) => (
-                        <tr key={delivery.reference} className="border-b last:border-0">
-                            <td className="py-4 text-sm">{delivery.reference}</td>
-                            <td className="py-4 text-sm">{delivery.magasin}</td>
-                            <td className="py-4 text-sm">{delivery.chauffeur}</td>
-                            <td className="py-4">
-                                <LivraisonStatus status={delivery.status} />
-                            </td>
-                            <td className="py-4 text-sm">{delivery.eta}</td>
+            <h2 className="text-lg font-semibold mb-6">Livraisons récentes</h2>
+            <div className="overflow-x-auto">
+                <table className="min-w-full">
+                    <thead>
+                        <tr>
+                            {/* Colonnes conditionnelles selon le rôle */}
+                            <th className="text-left">Référence</th>
+                            {user?.role !== 'magasin' && <th className="text-left">Magasin</th>}
+                            <th className="text-left">Chauffeur</th>
+                            <th className="text-left">Statut</th>
+                            <th className="text-left">ETA</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                    {commandes.slice(0, 5).map((commande) => (
+                            <tr key={commande.id} className="border-b">
+                                <td className="py-4 text-sm">{commande.numeroCommande}</td>
+                                {userRole !== 'magasin' && (
+                                    <td className="py-4 text-sm">{commande.magasin?.name || 'N/A'}</td>
+                                )}
+                                <td className="py-4 text-sm">
+                                    {commande.chauffeurs.length > 0 
+                                        ? `${commande.chauffeurs[0].prenom} ${commande.chauffeurs[0].nom}`
+                                        : 'N/A'}
+                                </td>
+                                <td className="py-4">
+                                    <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                                        STATUS_STYLES[commande.statuts.livraison as keyof typeof STATUS_STYLES] || 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                        {commande.statuts.livraison}
+                                    </span>
+                                </td>
+                                <td className="py-4 text-sm">
+                                    {format(new Date(commande.dates.livraison), 'HH:mm')}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 };
-
 
 export default DeliveriesTable;

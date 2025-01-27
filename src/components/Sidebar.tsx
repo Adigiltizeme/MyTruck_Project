@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, TruckIcon, UsersIcon, UserCircleIcon, BeakerIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, TruckIcon, UsersIcon, UserCircleIcon, BeakerIcon, ChartBarIcon, UserIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -9,9 +9,14 @@ interface SidebarProps {
 const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   const navItems = [
     {
-      name: 'Dashboard',
+      name: 'Home',
       icon: HomeIcon,
-      href: '/',
+      href: '/home',
+    },
+    {
+      name: 'Dashboard',
+      icon: ChartBarIcon,
+      href: '/dashboard',
     },
     {
       name: 'Livraisons',
@@ -31,7 +36,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
     {
       name: 'Test Airtable',
       icon: BeakerIcon,
-      href: '/test',
+      href: '/test-airtable',
+    },
+    {
+      name: 'Login',
+      icon: UserIcon,
+      href: '/login',
     }
   ];
 

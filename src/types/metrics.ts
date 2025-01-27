@@ -1,7 +1,9 @@
+import { Personnel } from "./airtable.types";
 import { CommandeMetier } from "./business.types";
 
 export interface HistoriqueData {
     date: string;
+    index?: number;
     totalLivraisons: number;
     performance: number;
     chiffreAffaires: number;
@@ -10,6 +12,7 @@ export interface HistoriqueData {
     chauffeursActifs?: number;
     store?: string;
     driver?: string;
+    rawDate?: number; // Pour le tri si nécessaire
 }
 
 export interface MetricVariation {
@@ -37,6 +40,58 @@ export interface MetricData {
     variation?: MetricVariation;
     statutsDistribution: StatutsDistribution;
     commandes: CommandeMetier[];
+    // commandes: BasicCommandeMetier[];
+    store?: string[]; // Added magasins property
+    chauffeurs: PersonnelInfo[];
+}
+
+export interface MetricsCalculatorResult {
+    date: string;
+    index: number;
+    totalLivraisons: number;
+    enCours: number;
+    enAttente: number;
+    chiffreAffaires: number;
+    performance: number;
+}
+
+// Une version simplifiée de CommandeMetier pour MetricData
+export interface BasicCommandeMetier {
+    id: string;
+    numeroCommande: string;
+    dates: {
+        commande: Date;
+        livraison: Date;
+        misAJour: Date;
+    };
+    statuts: {
+        commande: string;
+        livraison: string;
+    };
+    financier: {
+        tarifHT: number;
+    };
+    magasin: MagasinInfo | null;
+    chauffeurs: PersonnelInfo[];
+}
+
+export interface MagasinInfo {
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    photo: string;
+}
+
+export interface PersonnelInfo {
+    id: string;
+    nom: string;
+    prenom: string;
+    role: string;
+    telephone: string;
+    email: string;
+    status: 'Actif' | 'Inactif';
 }
 
 export interface OptimizedMetrics {
@@ -75,12 +130,13 @@ export interface OptimizedChartData {
 
 export interface MetricCardProps {
     title: string;
-    value: string | number;
+    value: number | string;
     subtitle: string;
     subtitleColor?: string;
-    variation: number;
+    variation?: number;
     chartData: HistoriqueData[];
-    renderChart: (data: HistoriqueData[]) => JSX.Element;
+    // renderChart: (data: HistoriqueData[]) => JSX.Element;
+    color?: string;
 }
 
 export interface ChartProps {
@@ -89,17 +145,39 @@ export interface ChartProps {
 }
 
 export interface MetricsSectionProps {
-    selectedPeriod: string;
+    selectedPeriod: PeriodType;
     data: MetricData | null;
     loading: boolean;
     error: string | null;
+    onPeriodChange?: () => void;  // Ajout de la propriété optionnelle
 }
 
+export type PeriodType = 'day' | 'week' | 'month' | 'year';
+
+export interface EmptyStateProps {
+    period: PeriodType;
+    onChangePeriod?: () => void;
+}
+
+export interface DeliveriesTableProps {
+    commandes?: CommandeMetier[];
+    userRole?: UserRole;
+}
+
+export type UserRole = 'magasin' | 'chauffeur' | 'admin';
+
 export interface FilterOptions {
-    dateRange: 'day' | 'week' | 'month' | 'year';
+    dateRange: PeriodType;
     store?: string;
     driver?: string;
     selctedPeriod?: string;
     startDate?: string;
     endDate?: string;
+}
+
+export interface ChartDataPoint {
+    date: string;
+    totalLivraisons: number;
+    enCours: number;
+    enAttente: number;
 }
