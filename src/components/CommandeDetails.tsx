@@ -298,13 +298,14 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
                             {/* Autres remarques */}
                             <div className="space-y-4">
                                 <h3 className="font-medium text-lg">Autres remarques</h3>
-                                <div className="space-y-2">
-                                    {commande.livraison?.remarques ? (
+
+                                {commande.livraison?.remarques ? (
+                                    <div className="space-y-2">
                                         <p>{commande.livraison.remarques}</p>
-                                    ) : (
-                                        <p className="text-gray-500">Aucune remarque</p>
-                                    )}
-                                </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-gray-500">Aucune remarque</p>
+                                )}
                             </div>
 
                             {/* Commentaires */}

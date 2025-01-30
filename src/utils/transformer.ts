@@ -87,7 +87,7 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
                 chauffeurs,
                 photosEnlevement: fields['PHOTO COMMENTAIRE A L\'ENLEVEMENT'] || [],
                 photosLivraison: fields['PHOTO COMMENTAIRE A LA LIVRAISON'] || [],
-                remarques: fields['REMARQUES'] || '',
+                remarques: fields['AUTRES REMARQUES'] || '',
             },
             articles: {
                 nombre: Number(fields['NOMBRE TOTAL D\'ARTICLES']) || 0,

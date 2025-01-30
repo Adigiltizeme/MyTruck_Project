@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useState } from 'react';
+import { useReducer, useCallback, useState, useEffect } from 'react';
 import { formReducer, initialFormState } from '../reducers/formReducer';
 import { AddressSuggestion } from '../types/form.types';
 import { CommandeMetier } from '../types/business.types';
@@ -7,11 +7,15 @@ import { useDraftStorage } from './useDraftStorage';
 import { deepEqual } from '../utils/objectComparison';
 import { formatPhoneNumber } from '../utils/formatters';
 import { useStepManagement } from './useStepManagement';
-import { form } from 'framer-motion/client';
+import { debounce } from 'lodash';
+import { ERROR_MESSAGES } from '../components/constants/errorMessages';
 
 
 export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>) => {
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+    const [query, setQuery] = useState('');
+    const [selectedAddress, setSelectedAddress] = useState('');
+    const { draftData, loading, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed } = useDraftStorage();
     const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
         client: {
             nom: '',
@@ -35,6 +39,53 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const [state, dispatch] = useReducer(formReducer, initialFormState);
     const stepManagement = useStepManagement(state, dispatch, onSubmit);
     const { validateStep } = useFormValidation(state.data);
+
+    // Gestion du brouillon
+    useEffect(() => {
+        if (hasDraft && draftData && !draftProposed) {
+            const hasContent = !deepEqual(draftData, initialFormState.data);
+
+            if (hasContent) {
+                const shouldRestore = window.confirm('Un brouillon de commande existe. Voulez-vous le restaurer ?');
+                if (shouldRestore) {
+                    dispatch({
+                        type: 'UPDATE_DATA',
+                        payload: {
+                            data: draftData,
+                            isDirty: true
+                        }
+                    });
+                } else {
+                    clearDraft();
+                }
+            }
+            setDraftProposed(true);
+        }
+    }, [hasDraft, draftData, draftProposed, clearDraft]);
+
+    // Sauvegarde automatique du brouillon
+    useEffect(() => {
+        if (state.isDirty) {
+            const hasChanges = !deepEqual(state.data, initialFormState.data);
+
+            if (hasChanges) {
+                const saveTimeout = setTimeout(() => {
+                    saveDraft(state.data);
+                }, 2000);
+                return () => clearTimeout(saveTimeout);
+            }
+        }
+    }, [state.data, state.isDirty, saveDraft]);
+
+    const validateEquipiers = (value: number) => {
+        if (value > 2) {
+            return {
+                isValid: false,
+                message: ERROR_MESSAGES.equipiers.max
+            };
+        }
+        return { isValid: true, message: "" };
+    };
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -96,32 +147,81 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 }
             }
         }));
-    
-        if (name === 'client.adresse.ligne1' && value.length > 3) {
-            handleAddressSearch(value);
-        }
-    }, [state.data]);
 
-    // Gestion de l'adresse avec autocomplétion
-    const handleAddressSearch = async (query: string) => {
-        try {
-            const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
-            const data = await response.json();
-            setAddressSuggestions(data.features || []);
-        } catch (error) {
-            console.error('Erreur recherche adresse:', error);
-            setAddressSuggestions([]);
+        if (name === 'client.adresse.ligne1') {
+            setQuery(value);
+            setSelectedAddress('');
         }
-    };
-    
-    const handleAddressSelect = (suggestion: any) => {
+
+        if (name === 'livraison.equipiers') {
+            const numValue = parseInt(value);
+            const validation = validateEquipiers(numValue);
+            if (!validation.isValid) {
+                dispatch({
+                    type: 'SET_ERRORS',
+                    payload: {
+                        livraison: {
+                            equipiers: ERROR_MESSAGES.equipiers.max
+                        }
+                    }
+                });
+            } else {
+                // Effacer l'erreur si la validation passe
+                dispatch({
+                    type: 'SET_ERRORS',
+                    payload: {}
+                });
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             client: {
                 ...prev.client,
                 adresse: {
                     ...prev.client?.adresse,
-                    ligne1: suggestion.properties.name + ' ' + suggestion.properties.housenumber + ' ' + suggestion.properties.street + ' ' + suggestion.properties.postcode + ' ' + suggestion.properties.city
+                    [name.split('.').pop() || '']: value
+                }
+            }
+        }));
+
+
+    }, [state.data]);
+
+    // Gestion de l'adresse avec autocomplétion
+    const handleAddressSearch = async (query: string) => {
+        console.log('handleAddressSearch appelé avec:', query); // Debug
+
+        if (!query || query.length < 3) {
+            setAddressSuggestions([]);
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}`
+            );
+            const data = await response.json();
+            console.log('Résultats API:', data); // Debug
+            if (data && data.features) {
+                setAddressSuggestions(data.features);
+            } else {
+                setAddressSuggestions([]);
+            }
+        } catch (error) {
+            console.error('Erreur recherche adresse:', error);
+            setAddressSuggestions([]);
+        }
+    };
+
+    const handleAddressSelect = (suggestion: AddressSuggestion) => {
+        setFormData(prev => ({
+            ...prev,
+            client: {
+                ...prev.client,
+                adresse: {
+                    ...prev.client?.adresse,
+                    ligne1: suggestion.properties.label
                 }
             }
         }));
@@ -138,6 +238,15 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 try {
                     dispatch({ type: 'SUBMIT_START' });
                     await onSubmit(state.data as CommandeMetier);
+                    // S'assurer que le brouillon est bien supprimé
+                    try {
+                        await clearDraft();
+                        console.log('Brouillon supprimé avec succès');
+                    } catch (clearError) {
+                        console.error('Erreur lors de la suppression du brouillon:', clearError);
+                    }
+
+                    // Reset seulement après confirmation de la suppression du brouillon
                     dispatch({ type: 'RESET' });
                 } catch (error) {
                     console.error('Erreur lors de la soumission:', error);
@@ -148,45 +257,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 dispatch({ type: 'SET_ERRORS', payload: errors });
             }
         }
-    }, [state.step, onSubmit]);
-
-    // // Gestion du brouillon
-
-    // useEffect(() => {
-    //     if (hasDraft && draftData && !draftProposed) {
-    //         const hasContent = !deepEqual(draftData, initialFormState.data);
-
-    //         if (hasContent) {
-    //             const shouldRestore = window.confirm('Restaurer le brouillon ?');
-    //             if (shouldRestore) {
-    //                 dispatch({
-    //                     type: 'UPDATE_DATA',
-    //                     payload: {
-    //                         data: draftData,
-    //                         isDirty: true
-    //                     }
-    //                 });
-    //             } else {
-    //                 clearDraft();
-    //             }
-    //         }
-    //         setDraftProposed(true);
-    //     }
-    // }, [hasDraft, draftData, draftProposed, clearDraft, initialFormState.data]);
-
-    // // Ajouter la sauvegarde du brouillon uniquement si des modifications ont été faites
-    // useEffect(() => {
-    //     if (state.isDirty) {
-    //         const hasChanges = !deepEqual(state.data, initialFormState.data);
-
-    //         if (hasChanges) {
-    //             const saveTimeout = setTimeout(() => {
-    //                 saveDraft(state.data);
-    //             }, 2000);
-    //             return () => clearTimeout(saveTimeout);
-    //         }
-    //     }
-    // }, [state.data, state.isDirty, saveDraft, initialFormState.data]);
+    }, [state.step, state.data, validateStep, onSubmit, clearDraft]);
 
     return {
         state,

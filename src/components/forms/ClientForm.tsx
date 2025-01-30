@@ -14,7 +14,7 @@ interface ClientFormProps {
     addressSuggestions: AddressSuggestion[];
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, addressSuggestions, handleAddressSelect }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, addressSuggestions, handleAddressSelect, handleAddressSearch }) => {
 
     return (
         <div className="space-y-4 mb-6">
@@ -65,6 +65,9 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                     name="client.adresse.ligne1"
                     value={data.client?.adresse?.ligne1 || ''}
                     onChange={onChange}
+                    onSearch={handleAddressSearch}
+                    onSearchSelect={handleAddressSelect}
+                    suggestions={addressSuggestions}
                     error={errors.client?.adresse?.ligne1}
                     required
                 />
@@ -74,15 +77,19 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                         animate={{ opacity: 1, y: 0 }}
                         className="absolute z-10 w-full bg-white shadow-lg rounded-md mt-1"
                     >
-                        {addressSuggestions.map((suggestion, index) => (
+                        {/* {addressSuggestions.map((suggestion, index) => (
                             <div
                                 key={index}
-                                onClick={() => handleAddressSelect(suggestion)}
+                                onClick={() => {
+                                    const completeAddress = suggestion.properties;
+                                    console.log('Envoi adresse complète:', completeAddress);
+                                    handleAddressSelect({ completeAddress});
+                                }}
                                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                             >
                                 {suggestion.properties.label}
                             </div>
-                        ))}
+                        ))} */}
                     </motion.div>
                 )}
                 <div className="grid grid-cols-2 gap-4">

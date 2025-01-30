@@ -213,57 +213,6 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
         loadOptions();
     }, []);
 
-    // Chargement initial du brouillon
-    // useEffect(() => {
-    //     if (!loading && hasDraft && draftData) {
-    //         const shouldRestore = window.confirm(
-    //             'Un brouillon de commande existe. Voulez-vous le restaurer ?'
-    //         );
-    //         if (shouldRestore) {
-    //             setFormData(draftData);
-    //         } else {
-    //             clearDraft();
-    //         }
-    //     }
-    // }, [loading, hasDraft, draftData, clearDraft]);
-
-    // // Effet pour la sauvegarde automatique
-    // useEffect(() => {
-    //     const debouncedSave = debounce(() => {
-    //         if (Object.keys(formData).length > 0) {
-    //             saveDraft(formData);
-    //         }
-    //     }, 2000);
-
-    //     debouncedSave();
-    //     return () => debouncedSave.cancel();
-    // }, [formData, saveDraft]);
-
-    // // Valider le formulaire à chaque changement
-    // useEffect(() => {
-    //     validateForm();
-    // }, [formData]);
-
-    // useEffect(() => {
-    //     if (error) {
-    //         console.error('Erreur avec le service de brouillons:', error);
-    //         // Gérer l'erreur de manière appropriée
-    //     }
-    // }, [error]);
-
-    // Vérifier les équipiers à chaque changement d'étape
-    useEffect(() => {
-        if (activeStep === 3 && (formData.livraison?.equipiers ?? 0) > 2) {
-            setErrors(prev => ({
-                ...prev,
-                livraison: {
-                    ...prev?.livraison,
-                    equipiers: ERROR_MESSAGES.equipiers.max
-                }
-            }));
-        }
-    }, [activeStep, formData.livraison?.equipiers]);
-
     const resetForm = useCallback(() => {
         setFormData({
             commande: {
@@ -444,9 +393,9 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
 
                         {progress.isLastStep ? (
                             <button
-                                type="button"
+                                type="submit"
                                 onClick={handleFormSubmit}
-                                disabled={state.isSubmitting}
+                                disabled={!progress.canProceed || state.isSubmitting}
                                 className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50"
                             >
                                 {state.isSubmitting ? 'Enregistrement...' : 'Enregistrer'}

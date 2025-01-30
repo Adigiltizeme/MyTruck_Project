@@ -339,6 +339,7 @@ export class AirtableService {
                 'NOMBRE TOTAL D\'ARTICLES': commande.articles?.nombre?.toString(),
                 'DETAILS SUR LES ARTICLES': commande.articles?.details,
                 'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
+                'AUTRES REMARQUES': commande.livraison?.remarques,
                 'RESERVE TRANSPORT': commande.livraison?.reserve ? 'OUI' : 'NON',
                 'STATUT DE LA COMMANDE': 'En attente',
                 'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': 'EN ATTENTE',

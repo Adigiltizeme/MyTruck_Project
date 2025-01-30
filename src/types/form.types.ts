@@ -29,6 +29,7 @@ export interface BaseFormProps {
     data: Partial<CommandeMetier>;
     errors: ValidationErrors;
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+    maxEquipiers?: number;
 }
 
 export interface AddressSuggestion {

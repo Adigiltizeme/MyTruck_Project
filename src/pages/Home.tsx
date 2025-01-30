@@ -45,7 +45,7 @@ const HomePage: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8 }}
                     >
-                        Bienvunue chez<br /> My Truck
+                        Bienvenue chez<br /> My Truck
                     </motion.h1>
                     <motion.p
                         className="text-xl md:text-2xl mb-8 max-w-2xl mx-auto mTruckSubTitle"

@@ -15,6 +15,7 @@ import { DateRange, SortableFields } from '../types/hooks.types';
 import { dateFormatter } from '../utils/formatters';
 import { Modal } from '../components/Modal';
 import AjoutCommande from '../components/AjoutCommande';
+import { useDraftStorage } from '../hooks/useDraftStorage';
 
 const TestAirtable = () => {
     const { user } = useAuth();
@@ -42,6 +43,8 @@ const TestAirtable = () => {
                 itemDate <= new Date(dateRange.end);
         });
     }, [data, dateRange]);
+
+    const { clearDraft } = useDraftStorage();
 
     const searchKeys: Array<keyof CommandeMetier | string> = [
         'numeroCommande',
@@ -114,6 +117,8 @@ const TestAirtable = () => {
         try {
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
             await airtableService.createCommande(commande);
+            // La commande a été créée avec succès, maintenant on peut supprimer le brouillon
+        await clearDraft();
             setShowNewCommandeModal(false);
             await fetchData(); // Recharge les données
         } catch (error) {

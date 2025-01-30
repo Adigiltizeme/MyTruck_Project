@@ -31,6 +31,7 @@ interface FormInputProps {
     error?: string;
     type?: string;
     required?: boolean;
+    suggestions?: Array<{ properties: { label: string } }>;
 }
 
 const FormInput = React.memo(({
@@ -46,7 +47,8 @@ const FormInput = React.memo(({
     onSearchSelect,
     error,
     type = 'text',
-    required = false
+    required = false,
+    suggestions,
 }: FormInputProps) => {
     return (
         <AnimatePresence>
@@ -65,9 +67,14 @@ const FormInput = React.memo(({
                     value={value || ''}
                     min={min}
                     max={max}
-                    onChange={onChange}
-                    onInput={onSearch ? (e) => onSearch(e.currentTarget.value) : undefined}
-                    list={onSearch ? `${name}-suggestions` : undefined}
+                    onChange={(e) => {
+                        onChange(e);
+                        if (onSearch) {
+                            onSearch(e.target.value);
+                        }
+                    }}
+                    // onInput={onSearch ? (e) => onSearch(e.currentTarget.value) : undefined}
+                    // list={onSearch ? `${name}-suggestions` : undefined}
                     className={`mt-1 block w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'
                         }`}
                     required={required}
@@ -82,6 +89,28 @@ const FormInput = React.memo(({
                         {error}
                     </motion.p>
                 )}
+                <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="z-10 w-full bg-white shadow-lg rounded-md mt-1"
+                >
+                    {suggestions && suggestions.map((suggestion, index) => (
+                        <div
+                            key={index}
+                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                            onClick={() => {
+                                onChange({
+                                    target: { name, value: suggestion.properties.label }
+                                } as any);
+                                if (onSearchSelect) {
+                                    onSearchSelect(suggestion);
+                                }
+                            }}
+                        >
+                            {suggestion.properties.label}
+                        </div>
+                    ))}
+                </motion.div>
             </motion.div>
         </AnimatePresence>
     );

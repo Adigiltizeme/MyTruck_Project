@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FormAction, FormState } from '../types/form.types';
 import { CommandeMetier } from '../types/business.types';
 import { useFormValidation } from './useFormValidation';
@@ -40,8 +40,7 @@ export const useStepManagement = (
     onSubmit?: (data: CommandeMetier) => Promise<void>
 ) => {
 
-    const { validateStep } = useFormValidation(formState.data);
-    const { validateForm } = useFormValidation(formState.data);
+    const { validateStep, validateForm } = useFormValidation(formState.data);
 
     const handleNext = useCallback(() => {
         const errors = validateStep(formState.step);

@@ -1,4 +1,5 @@
 import { LivraisonFormProps } from "../../types/form.types";
+import { ERROR_MESSAGES } from "../constants/errorMessages";
 import { CRENEAUX_LIVRAISON, VEHICULES } from "../constants/options";
 import FormInput from "./FormInput";
 
@@ -54,16 +55,37 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         ))}
                     </select>
                 </div>
-                <FormInput
-                    label="Option équipier de manutention"
-                    name="livraison.equipiers"
-                    type="number"
-                    min={0}
-                    max={3}
-                    value={String(data.livraison?.equipiers || 0)}
-                    onChange={onChange}
-                    error={errors.livraison?.equipiers}
-                />
+                <div className="space-y-1">
+                <label className="block text-sm font-bold text-gray-700">
+                    Option équipier de manutention
+                </label>
+                <span className="ml-1 text-sm text-gray-500" title={ERROR_MESSAGES.equipiers.contact}>
+                    {ERROR_MESSAGES.equipiers.info}
+                </span>
+                <div className="relative">
+                    <input
+                        type="number"
+                        name="livraison.equipiers"
+                        min="0"
+                        max="3"
+                        value={data.livraison?.equipiers || 0}
+                        onChange={onChange}
+                        className={`mt-1 block w-full rounded-md border ${errors.livraison?.equipiers ? 'border-red-500' : 'border-gray-300'}`}
+                    />
+                    {errors.livraison?.equipiers && (
+                        <div className="mt-1 flex items-center">
+                            <span className="text-red-500 text-sm">{ERROR_MESSAGES.equipiers?.max}</span>
+                            <button
+                                type="button"
+                                onClick={() => window.location.href = 'mailto:commercial@mytruck.fr'}
+                                className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
+                            >
+                                Contacter le service commercial
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">
                         Autres remarques

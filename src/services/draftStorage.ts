@@ -436,12 +436,18 @@ export class DraftStorageService {
 
     async clearDraft(): Promise<DraftStorageResult> {
         try {
+            // Vérifier que la base de données est initialisée
+            if (!this.db) {
+                throw new Error('Base de données non initialisée');
+            }
             await this.db.table('drafts').clear();
+            console.log('Base de données nettoyée');
             return {
                 success: true,
-                message: 'Brouillon(s) supprimé(s)'
+                message: 'Brouillons supprimés'
             };
         } catch (error) {
+            console.error('Erreur clearDraft:', error);
             return {
                 success: false,
                 error: error as Error,
