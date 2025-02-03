@@ -114,20 +114,42 @@
 // };
 // export default CommandeDetails;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CommandeMetier } from '../types/business.types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { dateFormatter } from '../utils/formatters';
+import { useAuth } from '../contexts/AuthContext';
+import CommandeActions from './CommandeActions';
+import AdminActions from './AdminActions';
+import { AirtableService } from '../services/airtable.service';
+import { Personnel } from '../types/airtable.types';
+import { getStatutLivraisonStyle } from '../helpers/getStatus';
 
 interface CommandeDetailsProps {
     commande: CommandeMetier;
     onStatusChange?: (newStatus: string) => void;
+    onUpdate: (updatedCommande: CommandeMetier) => void;
 }
 
-const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
-    const [activeTab, setActiveTab] = useState('infos');
+const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate }) => {
+    const [activeTab, setActiveTab] = useState('informations');
+    const [chauffeurs, setChauffeurs] = useState([]);
+    const { user } = useAuth();
+
+    // Chargement des chauffeurs pour l'admin
+    useEffect(() => {
+        const loadChauffeurs = async () => {
+            if (user?.role === 'admin') {
+                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+                const personnelData = await airtableService.getPersonnel();
+                setChauffeurs(personnelData.filter((p: Personnel) => p.role === 'Chauffeur'));
+            }
+        };
+
+        loadChauffeurs();
+    }, [user]);
 
     // Vérification sécurisée des dates
     const timelineEvents = [
@@ -162,6 +184,390 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
         console.log('Ajouter photo article');
     }
 
+    const tabs = [
+        { id: 'informations', label: 'Informations' },
+        { id: 'photos-articles', label: 'Photos articles' },
+        { id: 'photos-commentaires', label: 'Photos commentaires' },
+        { id: 'chronologie', label: 'Chronologie' },
+        { id: 'historique', label: 'Historique' },
+        { id: 'documents', label: 'Documents' },
+        ...(user?.role === 'magasin' || user?.role === 'admin' ? [{ id: 'actions', label: 'Actions' }] : []),
+    ];
+
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'informations':
+                return (
+                    // Section Informations existante
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Magasin */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Magasin</h3>
+                            <div className="space-y-2">
+                                <p><span className="text-gray-500">Nom:</span> {commande.magasin?.name || 'Non spécifié'}</p>
+                                {/* <p><span className="text-gray-500">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
+                                    <p><span className="text-gray-500">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p> */}
+                            </div>
+                        </div>
+
+                        {/* Client */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Client</h3>
+                            <div className="space-y-2">
+                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p>
+                                <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
+                                <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
+                            </div>
+                        </div>
+
+                        {/* Livraison */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Livraison</h3>
+                            <div className="space-y-2">
+                                <p><span className="text-gray-500">Date:</span> {dateFormatter.forDisplay(commande.dates?.livraison)}</p>
+                                <p><span className="text-gray-500">Créneau:</span> {commande.livraison?.creneau || 'Non spécifié'}</p>
+                                <p><span className="text-gray-500">Véhicule:</span> {commande.livraison?.vehicule || 'Non spécifié'}</p>
+                                <p><span className="text-gray-500">Équipiers:</span> {commande.livraison?.equipiers || '0'}</p>
+                            </div>
+                        </div>
+
+                        {/* Articles */}
+                        {commande.articles && (
+                            <div className="space-y-4">
+                                <h3 className="font-medium text-lg">Articles</h3>
+                                <div className="space-y-2">
+                                    <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
+                                    <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
+                                </div>
+                                {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) && (
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        {commande.articles.photos.map((photo: string | { url: string }, index) => {
+                                            // Vérifier si l'URL de la photo est un URL valide
+                                            const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                                            return (
+                                                <div key={index} className="relative group">
+                                                    {photoUrl && (
+                                                        <img
+                                                            src={photoUrl}
+                                                            alt={`Photo article ${index + 1}`}
+                                                            className="rounded-lg w-20 h-20 object-cover"
+                                                            onError={(e) => {
+                                                                console.error('Erreur chargement image:', photoUrl);
+                                                                e.currentTarget.src = '/placeholder-image.jpg';
+                                                            }}
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Chauffeur(s)</h3>
+                            {commande.chauffeurs.length > 0 ? (
+                                commande.chauffeurs.map((chauffeur, index) => (
+                                    <div key={index} className="bg-gray-50 p-3 rounded">
+                                        <p>{chauffeur.prenom} {chauffeur.nom}</p>
+                                        <p className="text-sm text-gray-600">{chauffeur.telephone}</p>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="text-gray-500">Aucun chauffeur assigné</p>
+                            )}
+                        </div>
+
+                        {/* Autres remarques */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Autres remarques</h3>
+
+                            {commande.livraison?.remarques ? (
+                                <div className="space-y-2">
+                                    <p>{commande.livraison.remarques}</p>
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Aucune remarque</p>
+                            )}
+                        </div>
+
+                        {/* Commentaires */}
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-lg">Commentaires</h3>
+                            <div className="space-y-2">
+                                {(commande.livraison?.commentaireEnlevement || commande.livraison?.commentaireLivraison) ? (
+                                    <>
+                                        {commande.livraison?.commentaireEnlevement && (
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <p className="text-sm font-medium text-gray-700">À l'enlèvement:</p>
+                                                <p className="text-sm mt-1">{commande.livraison.commentaireEnlevement}</p>
+                                            </div>
+                                        )}
+
+                                        {commande.livraison?.commentaireLivraison && (
+                                            <div className="bg-gray-50 p-3 rounded-lg">
+                                                <p className="text-sm font-medium text-gray-700">À la livraison:</p>
+                                                <p className="text-sm mt-1">{commande.livraison.commentaireLivraison}</p>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <p className="text-gray-500">Aucun commentaire</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'photos-articles':
+                return (
+                    <div className="space-y-4">
+                        {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {commande.articles.photos.map((photo: string | { url: string }, index) => {
+                                    // Vérifier si l'URL de la photo est un URL valide
+                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                                    return (
+                                        <div key={index} className="relative group">
+                                            {photoUrl && (
+                                                <img
+                                                    src={photoUrl}
+                                                    alt={`Photo article ${index + 1}`}
+                                                    className="rounded-lg w-full h-48 object-cover"
+                                                    onError={(e) => {
+                                                        console.error('Erreur chargement image:', photoUrl);
+                                                        e.currentTarget.src = '/placeholder-image.jpg';
+                                                    }}
+                                                />
+                                            )}
+                                            <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                                <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
+                                                    onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
+                                                >
+                                                    Voir
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500">Aucune photo d'article disponible</p>
+                        )}
+                        <div className="flex justify-center mt-4">
+                            <button
+                                className="bg-red-600 text-white px-4 py-2 rounded-lg"
+                                onClick={() => addArticlePhoto()}
+                            >
+                                Ajouter photo
+                            </button>
+                        </div>
+                    </div>
+                );
+            case 'photos-commentaires':
+                return (
+                    <div className="space-y-4">
+                        {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && commande.livraison?.photosEnlevement.length > 0)
+                            || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && commande.livraison?.photosLivraison.length > 0) ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {commande.livraison?.photosEnlevement && commande.livraison.photosEnlevement.map((photo: string | { url: string }, index) => {
+                                    // Vérifier si l'URL de la photo est un URL valide
+                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                                    return (
+                                        <div key={`enlèvement-${index}`}>
+                                            <p className="text-sm font-medium text-gray-700">Photo(s) à l'enlèvement :</p>
+                                            <div className="relative group">
+
+                                                {photoUrl && (
+                                                    <img
+                                                        src={photoUrl}
+                                                        alt={`Photo commentaire ${index + 1}`}
+                                                        className="rounded-lg w-full h-48 object-cover"
+                                                        onError={(e) => {
+                                                            console.error('Erreur chargement image:', photoUrl);
+                                                            e.currentTarget.src = '/placeholder-image.jpg';
+                                                        }}
+                                                    />
+                                                )}
+                                                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                                    <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
+                                                        onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
+                                                    >
+                                                        Voir
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {commande.livraison?.photosLivraison?.map((photo: string | { url: string }, index) => {
+                                    // Vérifier si l'URL de la photo est un URL valide
+                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                                    return (
+                                        <div key={`livraison-${index}`}>
+                                            <p className="text-sm font-medium text-gray-700">Photo(s) à la livraison :</p>
+                                            <div className="relative group">
+
+                                                {photoUrl && (
+                                                    <img
+                                                        src={photoUrl}
+                                                        alt={`Photo commentaire ${index + 1}`}
+                                                        className="rounded-lg w-full h-48 object-cover"
+                                                        onError={(e) => {
+                                                            console.error('Erreur chargement image:', photoUrl);
+                                                            e.currentTarget.src = '/placeholder-image.jpg';
+                                                        }}
+                                                    />
+                                                )}
+                                                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                                    <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
+                                                        onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
+                                                    >
+                                                        Voir
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500">Aucune photo de commentaire disponible</p>
+                        )}
+                        <div className="flex justify-center mt-4">
+                            <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
+                                Ajouter photo
+                            </button>
+                        </div>
+                    </div>
+                );
+            case 'chronologie':
+                return (
+                    <div className="max-w-3xl mx-auto">
+                        <div className="flow-root">
+                            <ul className="-mb-8">
+                                {timelineEvents.map((event, index) => (
+                                    <li key={index}>
+                                        <div className="relative pb-8">
+                                            {index !== timelineEvents.length - 1 && (
+                                                <span
+                                                    className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                                                    aria-hidden="true"
+                                                />
+                                            )}
+                                            <div className="relative flex space-x-3">
+                                                <div>
+                                                    <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white
+                                                            ${event.type === 'commande' ? 'bg-blue-500' : 'bg-green-500'}`}>
+                                                        {/* Icon based on type */}
+                                                    </span>
+                                                </div>
+                                                <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                                                    <div>
+                                                        <p className="text-sm text-gray-500">
+                                                            {event.type === 'commande' ? 'Commande' : 'Livraison'} : {event.status}
+                                                        </p>
+                                                    </div>
+                                                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                                                        {formatDate(event.date)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    </div>
+                );
+            case 'historique':
+                return (
+                    <div className="space-y-4">
+                        {commande.dates?.misAJour ? (
+                            <div className="flow-root">
+                                <ul className="-mb-8">
+                                    <li>
+                                        <div className="relative pb-8">
+                                            <div className="relative flex space-x-3">
+                                                <div>
+                                                    <span className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white">
+                                                        {/* Icon */}
+                                                    </span>
+                                                </div>
+                                                <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
+                                                    <div>
+                                                        <p className="text-sm text-gray-500">
+                                                            Dernière modification
+                                                        </p>
+                                                    </div>
+                                                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                                                        {formatDate(commande.dates.misAJour)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500">Aucun historique disponible</p>
+                        )}
+                    </div>
+                );
+            case 'documents':
+                return (
+                    <div className="space-y-4">
+                        {(commande.articles?.photos?.length ?? 0) > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {commande.articles.photos?.map((photo, index) => (
+                                    <div key={index} className="relative group">
+                                        <img
+                                            src={photo.url}
+                                            alt={`Document ${index + 1}`}
+                                            className="rounded-lg w-full h-48 object-cover"
+                                        />
+                                        <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                            <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
+                                                Voir
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-500">Aucun document disponible</p>
+                        )}
+                        {/* Ajouter factures et devis */}
+                        {<div className="flex justify-center">
+                            <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
+                                Ajouter document
+                            </button>
+                        </div>}
+                    </div>
+                );
+            case 'actions':
+                return (
+                    <div className="p-4 bg-white rounded-lg shadow-sm">
+                        {user?.role === 'magasin' && (
+                            <CommandeActions
+                                commande={commande}
+                                onUpdate={onUpdate}
+                            />
+                        )}
+                        {user?.role === 'admin' && (
+                            <AdminActions
+                                commande={commande}
+                                chauffeurs={chauffeurs}
+                                onUpdate={onUpdate}
+                            />
+                        )}
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* En-tête avec informations principales */}
@@ -170,10 +576,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
                     <h2 className="text-xl font-semibold">
                         Commande #{commande.numeroCommande || 'Non spécifiée'}
                     </h2>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium
-                        ${commande.statuts?.livraison === 'LIVREE' ? 'bg-green-300 text-green-1000' :
-                            commande.statuts?.livraison === 'EN COURS DE LIVRAISON' ? 'bg-blue-300 text-blue-1000' :
-                                'bg-gray-300 text-gray-1000'}`}>
+                    <span className={`ml-2 ${getStatutLivraisonStyle(commande.statuts.livraison)}`}>
                         {commande.statuts?.livraison || 'Non spécifié'}
                     </span>
                 </div>
@@ -182,14 +585,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
             {/* Navigation par onglets */}
             <div className="border-b">
                 <nav className="flex">
-                    {[
-                        { id: 'infos', label: 'Informations' },
-                        { id: 'photos-articles', label: 'Photos articles' },
-                        { id: 'photos-commentaires', label: 'Photos commentaires' },
-                        { id: 'timeline', label: 'Chronologie' },
-                        { id: 'historique', label: 'Historique' },
-                        { id: 'documents', label: 'Documents' },
-                    ].map(tab => (
+                    {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -214,353 +610,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
                     transition={{ duration: 0.2 }}
                     className="p-4"
                 >
-                    {activeTab === 'infos' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Magasin */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Magasin</h3>
-                                <div className="space-y-2">
-                                    <p><span className="text-gray-500">Nom:</span> {commande.magasin?.name || 'Non spécifié'}</p>
-                                    {/* <p><span className="text-gray-500">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
-                                    <p><span className="text-gray-500">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p> */}
-                                </div>
-                            </div>
-
-                            {/* Client */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Client</h3>
-                                <div className="space-y-2">
-                                    <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p>
-                                    <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
-                                    <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
-                                </div>
-                            </div>
-
-                            {/* Livraison */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Livraison</h3>
-                                <div className="space-y-2">
-                                    <p><span className="text-gray-500">Date:</span> {dateFormatter.forDisplay(commande.dates?.livraison)}</p>
-                                    <p><span className="text-gray-500">Créneau:</span> {commande.livraison?.creneau || 'Non spécifié'}</p>
-                                    <p><span className="text-gray-500">Véhicule:</span> {commande.livraison?.vehicule || 'Non spécifié'}</p>
-                                    <p><span className="text-gray-500">Équipiers:</span> {commande.livraison?.equipiers || '0'}</p>
-                                </div>
-                            </div>
-
-                            {/* Articles */}
-                            {commande.articles && (
-                                <div className="space-y-4">
-                                    <h3 className="font-medium text-lg">Articles</h3>
-                                    <div className="space-y-2">
-                                        <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
-                                        <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
-                                    </div>
-                                    {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) && (
-                                        <div className="grid grid-cols-2 gap-2 mt-2">
-                                            {commande.articles.photos.map((photo: string | { url: string }, index) => {
-                                                // Vérifier si l'URL de la photo est un URL valide
-                                                const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                                return (
-                                                    <div key={index} className="relative group">
-                                                        {photoUrl && (
-                                                            <img
-                                                                src={photoUrl}
-                                                                alt={`Photo article ${index + 1}`}
-                                                                className="rounded-lg w-20 h-20 object-cover"
-                                                                onError={(e) => {
-                                                                    console.error('Erreur chargement image:', photoUrl);
-                                                                    e.currentTarget.src = '/placeholder-image.jpg';
-                                                                }}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Chauffeur(s)</h3>
-                                {commande.chauffeurs.length > 0 ? (
-                                    commande.chauffeurs.map((chauffeur, index) => (
-                                        <div key={index} className="bg-gray-50 p-3 rounded">
-                                            <p>{chauffeur.prenom} {chauffeur.nom}</p>
-                                            <p className="text-sm text-gray-600">{chauffeur.telephone}</p>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <p className="text-gray-500">Aucun chauffeur assigné</p>
-                                )}
-                            </div>
-
-                            {/* Autres remarques */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Autres remarques</h3>
-
-                                {commande.livraison?.remarques ? (
-                                    <div className="space-y-2">
-                                        <p>{commande.livraison.remarques}</p>
-                                    </div>
-                                ) : (
-                                    <p className="text-gray-500">Aucune remarque</p>
-                                )}
-                            </div>
-
-                            {/* Commentaires */}
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Commentaires</h3>
-                                <div className="space-y-2">
-                                    {(commande.livraison?.commentaireEnlevement || commande.livraison?.commentaireLivraison) ? (
-                                        <>
-                                            {commande.livraison?.commentaireEnlevement && (
-                                                <div className="bg-gray-50 p-3 rounded-lg">
-                                                    <p className="text-sm font-medium text-gray-700">À l'enlèvement:</p>
-                                                    <p className="text-sm mt-1">{commande.livraison.commentaireEnlevement}</p>
-                                                </div>
-                                            )}
-
-                                            {commande.livraison?.commentaireLivraison && (
-                                                <div className="bg-gray-50 p-3 rounded-lg">
-                                                    <p className="text-sm font-medium text-gray-700">À la livraison:</p>
-                                                    <p className="text-sm mt-1">{commande.livraison.commentaireLivraison}</p>
-                                                </div>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <p className="text-gray-500">Aucun commentaire</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'photos-articles' && (
-                        <div className="space-y-4">
-                            {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {commande.articles.photos.map((photo: string | { url: string }, index) => {
-                                        // Vérifier si l'URL de la photo est un URL valide
-                                        const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                        return (
-                                            <div key={index} className="relative group">
-                                                {photoUrl && (
-                                                    <img
-                                                        src={photoUrl}
-                                                        alt={`Photo article ${index + 1}`}
-                                                        className="rounded-lg w-full h-48 object-cover"
-                                                        onError={(e) => {
-                                                            console.error('Erreur chargement image:', photoUrl);
-                                                            e.currentTarget.src = '/placeholder-image.jpg';
-                                                        }}
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                    <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                        onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-                                                    >
-                                                        Voir
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500">Aucune photo d'article disponible</p>
-                            )}
-                            <div className="flex justify-center mt-4">
-                                <button
-                                    className="bg-red-600 text-white px-4 py-2 rounded-lg"
-                                    onClick={() => addArticlePhoto()}
-                                >
-                                    Ajouter photo
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'photos-commentaires' && (
-                        <div className="space-y-4">
-                            {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && commande.livraison?.photosEnlevement.length > 0)
-                                || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && commande.livraison?.photosLivraison.length > 0) ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {commande.livraison?.photosEnlevement && commande.livraison.photosEnlevement.map((photo: string | { url: string }, index) => {
-                                        // Vérifier si l'URL de la photo est un URL valide
-                                        const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                        return (
-                                            <div key={`enlèvement-${index}`}>
-                                                <p className="text-sm font-medium text-gray-700">Photo(s) à l'enlèvement :</p>
-                                                <div className="relative group">
-
-                                                    {photoUrl && (
-                                                        <img
-                                                            src={photoUrl}
-                                                            alt={`Photo commentaire ${index + 1}`}
-                                                            className="rounded-lg w-full h-48 object-cover"
-                                                            onError={(e) => {
-                                                                console.error('Erreur chargement image:', photoUrl);
-                                                                e.currentTarget.src = '/placeholder-image.jpg';
-                                                            }}
-                                                        />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                        <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                            onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-                                                        >
-                                                            Voir
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {commande.livraison?.photosLivraison?.map((photo: string | { url: string }, index) => {
-                                        // Vérifier si l'URL de la photo est un URL valide
-                                        const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                        return (
-                                            <div key={`livraison-${index}`}>
-                                                <p className="text-sm font-medium text-gray-700">Photo(s) à la livraison :</p>
-                                                <div className="relative group">
-
-                                                    {photoUrl && (
-                                                        <img
-                                                            src={photoUrl}
-                                                            alt={`Photo commentaire ${index + 1}`}
-                                                            className="rounded-lg w-full h-48 object-cover"
-                                                            onError={(e) => {
-                                                                console.error('Erreur chargement image:', photoUrl);
-                                                                e.currentTarget.src = '/placeholder-image.jpg';
-                                                            }}
-                                                        />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                        <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                            onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-                                                        >
-                                                            Voir
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500">Aucune photo de commentaire disponible</p>
-                            )}
-                            <div className="flex justify-center mt-4">
-                                <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
-                                    Ajouter photo
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'timeline' && (
-                        <div className="max-w-3xl mx-auto">
-                            <div className="flow-root">
-                                <ul className="-mb-8">
-                                    {timelineEvents.map((event, index) => (
-                                        <li key={index}>
-                                            <div className="relative pb-8">
-                                                {index !== timelineEvents.length - 1 && (
-                                                    <span
-                                                        className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                                                        aria-hidden="true"
-                                                    />
-                                                )}
-                                                <div className="relative flex space-x-3">
-                                                    <div>
-                                                        <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white
-                                                            ${event.type === 'commande' ? 'bg-blue-500' : 'bg-green-500'}`}>
-                                                            {/* Icon based on type */}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                        <div>
-                                                            <p className="text-sm text-gray-500">
-                                                                {event.type === 'commande' ? 'Commande' : 'Livraison'} : {event.status}
-                                                            </p>
-                                                        </div>
-                                                        <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                                                            {formatDate(event.date)}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'historique' && (
-                        <div className="space-y-4">
-                            {commande.dates?.misAJour ? (
-                                <div className="flow-root">
-                                    <ul className="-mb-8">
-                                        <li>
-                                            <div className="relative pb-8">
-                                                <div className="relative flex space-x-3">
-                                                    <div>
-                                                        <span className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white">
-                                                            {/* Icon */}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                        <div>
-                                                            <p className="text-sm text-gray-500">
-                                                                Dernière modification
-                                                            </p>
-                                                        </div>
-                                                        <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                                                            {formatDate(commande.dates.misAJour)}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </li>
-                                    </ul>
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500">Aucun historique disponible</p>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'documents' && (
-                        <div className="space-y-4">
-                            {(commande.articles?.photos?.length ?? 0) > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {commande.articles.photos?.map((photo, index) => (
-                                        <div key={index} className="relative group">
-                                            <img
-                                                src={photo.url}
-                                                alt={`Document ${index + 1}`}
-                                                className="rounded-lg w-full h-48 object-cover"
-                                            />
-                                            <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
-                                                    Voir
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="text-center text-gray-500">Aucun document disponible</p>
-                            )}
-                            {/* Ajouter factures et devis */}
-                            {<div className="flex justify-center">
-                                <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
-                                    Ajouter document
-                                </button>
-                            </div>}
-                        </div>
-                    )}
+                    {renderContent()}
                 </motion.div>
             </AnimatePresence>
         </div>

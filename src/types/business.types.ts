@@ -55,6 +55,10 @@ export interface PersonnelInfo {
     role: 'Chauffeur' | 'Direction' | 'Section IT' | 'Dispatcher';
     email?: string;
     status: string;
+    location?: {
+        longitude?: number;
+        latitude?: number;
+    }
 }
 
 export interface FormattedDate {

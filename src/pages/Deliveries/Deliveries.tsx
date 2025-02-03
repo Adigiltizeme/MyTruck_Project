@@ -1,23 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AirtableService } from '../services/airtable.service';
-import { CommandeMetier } from '../types/business.types';
-import Pagination from '../components/Pagination';
-import CommandeDetails from '../components/CommandeDetails';
-import { useAuth } from '../contexts/AuthContext';
-import { useAirtable } from '../hooks/useAirtable';
-import { RoleSelector } from '../components/RoleSelector';
-import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../helpers/getStatus';
-import { useSearch } from '../hooks/useSearch';
-import { useDateRange } from '../hooks/useDateRange';
-import { useSort } from '../hooks/useSort';
-import { usePagination } from '../hooks/usePagination';
-import { DateRange, SortableFields } from '../types/hooks.types';
-import { dateFormatter } from '../utils/formatters';
-import { Modal } from '../components/Modal';
-import AjoutCommande from '../components/AjoutCommande';
-import { useDraftStorage } from '../hooks/useDraftStorage';
+import { AirtableService } from '../../services/airtable.service';
+import { CommandeMetier } from '../../types/business.types';
+import Pagination from '../../components/Pagination';
+import CommandeDetails from '../../components/CommandeDetails';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAirtable } from '../../hooks/useAirtable';
+import { RoleSelector } from '../../components/RoleSelector';
+import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../../helpers/getStatus';
+import { useSearch } from '../../hooks/useSearch';
+import { useDateRange } from '../../hooks/useDateRange';
+import { useSort } from '../../hooks/useSort';
+import { usePagination } from '../../hooks/usePagination';
+import { DateRange, SortableFields } from '../../types/hooks.types';
+import { dateFormatter } from '../../utils/formatters';
+import { Modal } from '../../components/Modal';
+import AjoutCommande from '../../components/AjoutCommande';
+import { useDraftStorage } from '../../hooks/useDraftStorage';
 
-const TestAirtable = () => {
+const Deliveries = () => {
     const { user } = useAuth();
     const airtable = useAirtable();
 
@@ -73,7 +73,7 @@ const TestAirtable = () => {
 
     const { currentPage, setCurrentPage, paginatedItems, totalPages } = usePagination({
         items: sortedItems,
-        itemsPerPage: 10
+        itemsPerPage: rowsPerPage
     });
 
     useEffect(() => {
@@ -111,6 +111,7 @@ const TestAirtable = () => {
     };
 
     const [showNewCommandeModal, setShowNewCommandeModal] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const handleCreateCommande = async (commande: Partial<CommandeMetier>) => {
         setLoading(true);
@@ -118,8 +119,10 @@ const TestAirtable = () => {
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
             await airtableService.createCommande(commande);
             // La commande a été créée avec succès, maintenant on peut supprimer le brouillon
-        await clearDraft();
+            await clearDraft();
             setShowNewCommandeModal(false);
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 3000);
             await fetchData(); // Recharge les données
         } catch (error) {
             if (error instanceof Error && error.message.includes('Token')) {
@@ -133,7 +136,7 @@ const TestAirtable = () => {
         }
     };
 
-    const sortableFields: SortableFields[] = ['dates', 'statuts', 'magasin', 'chauffeur'];
+    const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur'];
 
     return (
         <div className="p-6">
@@ -143,7 +146,7 @@ const TestAirtable = () => {
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">
-                    {user?.role === 'admin' && 'Administration Airtable'}
+                    {user?.role === 'admin' && 'Direction My Truck'}
                     {user?.role === 'magasin' && 'Gestion des Commandes'}
                     {user?.role === 'chauffeur' && 'Mes Livraisons'}
                 </h1>
@@ -410,7 +413,12 @@ const TestAirtable = () => {
                                             <tr className="bg-gray-50">
                                                 <td colSpan={10} className="px-4 py-2">
                                                     <div className="border-l-4 border-blue-500 pl-4">
-                                                        <CommandeDetails commande={commande} />
+                                                        <CommandeDetails 
+                                                            commande={commande} 
+                                                            onUpdate={(updatedCommande) => {
+                                                                setData(prevData => prevData.map(c => c.id === updatedCommande.id ? updatedCommande : c));
+                                                            }} 
+                                                        />
                                                     </div>
                                                 </td>
                                             </tr>
@@ -419,6 +427,11 @@ const TestAirtable = () => {
                                 ))}
                             </tbody>
                         </table>
+                        {showSuccess && (
+                            <div className="fixed bottom-5 right-5 bg-green-400 text-white px-6 py-3 rounded shadow-lg z-50">
+                                Commande créée avec succès !
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -619,4 +632,4 @@ const TestAirtable = () => {
     );
 };
 
-export default TestAirtable;
+export default Deliveries;

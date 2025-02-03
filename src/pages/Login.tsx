@@ -13,7 +13,7 @@ const Login = () => {
         e.preventDefault();
         try {
             await login(email, password);
-            navigate('/dashboard');
+            navigate('/deliveries');
         } catch (error) {
             setError('Erreur de connexion');
         }

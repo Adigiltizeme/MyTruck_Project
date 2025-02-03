@@ -1,136 +1,27 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { CommandeMetier, ArticlesType } from '../types/business.types';
-import { FormAction, FormState } from '../types/form.types';
-import { ValidationErrors } from '../types/validation.types';
+import React, { useEffect, useState } from 'react';
+import { CommandeMetier } from '../types/business.types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AirtableService } from '../services/airtable.service';
-import FormInput from './forms/FormInput';
 import { CRENEAUX_LIVRAISON, VEHICULES } from './constants/options';
-import { formatPhoneNumber } from '../utils/formatters';
-import { debounce } from 'lodash';
-// import { ERROR_MESSAGES } from './constants/errorMessages';
-import { format } from 'date-fns';
-import PhotoUploader from './PhotoUploader';
 import { useDraftStorage } from '../hooks/useDraftStorage';
-import { useStepManagement } from '../hooks/useStepManagement';
-import { useFormValidation } from '../hooks/useFormValidation';
 import { useCommandeForm } from '../hooks/useCommandeForm';
 import { ClientForm } from './forms/ClientForm';
 import { ArticlesForm } from './forms/ArticlesForm';
 import { LivraisonForm } from './forms/LivraisonForm';
-import { s } from 'framer-motion/client';
-import { ERROR_MESSAGES } from './constants/errorMessages';
+import { RecapitulatifForm } from './forms/RecapitulatifForm';
+
 
 interface AjoutCommandeProps {
     onSubmit: (commande: Partial<CommandeMetier>) => Promise<void>;
     onCancel: () => void;
 }
 
-interface SubmitStatus {
-    isSubmitting: boolean;
-    error: string | null;
-    success: boolean;
-}
-
-const validateEquipiers = (value: number) => {
-    if (value > 2) {
-        return {
-            isValid: false,
-            // message: ERROR_MESSAGES.equipiers.max
-        };
-    }
-    return { isValid: true, message: "" };
-};
-
-
 const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => {
-    const [activeStep, setActiveStep] = useState(1);
-    const [errors, setErrors] = useState<ValidationErrors>({});
-    const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
-        commande: {
-            numeroCommande: '',
-            dates: {
-                commande: new Date().toISOString(),
-                livraison: '',
-                misAJour: new Date().toISOString()
-            },
-        },
-        client: {
-            nom: '',
-            prenom: '',
-            nomComplet: '',
-            telephone: {
-                principal: '',
-                secondaire: ''
-            },
-            adresse: {
-                type: 'Domicile', // ou 'Professionnelle'
-                ligne1: '',
-                batiment: '',
-                etage: '',
-                ascenseur: false, // ou true
-                interphone: ''
-            }
-        },
-        articles: {
-            nombre: 0,
-            details: '',
-            photos: []
-        },
-        livraison: {
-            creneau: '',
-            vehicule: '',
-            equipiers: 0,
-            reserve: false,
-            remarques: '',
-            chauffeurs: []
-        },
-        vendeur: {
-            prenom: '',
-        },
-        magasin: {
-            id: '',
-            name: '',
-            address: '',
-            phone: '',
-            email: '',
-            manager: '',
-            status: '',
-            photo: ''
-        }
-    });
-    const [isValid, setIsValid] = useState<boolean>(false);
-    const [direction, setDirection] = useState<'left' | 'right'>('right');
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [submitStatus, setSubmitStatus] = useState<{
-        isSubmitting: boolean;
-        error: string | null;
-        success: boolean;
-    }>({
-        isSubmitting: false,
-        error: null,
-        success: false
-    });
+
     const [creneaux, setCreneaux] = useState(CRENEAUX_LIVRAISON);
     const [vehicules, setVehicules] = useState<{ [key: string]: string }>(VEHICULES);
-    const [formState, setFormState] = useState<FormState>({
-        data: formData,
-        errors: {},
-        isValid: false,
-        isDirty: false,
-        isSubmitting: false,
-        step: 1,
-        direction: 'right',
-        showErrors: false
-    });
 
-    const updateFormState = useCallback((updates: Partial<FormState>) => {
-        setFormState(prev => ({ ...prev, ...updates }));
-    }, []);
-
-    const { draftData, loading, error, saveDraft, clearDraft, hasDraft } = useDraftStorage();
-    const { validateForm } = useFormValidation(formState.data);
-    // const { validateStep } = useStepManagement(formState, updateFormState);
+    const { loading } = useDraftStorage();
 
     const {
         state,               // Contient formData, errors, step, etc.
@@ -138,6 +29,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
         handleNext,          // Navigation suivant
         handlePrev,         // Navigation précédent
         handleSubmit,       // Soumission du formulaire
+        isSubmitting,       // En cours de soumission
         progress,           // Progression (pourcentages, étapes)
         stepsConfig,
         displayErrors,
@@ -146,12 +38,6 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
         handleAddressSelect, // Sélection d'adresse
         addressSuggestions,  // Suggestions d'adresse
     } = useCommandeForm(onSubmit);
-
-    const handleFormSubmit = async () => {
-        if (state.step === 3) {
-            await onSubmit(state.data as CommandeMetier);
-        }
-    };
 
     const renderStep = () => {
         switch (state.step) {
@@ -183,6 +69,15 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
                         showErrors={state.showErrors}
                     />
                 );
+            case 4:
+                return (
+                    <RecapitulatifForm
+                        data={state.data}
+                        errors={state.errors}
+                        onChange={handleInputChange}
+                        showErrors={state.showErrors}
+                    />
+                )
             default:
                 return null;
         }
@@ -213,83 +108,9 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
         loadOptions();
     }, []);
 
-    const resetForm = useCallback(() => {
-        setFormData({
-            commande: {
-                numeroCommande: '',
-                dates: {
-                    commande: new Date().toISOString(),
-                    livraison: new Date().toISOString(),
-                    misAJour: new Date().toISOString()
-                },
-            },
-            client: {
-                nom: '',
-                prenom: '',
-                nomComplet: '',
-                telephone: {
-                    principal: '',
-                    secondaire: ''
-                },
-                adresse: {
-                    type: 'Domicile',
-                    ligne1: '',
-                    batiment: '',
-                    etage: '',
-                    ascenseur: false,
-                    interphone: ''
-                }
-            },
-            articles: {
-                nombre: 0,
-                details: '',
-                photos: []
-            },
-            livraison: {
-                creneau: '',
-                vehicule: '',
-                equipiers: 0,
-                reserve: false,
-                remarques: '',
-                chauffeurs: []
-            },
-            vendeur: {
-                prenom: '',
-            },
-            magasin: {
-                id: '',
-                name: '',
-                address: '',
-                phone: '',
-                email: '',
-                manager: '',
-                status: '',
-                photo: ''
-            }
-        });
-        setActiveStep(1);
-        setErrors({});
-        setIsValid(false);
-    }, []);
-
     if (loading) {
         return <div className='secondary'>Chargement...</div>;
     }
-
-    const updateFormField = (path: string, value: any) => {
-        const keys = path.split('.');
-        setFormData(prev => {
-            const newData = { ...prev };
-            let current = newData;
-            for (let i = 0; i < keys.length - 1; i++) {
-                current[keys[i]] = { ...current[keys[i]] };
-                current = current[keys[i]];
-            }
-            current[keys[keys.length - 1]] = value;
-
-            return newData;
-        });
-    };
 
     // Pour les transitions entre les étapes
     const slideVariants = {
@@ -324,7 +145,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
             </div>
             {/* En-tête avec étapes */}
             <div className="flex justify-between items-center mb-8">
-                {['Client', 'Articles', 'Livraison'].map((step, index) => (
+                {['Client', 'Articles', 'Livraison', 'Confirmer'].map((step, index) => (
                     <div key={index} className="flex flex-col items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center
                 ${state.step === index + 1
@@ -393,12 +214,22 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
 
                         {progress.isLastStep ? (
                             <button
-                                type="submit"
-                                onClick={handleFormSubmit}
-                                disabled={!progress.canProceed || state.isSubmitting}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50"
+                                type="button"
+                                onClick={handleSubmit}
+                                disabled={!progress.canProceed || isSubmitting}
+                                className={`px-4 py-2 text-white rounded-lg ${!progress.canProceed || isSubmitting
+                                    ? 'bg-red-300 cursor-not-allowed'
+                                    : 'bg-red-600 hover:bg-red-700'
+                                    }`}
                             >
-                                {state.isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+                                {isSubmitting ? (
+                                    <div className="flex items-center">
+                                        Enregistrement... &nbsp;
+                                        <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent"></div>
+                                    </div>
+                                ) : (
+                                    'Enregistrer'
+                                )}
                             </button>
                         ) : (
                             <button

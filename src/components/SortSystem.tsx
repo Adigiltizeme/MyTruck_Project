@@ -16,7 +16,7 @@ export const SortSystem = () => {
     return (
         <div className="flex items-center gap-2 mb-4">
             <span className="text-sm text-gray-500">Trier par:</span>
-            {['date', 'statut', 'magasin', 'chauffeur'].map(key => (
+            {['date', 'creneau', 'statut', 'magasin', 'chauffeur'].map(key => (
                 <button
                     key={key}
                     onClick={() => handleSort(key)}

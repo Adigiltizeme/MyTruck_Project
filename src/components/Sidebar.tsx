@@ -14,14 +14,14 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       href: '/home',
     },
     {
-      name: 'Dashboard',
-      icon: ChartBarIcon,
-      href: '/dashboard',
-    },
-    {
       name: 'Livraisons',
       icon: TruckIcon,
       href: '/deliveries',
+    },
+    {
+      name: 'Dashboard',
+      icon: ChartBarIcon,
+      href: '/dashboard',
     },
     {
       name: 'Chauffeurs',
@@ -32,11 +32,6 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Profil',
       icon: UserCircleIcon,
       href: '/profile',
-    },
-    {
-      name: 'Test Airtable',
-      icon: BeakerIcon,
-      href: '/test-airtable',
     },
     {
       name: 'Login',
@@ -51,17 +46,16 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         key={item.href}
         to={item.href}
         onClick={() => isMobile && onCloseMobile?.()}
-        className={({ isActive }) => 
+        className={({ isActive }) =>
           `flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1
           ${isActive ? 'bg-red-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`
         }
       >
         {({ isActive }) => (
           <>
-            <item.icon 
-              className={`h-5 w-5 mr-3 ${
-                isActive ? 'text-white' : 'text-gray-500'
-              }`} 
+            <item.icon
+              className={`h-5 w-5 mr-3 ${isActive ? 'text-white' : 'text-gray-500'
+                }`}
             />
             <span>{item.name}</span>
           </>
@@ -75,9 +69,9 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       {/* Logo header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100">
         <div className="w-28 py-2"> {/* Ajout du padding vertical et réduction de la largeur */}
-          <img 
-            src="/my-truck-logo.jpg" 
-            alt="My Truck" 
+          <img
+            src="/my-truck-logo.jpg"
+            alt="My Truck"
             className="h-auto w-full object-contain"
           />
         </div>

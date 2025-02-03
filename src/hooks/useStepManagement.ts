@@ -72,9 +72,9 @@ export const useStepManagement = (
         const canProceed = Object.keys(errors).length === 0;
 
         return {
-            percentage: ((formState.step - 1) / 2) * 100,
+            percentage: ((formState.step - 1) / 3) * 100,
             isFirstStep: formState.step === 1,
-            isLastStep: formState.step === 3,
+            isLastStep: formState.step === 4,
             canProceed
         };
     }, [formState.step, validateStep]);
@@ -95,6 +95,11 @@ export const useStepManagement = (
             title: 'Livraison',
             isValid: !Object.keys(validateForm().errors.livraison || {}).length,
             canProceed: !Object.keys(validateForm().errors.livraison || {}).length
+        },
+        4: {
+            title: 'Récapitulatif',
+            isValid: true,
+            canProceed: true
         }
     };
 

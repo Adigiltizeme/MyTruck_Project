@@ -87,12 +87,16 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
                     };
                 }
 
+                break;
+
+            case 4: // Récapitulatif
                 if (!formData.magasin?.manager) {
                     errors.magasin = {
                         ...errors.magasin,
                         manager: ERROR_MESSAGES.required
                     };
                 }
+
                 break;
         }
 
@@ -103,7 +107,8 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
         const errors = {
             ...validateStep(1),
             ...validateStep(2),
-            ...validateStep(3)
+            ...validateStep(3),
+            ...validateStep(4)
         };
 
         return {

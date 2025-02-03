@@ -27,6 +27,7 @@ export class AirtableService {
     private cache = new Map<string, { data: any; timestamp: number; }>();
     private batchQueue = new Map<string, Promise<any>>();
     private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+    private baseUrl = 'https://api.airtable.com/v0';
     private readonly FIELD_IDS = {
         CRENEAU: 'fldzfVXSwN64ydsnr',
         VEHICULE: 'fldh2RXJelY2MhvuB'
@@ -34,7 +35,7 @@ export class AirtableService {
 
     constructor(
         private token: string,
-        private baseId = 'apprk0i4Hqqq3Cmg6',
+        private baseId = import.meta.env.VITE_AIRTABLE_BASE_ID as string,
         private tables = {
             commandes: 'tbl75HakJKQ2KWyGF',
             magasins: 'tblCzo9Nni2lKeDwf',
@@ -454,5 +455,95 @@ export class AirtableService {
             return Object.values(VEHICULES);
         }
         return [];
+    }
+
+    async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
+        try {
+            const cloudinaryService = new CloudinaryService();
+
+            // Upload des photos vers Cloudinary
+            const photosAttachments = await Promise.all(
+                (commande.articles?.photos || []).map(async photo => {
+                    if (photo.file) {
+                        const uploadedImage = await cloudinaryService.uploadImage(photo.file);
+                        return {
+                            url: uploadedImage.url,
+                            filename: uploadedImage.filename
+                        };
+                    }
+                    return null;
+                })
+            );
+
+            // S'assurer que equipiers est une chaîne de caractères
+            const equipiers = commande.livraison?.equipiers?.toString() || '0';
+            // Préparation des champs en respectant les noms exacts d'Airtable
+            const fields = {
+                'NUMERO DE COMMANDE': commande.numeroCommande || `CMD${Date.now()}`,
+                'NOM DU CLIENT': commande.client?.nom,
+                'PRENOM DU CLIENT': commande.client?.prenom,
+                'TELEPHONE DU CLIENT': commande.client?.telephone?.principal,
+                'TELEPHONE DU CLIENT 2': commande.client?.telephone?.secondaire,
+                'ADRESSE DE LIVRAISON': commande.client?.adresse?.ligne1,
+                'TYPE D\'ADRESSE': commande.client?.adresse?.type,
+                'BÂTIMENT': commande.client?.adresse?.batiment,
+                'INTERPHONE/CODE': commande.client?.adresse?.interphone,
+                'ASCENSEUR': commande.client?.adresse?.ascenseur ? 'Oui' : 'Non',
+                'ETAGE': commande.client?.adresse?.etage,
+                'DATE DE LIVRAISON': commande.dates?.livraison || null,
+                'CRENEAU DE LIVRAISON': commande.livraison?.creneau,
+                'CATEGORIE DE VEHICULE': commande.livraison?.vehicule,
+                'OPTION EQUIPIER DE MANUTENTION': equipiers, // Utilisation de la valeur convertie en chaîne
+                'NOMBRE TOTAL D\'ARTICLES': commande.articles?.nombre?.toString(),
+                'DETAILS SUR LES ARTICLES': commande.articles?.details,
+                'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
+                'AUTRES REMARQUES': commande.livraison?.remarques,
+                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'OUI' : 'NON',
+                'STATUT DE LA COMMANDE': 'En attente',
+                'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': 'EN ATTENTE',
+                'PRENOM DU VENDEUR/INTERLOCUTEUR': commande.magasin?.manager,
+            };
+
+            console.log('Données envoyées à Airtable:', {
+                ...fields,
+                'PHOTOS ARTICLES': photosAttachments.length > 0 ? `${photosAttachments.length} photos` : 'Aucune photo'
+            });
+
+            const response = await this.fetchFromAirtable(this.tables.commandes, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    fields,
+                    typecast: true
+                }),
+                // headers: {
+                //     'Content-Type': 'application/json'
+                // }
+            });
+
+            return transformAirtableToCommande(response);
+        } catch (error) {
+            console.error('Erreur updateCommande:', error);
+            throw error;
+        }
+    }
+
+    async getDocument(commandeId: string, type: 'facture' | 'devis'): Promise<Blob> {
+        try {
+            const response = await this.fetchFromAirtable(`${this.tables.commandes}/${commandeId}/documents/${type}`, {
+                responseType: 'blob',
+                headers: {
+                    'Accept': 'application/pdf'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur lors de la récupération du document: ${response.statusText}`);
+            }
+
+            return await response.blob();
+        } catch (error) {
+            console.error('Erreur lors de la récupération du document:', error);
+            throw error;
+        }
     }
 }

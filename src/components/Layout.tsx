@@ -70,7 +70,7 @@ const Layout = () => {
 
         {/* Contenu */}
         <main className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-[90%] mx-auto"> {/* Largeur max du contenu, avant : "max-w-7xl mx-auto" et possible également : "w-full px-6" */}
             <Outlet />
           </div>
         </main>

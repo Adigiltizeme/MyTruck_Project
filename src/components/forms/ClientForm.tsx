@@ -21,6 +21,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
             <div className='grid grid-cols-2 gap-4'>
                 <FormInput
                     label="Numéro de commande"
+                    subLabel="Si aucun, un sera généré automatiquement"
                     name="numeroCommande"
                     value={data.numeroCommande || ''}
                     onChange={onChange}
@@ -115,6 +116,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                 <div className="grid grid-cols-2 gap-4">
                     <FormInput
                         label="Interphone/Code"
+                        subLabel="Si aucun, le mentionner"
                         name="client.adresse.interphone"
                         value={data.client?.adresse?.interphone || ''}
                         onChange={onChange}
@@ -130,7 +132,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                         required
                     />
                     <div>
-                        <label className='mt-1 block text-sm font-bold text-gray-700'>Ascenseur</label>
+                        <label className='mt-1 block text-sm font-bold text-gray-700'>Ascenseur <span className="text-red-500">*</span></label>
                         <select
                             className='border border-gray-300 rounded-md'
                             name="client.adresse.ascenseur"

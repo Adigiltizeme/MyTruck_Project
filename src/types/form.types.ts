@@ -47,3 +47,4 @@ export interface AddressSuggestion {
 export interface ClientFormProps extends BaseFormProps {}
 export interface ArticlesFormProps extends BaseFormProps {}
 export interface LivraisonFormProps extends BaseFormProps {showErrors: boolean;}
+export interface RecapitulatifFormProps extends BaseFormProps {showErrors: boolean;}

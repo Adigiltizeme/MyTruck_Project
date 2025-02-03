@@ -22,6 +22,10 @@ export function useSort<T extends ItemWithMagasin>( items: T[], defaultKey: Sort
                     const aDate = getNestedPropertyValue(a, 'dates.livraison');
                     const bDate = getNestedPropertyValue(b, 'dates.livraison');
                     return (new Date(aDate).getTime() - new Date(bDate).getTime()) * direction;
+                case 'creneau':
+                    const aCreneau = getNestedPropertyValue(a, 'livraison.creneau');
+                    const bCreneau = getNestedPropertyValue(b, 'livraison.creneau');
+                    return aCreneau.localeCompare(bCreneau) * direction;
                 case 'statuts':
                     const aStatus = getNestedPropertyValue(a, 'statuts.livraison');
                     const bStatus = getNestedPropertyValue(b, 'statuts.livraison');

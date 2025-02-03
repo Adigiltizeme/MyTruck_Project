@@ -7,7 +7,6 @@ import { useDraftStorage } from './useDraftStorage';
 import { deepEqual } from '../utils/objectComparison';
 import { formatPhoneNumber } from '../utils/formatters';
 import { useStepManagement } from './useStepManagement';
-import { debounce } from 'lodash';
 import { ERROR_MESSAGES } from '../components/constants/errorMessages';
 
 
@@ -15,7 +14,8 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
     const [query, setQuery] = useState('');
     const [selectedAddress, setSelectedAddress] = useState('');
-    const { draftData, loading, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed } = useDraftStorage();
+    const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed } = useDraftStorage();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
         client: {
             nom: '',
@@ -125,6 +125,22 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                     }
                 }
             });
+        } else if (name === 'magasin.manager') {
+            // Gestion spécifique pour le manager
+            updateState({
+                ...state.data,
+                magasin: {
+                    ...state.data.magasin,
+                    manager: value,
+                    id: state.data.magasin?.id || '',
+                    name: state.data.magasin?.name || '',
+                    address: state.data.magasin?.address || '',
+                    phone: state.data.magasin?.phone || '',
+                    email: state.data.magasin?.email || '',
+                    photo: state.data.magasin?.photo || '',
+                    status: state.data.magasin?.status || ''
+                }
+            });
         } else {
             updateState({
                 ...state.data,
@@ -137,16 +153,6 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 } : value
             });
         }
-        setFormData(prev => ({
-            ...prev,
-            client: {
-                ...prev.client,
-                adresse: {
-                    ...prev.client?.adresse,
-                    [name.split('.').pop() || '']: value
-                }
-            }
-        }));
 
         if (name === 'client.adresse.ligne1') {
             setQuery(value);
@@ -232,13 +238,15 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
         e.preventDefault();
 
         // Ne soumettre que si on est à l'étape 3 ET qu'un submit a été explicitement demandé
-        if (state.step === 3 && e.type === 'submit') {
+        if (state.step === 4) {
             const errors = validateStep(state.step);
             if (Object.keys(errors).length === 0) {
                 try {
+                    setIsSubmitting(true);
                     dispatch({ type: 'SUBMIT_START' });
                     await onSubmit(state.data as CommandeMetier);
-                    // S'assurer que le brouillon est bien supprimé
+
+                    // S'assurer que le brouillon est bien supprimé après soumission
                     try {
                         await clearDraft();
                         console.log('Brouillon supprimé avec succès');
@@ -251,6 +259,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 } catch (error) {
                     console.error('Erreur lors de la soumission:', error);
                 } finally {
+                    setIsSubmitting(false);
                     dispatch({ type: 'SUBMIT_END' });
                 }
             } else {
@@ -263,10 +272,12 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
         state,
         handleInputChange,
         handleSubmit,
+        isSubmitting,
         ...stepManagement,
         formData,
         addressSuggestions,
         handleAddressSearch,
-        handleAddressSelect
+        handleAddressSelect,
+
     };
 };

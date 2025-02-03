@@ -1,6 +1,5 @@
 import { CommandeMetier } from "../types/business.types";
 import { VEHICULES } from "../components/constants/options";
-import { dateFormatter } from "./formatters";
 
 export function transformAirtableToCommande(record: any): CommandeMetier {
     try {
@@ -28,6 +27,10 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
                 telephone: chauffeur.fields?.['TELEPHONE'] || 'N/A',
                 email: chauffeur.fields?.['E-MAIL'] || 'N/A',
                 status: chauffeur.fields?.['STATUT'] || 'N/A',
+                location: {
+                    longitude: chauffeur.fields?.['LONGITUDE'] || 0,
+                    latitude: chauffeur.fields?.['LATITUDE'] || 0,
+                }
             }))
             : [];
 

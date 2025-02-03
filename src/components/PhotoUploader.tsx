@@ -70,6 +70,11 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             if (photos.length + files.length > maxPhotos) {
                 throw new Error(`Maximum ${maxPhotos} photos autorisées`);
             }
+            // Validation du volume total
+            if (photos.reduce((acc, photo) => acc + photo.file.size, 0) + Array.from(files).reduce((acc, file) => acc + file.size, 0) > 50 * 1024 * 1024) {
+                throw new Error('Volume total des photos trop élevé');
+            }
+
 
             const cloudinaryService = new CloudinaryService();
 
