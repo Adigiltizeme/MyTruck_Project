@@ -19,11 +19,13 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
 
     const besoinDevis = commande.livraison?.equipiers > 2;
 
+    const canDispatch = selectedChauffeurs.length > 0;
+
     const handleDispatch = async () => {
         try {
             setLoading(true);
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            
+
             const selectedChauffeursDetails = chauffeurs.filter(
                 chauffeur => selectedChauffeurs.includes(chauffeur.id)
             );
@@ -50,7 +52,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
         try {
             setLoading(true);
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            
+
             const updatedCommande = {
                 ...commande,
                 financier: {
@@ -162,8 +164,11 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 </div>
                 <button
                     onClick={handleDispatch}
-                    disabled={loading || selectedChauffeurs.length === 0}
-                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50"
+                    disabled={loading || !canDispatch}
+                    className={`px-4 py-2 ${canDispatch
+                            ? 'bg-primary text-white hover:bg-primary-dark'
+                            : 'bg-gray-300 cursor-not-allowed'
+                        } rounded-lg`}
                 >
                     Dispatcher
                 </button>
@@ -179,7 +184,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                     >
                         Définir le tarif
                     </button>
-                    
+
                     {besoinDevis ? (
                         <button
                             onClick={genererDevis}

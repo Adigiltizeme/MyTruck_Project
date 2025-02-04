@@ -37,9 +37,9 @@ export class AirtableService {
         private token: string,
         private baseId = import.meta.env.VITE_AIRTABLE_BASE_ID as string,
         private tables = {
-            commandes: 'tbl75HakJKQ2KWyGF',
-            magasins: 'tblCzo9Nni2lKeDwf',
-            personnel: 'tblxNeFK4ZEzhMN5q'
+            commandes: import.meta.env.VITE_AIRTABLE_TABLE_COMMANDES_ID as string,
+            magasins: import.meta.env.VITE_AIRTABLE_TABLE_MAGASINS_ID as string,
+            personnel: import.meta.env.VITE_AIRTABLE_TABLE_PERSONNEL_ID as string
         }
     ) {
         if (!token) throw new Error('Token Airtable requis');
