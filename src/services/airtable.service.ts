@@ -1,4 +1,5 @@
 import { CRENEAUX_LIVRAISON, VEHICULES, } from "../components/constants/options";
+import { StatutCommande, StatutLivraison } from "../types/airtable.types";
 import { CommandeMetier } from "../types/business.types";
 import { FilterOptions, MetricData } from "../types/metrics";
 import { transformAirtableToCommande } from "../utils/transformer";
@@ -321,7 +322,7 @@ export class AirtableService {
             // S'assurer que equipiers est une chaîne de caractères
             const equipiers = commande.livraison?.equipiers?.toString() || '0';
             // Préparation des champs en respectant les noms exacts d'Airtable
-            const fields = {
+            const fields: { [key: string]: any } = {
                 'NUMERO DE COMMANDE': commande.numeroCommande || `CMD${Date.now()}`,
                 'NOM DU CLIENT': commande.client?.nom,
                 'PRENOM DU CLIENT': commande.client?.prenom,
@@ -330,7 +331,7 @@ export class AirtableService {
                 'ADRESSE DE LIVRAISON': commande.client?.adresse?.ligne1,
                 'TYPE D\'ADRESSE': commande.client?.adresse?.type,
                 'BÂTIMENT': commande.client?.adresse?.batiment,
-                'INTERPHONE/CODE': commande.client?.adresse?.interphone,
+                'INTERPHONE/CODE': commande.client?.adresse?.interphone || '',
                 'ASCENSEUR': commande.client?.adresse?.ascenseur ? 'Oui' : 'Non',
                 'ETAGE': commande.client?.adresse?.etage,
                 'DATE DE LIVRAISON': commande.dates?.livraison || null,
@@ -341,7 +342,7 @@ export class AirtableService {
                 'DETAILS SUR LES ARTICLES': commande.articles?.details,
                 'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
                 'AUTRES REMARQUES': commande.livraison?.remarques,
-                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'OUI' : 'NON',
+                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'NON' : 'OUI',
                 'STATUT DE LA COMMANDE': 'En attente',
                 'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': 'EN ATTENTE',
                 'PRENOM DU VENDEUR/INTERLOCUTEUR': commande.magasin?.manager,
@@ -457,13 +458,13 @@ export class AirtableService {
         return [];
     }
 
-    async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
+    async updateCommande(updatedData: Partial<CommandeMetier>): Promise<CommandeMetier> {
         try {
             const cloudinaryService = new CloudinaryService();
 
             // Upload des photos vers Cloudinary
             const photosAttachments = await Promise.all(
-                (commande.articles?.photos || []).map(async photo => {
+                (updatedData.articles?.photos || []).map(async photo => {
                     if (photo.file) {
                         const uploadedImage = await cloudinaryService.uploadImage(photo.file);
                         return {
@@ -475,50 +476,79 @@ export class AirtableService {
                 })
             );
 
+            const existingCommande = await this.fetchFromAirtable(`${this.tables.commandes}/${updatedData.id}`);
+            const existingPhotos = existingCommande.fields['PHOTOS ARTICLES'] || [];
+
+            const nombreArticles = updatedData.articles?.nombre;
+
+            if (updatedData.financier?.tarifHT && typeof updatedData.financier.tarifHT !== 'number') {
+                throw new Error('Le tarif HT doit être un nombre');
+            }
+
             // S'assurer que equipiers est une chaîne de caractères
-            const equipiers = commande.livraison?.equipiers?.toString() || '0';
+            const equipiers = updatedData.livraison?.equipiers?.toString() || '0';
             // Préparation des champs en respectant les noms exacts d'Airtable
-            const fields = {
-                'NUMERO DE COMMANDE': commande.numeroCommande || `CMD${Date.now()}`,
-                'NOM DU CLIENT': commande.client?.nom,
-                'PRENOM DU CLIENT': commande.client?.prenom,
-                'TELEPHONE DU CLIENT': commande.client?.telephone?.principal,
-                'TELEPHONE DU CLIENT 2': commande.client?.telephone?.secondaire,
-                'ADRESSE DE LIVRAISON': commande.client?.adresse?.ligne1,
-                'TYPE D\'ADRESSE': commande.client?.adresse?.type,
-                'BÂTIMENT': commande.client?.adresse?.batiment,
-                'INTERPHONE/CODE': commande.client?.adresse?.interphone,
-                'ASCENSEUR': commande.client?.adresse?.ascenseur ? 'Oui' : 'Non',
-                'ETAGE': commande.client?.adresse?.etage,
-                'DATE DE LIVRAISON': commande.dates?.livraison || null,
-                'CRENEAU DE LIVRAISON': commande.livraison?.creneau,
-                'CATEGORIE DE VEHICULE': commande.livraison?.vehicule,
+            const fields: { [key: string]: any } = {
+                'NUMERO DE COMMANDE': updatedData.numeroCommande || `CMD${Date.now()}`,
+                'NOM DU CLIENT': updatedData.client?.nom,
+                'PRENOM DU CLIENT': updatedData.client?.prenom,
+                'TELEPHONE DU CLIENT': updatedData.client?.telephone?.principal,
+                'TELEPHONE DU CLIENT 2': updatedData.client?.telephone?.secondaire,
+                'ADRESSE DE LIVRAISON': updatedData.client?.adresse?.ligne1,
+                'TYPE D\'ADRESSE': updatedData.client?.adresse?.type,
+                'BÂTIMENT': updatedData.client?.adresse?.batiment,
+                'INTERPHONE/CODE': updatedData.client?.adresse?.interphone || '',
+                'ASCENSEUR': updatedData.client?.adresse?.ascenseur ? 'Oui' : 'Non',
+                'ETAGE': updatedData.client?.adresse?.etage,
+                ...(updatedData.dates?.livraison && {
+                    'DATE DE LIVRAISON': updatedData.dates.livraison
+                }) || {},
+                'CRENEAU DE LIVRAISON': updatedData.livraison?.creneau,
+                'CATEGORIE DE VEHICULE': updatedData.livraison?.vehicule,
                 'OPTION EQUIPIER DE MANUTENTION': equipiers, // Utilisation de la valeur convertie en chaîne
-                'NOMBRE TOTAL D\'ARTICLES': commande.articles?.nombre?.toString(),
-                'DETAILS SUR LES ARTICLES': commande.articles?.details,
-                'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
-                'AUTRES REMARQUES': commande.livraison?.remarques,
-                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'OUI' : 'NON',
-                'STATUT DE LA COMMANDE': 'En attente',
-                'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': 'EN ATTENTE',
-                'PRENOM DU VENDEUR/INTERLOCUTEUR': commande.magasin?.manager,
+                'NOMBRE TOTAL D\'ARTICLES': typeof nombreArticles === 'number' ? nombreArticles : (nombreArticles ? parseInt(nombreArticles as string) : 0),
+                'DETAILS SUR LES ARTICLES': updatedData.articles?.details,
+                'PHOTOS ARTICLES': updatedData.articles?.photos?.map(photo => ({
+                    url: photo.url,
+                    filename: photo.file || 'photo'
+                })) || [],
+                // 'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
+                'AUTRES REMARQUES': updatedData.livraison?.remarques,
+                'RESERVE TRANSPORT': updatedData.livraison?.reserve ? 'NON' : 'OUI',
+                // 'STATUT DE LA COMMANDE': [updatedData.statuts?.commande || 'En attente'],
+                // 'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': [updatedData.statuts?.livraison || 'EN ATTENTE'],
+                'PRENOM DU VENDEUR/INTERLOCUTEUR': updatedData.magasin?.manager,
+                'TARIF HT': updatedData.financier?.tarifHT || 0,
+                ...(updatedData.chauffeurs && {
+                    'CHAUFFEUR(S)': updatedData.chauffeurs.map(c => c.id)
+                }),
+                ...(updatedData.statuts && {
+                    'STATUT DE LA COMMANDE': [updatedData.statuts.commande || 'En attente'],
+                    'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': [updatedData.statuts.livraison || 'EN ATTENTE']
+                })
             };
 
-            console.log('Données envoyées à Airtable:', {
-                ...fields,
-                'PHOTOS ARTICLES': photosAttachments.length > 0 ? `${photosAttachments.length} photos` : 'Aucune photo'
-            });
+            // console.log('Données envoyées à Airtable:', {
+            //     ...fields,
+            //     'PHOTOS ARTICLES': photosAttachments.length > 0 ? `${photosAttachments.length} photos` : 'Aucune photo'
+            // });
 
-            const response = await this.fetchFromAirtable(this.tables.commandes, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                    fields,
-                    typecast: true
-                }),
-                // headers: {
-                //     'Content-Type': 'application/json'
-                // }
-            });
+            // Ne pas inclure le champ PHOTOS ARTICLES dans la mise à jour
+            // sauf si on ajoute spécifiquement de nouvelles photos
+            if (updatedData.articles?.photos && updatedData.articles.photos.length > 0) {
+                fields['PHOTOS ARTICLES'] = existingPhotos;
+            }
+
+            const response = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${updatedData.id}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({ fields }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
 
             return transformAirtableToCommande(response);
         } catch (error) {
@@ -543,6 +573,75 @@ export class AirtableService {
             return await response.blob();
         } catch (error) {
             console.error('Erreur lors de la récupération du document:', error);
+            throw error;
+        }
+    }
+
+    async updateTarif(commandeId: string, tarif: number): Promise<CommandeMetier> {
+        try {
+            const fields = {
+                'TARIF HT': Number(tarif)
+            };
+
+            const result = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${commandeId}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({ fields })
+                }
+            );
+
+            return transformAirtableToCommande(result);
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du tarif:', error);
+            throw error;
+        }
+    }
+
+    async updateChauffeurs(commandeId: string, chauffeurs: string[]): Promise<CommandeMetier> {
+        try {
+            const fields = {
+                'CHAUFFEUR(S)': chauffeurs
+            };
+
+            const result = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${commandeId}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({ fields })
+                }
+            );
+
+            return transformAirtableToCommande(result);
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour des chauffeurs:', error);
+            throw error;
+        }
+    }
+
+    async updateCommandeStatus(commandeId: string, status: {
+        commande: StatutCommande;
+        livraison: StatutLivraison;
+    }): Promise<CommandeMetier> {
+        try {
+            const fields = {
+                'STATUT DE LA COMMANDE': [status.commande],
+                'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': [status.livraison]
+            };
+
+            const response = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${commandeId}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({ fields }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            return transformAirtableToCommande(response);
+        } catch (error) {
             throw error;
         }
     }

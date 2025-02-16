@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { CommandeMetier, PersonnelInfo } from '../types/business.types';
+import React, { useEffect, useState } from 'react';
+import { ChauffeurStatus, CommandeMetier, PersonnelInfo } from '../types/business.types';
 import { AirtableService } from '../services/airtable.service';
 import { motion, AnimatePresence } from 'framer-motion';
+import mapboxgl from 'mapbox-gl';
+import { Map } from 'react-map-gl';
+import { Marker } from 'react-map-gl';
+import { Modal } from './Modal';
 
 interface AdminActionsProps {
     commande: CommandeMetier;
@@ -11,36 +15,146 @@ interface AdminActionsProps {
 
 const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpdate }) => {
     const [loading, setLoading] = useState(false);
+    const [showChauffeursModal, setShowChauffeursModal] = useState(false);
     const [selectedChauffeurs, setSelectedChauffeurs] = useState<string[]>([]);
+    const [chauffeursData, setChauffeursData] = useState<PersonnelInfo[]>([]);
+    const [isDispatched, setIsDispatched] = useState(commande.chauffeurs?.length > 0);
+    const [isDispatching, setIsDispatching] = useState(false);
+    const [showChauffeurList, setShowChauffeurList] = useState(false);
     const [showTarifModal, setShowTarifModal] = useState(false);
     const [tarif, setTarif] = useState(commande.financier?.tarifHT || 0);
     const [showFactureModal, setShowFactureModal] = useState(false);
     const [dateFacture, setDateFacture] = useState(new Date().toISOString().split('T')[0]);
+    const [showMap, setShowMap] = useState(false);
+    const [mapVisible, setMapVisible] = useState(false);
+    const [driverLocations, setDriverLocations] = useState<any[]>([]);
+    const [driverLocation, setDriverLocation] = useState<{ longitude?: number; latitude?: number } | null>(null);
+
+    // Suivi en temps réel
+    useEffect(() => {
+        if (mapVisible && commande.statuts.livraison === 'EN COURS DE LIVRAISON') {
+            // Initialiser la carte
+            mapboxgl.accessToken = `${import.meta.env.VITE_MAPBOX_TOKEN}`;
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [-8.000337, 12.649319], // Bamako par défaut et [2.3488, 48.8534], Paris par défaut
+                zoom: 12
+            });
+
+            // Mettre à jour la position
+            const interval = setInterval(async () => {
+                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+                const updatedCommandes = await airtableService.getCommandes();
+                const updatedCommande = updatedCommandes.find(cmd => cmd.id === commande.id);
+                if (updatedCommande?.chauffeurs?.[0]?.location) {
+                    setDriverLocation(updatedCommande.chauffeurs[0].location);
+                }
+            }, 30000);
+
+            return () => {
+                clearInterval(interval);
+                map.remove();
+            };
+        }
+    }, [mapVisible, commande.id]);
+
+    useEffect(() => {
+        const loadChauffeurs = async () => {
+            if (showChauffeursModal) {  // Charger seulement quand le modal est ouvert
+                try {
+                    const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+                    const personnelData = await airtableService.getPersonnel();
+                    setChauffeursData(personnelData.filter((p: PersonnelInfo) => p.role === 'Chauffeur'));
+                } catch (error) {
+                    console.error('Erreur chargement chauffeurs:', error);
+                }
+            }
+        };
+
+        loadChauffeurs();
+    }, [showChauffeursModal]);
+
+    const handleDispatchClick = () => {
+        setShowChauffeursModal(true);
+    };
+
+    const statusOrder: ChauffeurStatus[] = [
+        'Actif',
+        'En route vers magasin',
+        'En route vers client',
+        'Inactif'
+    ];
+
+    const statusColors: Record<ChauffeurStatus, string> = {
+        'Actif': 'bg-green-100 text-green-800',
+        'En route vers magasin': 'bg-blue-100 text-blue-800',
+        'En route vers client': 'bg-yellow-100 text-yellow-800',
+        'Inactif': 'bg-gray-100 text-gray-800'
+    };
+
+    const sortedChauffeurs = [...chauffeurs].sort((a, b) => {
+        const statusA = statusOrder.indexOf(a.status);
+        const statusB = statusOrder.indexOf(b.status);
+        return statusA - statusB;
+    });
+
+    const renderChauffeursList = () => (
+        <div className="max-h-96 overflow-y-auto">
+            {chauffeurs.map((chauffeur, index) => (
+                <div key={chauffeur.id} className="flex items-center p-2 hover:bg-gray-50">
+                    <label className="flex items-center w-full cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={selectedChauffeurs.includes(chauffeur.id)}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setSelectedChauffeurs([...selectedChauffeurs, chauffeur.id]);
+                                } else {
+                                    setSelectedChauffeurs(
+                                        selectedChauffeurs.filter(id => id !== chauffeur.id)
+                                    );
+                                }
+                            }}
+                            className="mr-3"
+                        />
+                        <div>
+                            <div className="font-medium">{chauffeur.nom}</div>
+                            <div className="text-sm text-gray-500">{chauffeur.prenom}</div>
+                        </div>
+                    </label>
+                </div>
+            ))}
+        </div>
+    );
 
     const besoinDevis = commande.livraison?.equipiers > 2;
 
-    const canDispatch = selectedChauffeurs.length > 0;
+    const canDispatch = true;
+    const hasSelectedChauffeurs = selectedChauffeurs.length > 0;
 
     const handleDispatch = async () => {
         try {
             setLoading(true);
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
 
-            const selectedChauffeursDetails = chauffeurs.filter(
-                chauffeur => selectedChauffeurs.includes(chauffeur.id)
+            // Créer un tableau de chauffeurs sélectionnés avec leurs informations complètes
+            const selectedChauffeursData = chauffeursData.filter(chauffeur =>
+                selectedChauffeurs.includes(chauffeur.id)
             );
 
             const updatedCommande = {
                 ...commande,
-                chauffeurs: selectedChauffeursDetails,
+                chauffeurs: selectedChauffeursData,
                 statuts: {
-                    ...commande.statuts,
-                    livraison: 'CONFIRMEE' as const
+                    commande: 'Confirmée' as const,
+                    livraison: 'EN COURS DE LIVRAISON' as const
                 }
             };
 
-            await airtableService.updateCommande(updatedCommande);
-            onUpdate(updatedCommande);
+            const result = await airtableService.updateCommande(updatedCommande);
+            onUpdate(result);
+            setShowChauffeursModal(false);
         } catch (error) {
             console.error('Erreur lors du dispatch:', error);
         } finally {
@@ -53,18 +167,20 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             setLoading(true);
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
 
-            const updatedCommande = {
+            const updatedFields = {
+                'TARIF HT': Number(tarif),
+                'DATE DE MISE A JOUR COMMANDE': new Date().toISOString()
+            };
+
+            await airtableService.updateTarif(commande.id, Number(tarif));
+
+            onUpdate({
                 ...commande,
                 financier: {
                     ...commande.financier,
-                    tarifHT: tarif,
-                    factures: commande.financier?.factures || [],
-                    devis: commande.financier?.devis || []
+                    tarifHT: Number(tarif)
                 }
-            };
-
-            await airtableService.updateCommande(updatedCommande);
-            onUpdate(updatedCommande);
+            });
             setShowTarifModal(false);
         } catch (error) {
             console.error('Erreur lors de la mise à jour du tarif:', error);
@@ -96,7 +212,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             };
 
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            await airtableService.updateCommande(updatedCommande);
+            await airtableService.updateCommande({ ...updatedCommande });
             onUpdate(updatedCommande);
             setShowFactureModal(false);
         } catch (error) {
@@ -143,36 +259,97 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             {/* Section Dispatch */}
             <div className="p-4 border rounded-lg">
                 <h3 className="text-lg font-medium mb-4">Attribution des chauffeurs</h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                    {chauffeurs.filter(c => c.status === 'Actif').map(chauffeur => (
-                        <label key={chauffeur.id} className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                checked={selectedChauffeurs.includes(chauffeur.id)}
-                                onChange={(e) => {
-                                    if (e.target.checked) {
-                                        setSelectedChauffeurs([...selectedChauffeurs, chauffeur.id]);
-                                    } else {
-                                        setSelectedChauffeurs(selectedChauffeurs.filter(id => id !== chauffeur.id));
-                                    }
-                                }}
-                                className="rounded text-primary focus:ring-primary"
-                            />
-                            <span>{chauffeur.prenom} {chauffeur.nom}</span>
-                        </label>
-                    ))}
-                </div>
                 <button
-                    onClick={handleDispatch}
-                    disabled={loading || !canDispatch}
-                    className={`px-4 py-2 ${canDispatch
-                            ? 'bg-primary text-white hover:bg-primary-dark'
-                            : 'bg-gray-300 cursor-not-allowed'
-                        } rounded-lg`}
+                    onClick={() => setShowChauffeursModal(true)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg"
+                // disabled={loading || isDispatched}
                 >
                     Dispatcher
                 </button>
+                {showChauffeursModal && (
+                    <Modal
+                        isOpen={showChauffeursModal}
+                        onClose={() => setShowChauffeursModal(false)}
+                    >
+                        <div className="p-6">
+                            <h2 className="text-xl font-semibold mb-4">Sélection des chauffeurs</h2>
+                            {chauffeurs.length > 0 ? (
+                                <div className="max-h-96 overflow-y-auto">
+                                    {chauffeursData.map(chauffeur => (
+                                        <div
+                                            key={chauffeur.id}
+                                            className="flex items-center p-3 border-b"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedChauffeurs.includes(chauffeur.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedChauffeurs([...selectedChauffeurs, chauffeur.id]);
+                                                    } else {
+                                                        setSelectedChauffeurs(
+                                                            selectedChauffeurs.filter(id => id !== chauffeur.id)
+                                                        );
+                                                    }
+                                                }}
+                                                className="mr-3"
+                                            />
+                                            <div>
+                                                <div className="font-medium">{chauffeur.prenom} {chauffeur.nom}</div>
+                                                <div className="text-sm text-gray-500">{chauffeur.telephone}</div>
+                                                <div className="text-sm text-gray-500">Status: {chauffeur.status}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-4">Chargement des chauffeurs...</div>
+                            )}
+                            <div className="mt-4 flex justify-end space-x-2">
+                                <button
+                                    onClick={() => setShowChauffeursModal(false)}
+                                    className="px-4 py-2 border rounded-lg"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={handleDispatch}
+                                    disabled={loading || selectedChauffeurs.length === 0}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                                >
+                                    Confirmer
+                                </button>
+                            </div>
+                        </div>
+                    </Modal>
+                )}
             </div>
+
+            {/* Section Suivi */}
+            {commande.statuts.livraison === 'EN COURS DE LIVRAISON' && (
+                <div className="p-4 border rounded-lg">
+                    <h3 className="text-lg font-medium mb-4">Suivi en temps réel</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <span className='text-sm font-medium text-gray-500'>Localisation des chauffeurs</span>
+                        <button
+                            onClick={() => setMapVisible(!mapVisible)}
+                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                        >
+                            {mapVisible ? 'Masquer la carte' : 'Voir sur la carte'}
+                        </button>
+                    </div>
+                    {mapVisible && (
+                        <div id="map" className="h-96 mt-4 rounded-lg overflow-hidden">
+                            {/* La carte sera montée ici */}
+                            {driverLocation && (
+                                <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow">
+                                    Position du transporteur mise à jour
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Section Tarification */}
             <div className="p-4 border rounded-lg">

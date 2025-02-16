@@ -32,6 +32,7 @@ interface FormInputProps {
     type?: string;
     required?: boolean;
     suggestions?: Array<{ properties: { label: string } }>;
+    isEditing?: boolean;
 }
 
 const FormInput = React.memo(({
@@ -49,7 +50,11 @@ const FormInput = React.memo(({
     type = 'text',
     required = false,
     suggestions,
+    isEditing = false
 }: FormInputProps) => {
+
+    const isDisabled = isEditing && name === 'numeroCommande';
+
     return (
         <AnimatePresence>
             <motion.div className="space-y-1"
@@ -73,6 +78,7 @@ const FormInput = React.memo(({
                             onSearch(e.target.value);
                         }
                     }}
+                    disabled={isDisabled}
                     // onInput={onSearch ? (e) => onSearch(e.currentTarget.value) : undefined}
                     // list={onSearch ? `${name}-suggestions` : undefined}
                     className={`mt-1 block w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'

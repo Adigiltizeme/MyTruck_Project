@@ -3,6 +3,10 @@ import { VEHICULES } from "../components/constants/options";
 
 export function transformAirtableToCommande(record: any): CommandeMetier {
     try {
+
+        if (!record || !record.id) {
+            throw new Error('Réponse Airtable invalide');
+        }
         const fields = record.fields || {};
 
         // Extraction des chauffeurs
@@ -37,17 +41,17 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
         // Extraction du magasin
         const magasin = fields['Magasins']?.[0] ? {
             id: fields['Magasins'][0].id || '',
-            name: fields['Magasins'][0].fields?.['NOM DU MAGASIN'] || 'N/A',
-            address: fields['Magasins'][0].fields?.['ADRESSE DU MAGASIN'] || 'N/A',
-            phone: fields['Magasins'][0].fields?.['TÉLÉPHONE'] || 'N/A',
-            status: fields['Magasins'][0].fields?.['STATUT'] || 'N/A',
+            name: fields['Magasins'][0].fields?.['NOM DU MAGASIN'] || 'Non spécifié',
+            address: fields['Magasins'][0].fields?.['ADRESSE DU MAGASIN'] || 'Non spécifié',
+            phone: fields['Magasins'][0].fields?.['TÉLÉPHONE'] || 'Non spécifié',
+            status: fields['Magasins'][0].fields?.['STATUT'] || 'Non spécifié',
         } : {
             id: '', name: 'N/A', address: 'N/A', phone: 'N/A', status: 'N/A'
         };
 
         return {
             id: record.id || '',
-            numeroCommande: fields['NUMERO DE COMMANDE'] || 'N/A',
+            numeroCommande: fields['NUMERO DE COMMANDE'] || '',
             dates: {
                 commande: fields['DATE DE COMMANDE']
                     ? new Date(fields['DATE DE COMMANDE']).toISOString()
@@ -65,20 +69,20 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
             },
             client: {
                 nom: fields['NOM DU CLIENT'] || 'N/A',
-                prenom: fields['PRENOM DU CLIENT'] || 'N/A',
+                prenom: fields['PRENOM DU CLIENT'] || 'Non spécifié',
                 telephone: {
                     principal: fields['TELEPHONE DU CLIENT'] || 'N/A',
-                    secondaire: fields['TELEPHONE DU CLIENT 2'] || 'N/A',
+                    secondaire: fields['TELEPHONE DU CLIENT 2'] || '',
                 },
                 adresse: {
                     type: fields['TYPE D\'ADRESSE'] || 'N/A',
                     ligne1: fields['ADRESSE DE LIVRAISON'] || 'N/A',
-                    batiment: fields['BÂTIMENT'] || 'N/A',
+                    batiment: fields['BÂTIMENT'] || '',
                     etage: fields['ETAGE'] || 'N/A',
                     ascenseur: fields['ASCENSEUR'] === 'Oui',
                     interphone: fields['INTERPHONE'] || 'N/A',
                 },
-                nomComplet: `${fields['PRENOM DU CLIENT'] || 'N/A'} ${fields['NOM DU CLIENT'] || 'N/A'}`
+                nomComplet: `${fields['PRENOM DU CLIENT'] || 'Non spécifié'} ${fields['NOM DU CLIENT'] || 'N/A'}`
             },
             livraison: {
                 creneau: fields['CRENEAU DE LIVRAISON'] || 'N/A',

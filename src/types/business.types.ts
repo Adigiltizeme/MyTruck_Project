@@ -46,6 +46,8 @@ export interface DevisInfo {
     statut: 'En attente' | 'Accepté' | 'Refusé'
 }
 
+export type ChauffeurStatus = 'Actif' | 'En route vers magasin' | 'En route vers client' | 'Inactif';
+
 // Interface pour le personnel
 export interface PersonnelInfo {
     id: string;
@@ -54,7 +56,7 @@ export interface PersonnelInfo {
     telephone: string;
     role: 'Chauffeur' | 'Direction' | 'Section IT' | 'Dispatcher';
     email?: string;
-    status: string;
+    status: ChauffeurStatus;
     location?: {
         longitude?: number;
         latitude?: number;
@@ -73,6 +75,11 @@ export interface ArticlesType {
         url: string;
         file?: File;
     }>;
+    newPhotos: Array<{
+        url: string;
+        file: File
+    }>;
+    categories: string[];
 }
 
 
@@ -106,6 +113,7 @@ export interface CommandeMetier {
         nombre: number;
         details?: string;
         photos?: ArticlesType['photos'];
+        newPhotos?: ArticlesType['newPhotos'];
         categories?: string[];
     };
     financier: {

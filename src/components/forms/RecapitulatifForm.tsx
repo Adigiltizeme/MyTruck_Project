@@ -16,12 +16,25 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     {data.client?.telephone?.secondaire && (
                         <p>Tél 2: {data.client?.telephone?.secondaire}</p>
                     )}
+                    <p>Type: {data.client?.adresse?.type}</p>
+                    {data.client?.adresse?.batiment && (
+                        <p>Bâtiment: {data.client?.adresse?.batiment}</p>
+                    )}
+                    {data.client?.adresse?.etage && (
+                        <p>Étage: {data.client?.adresse?.etage}</p>
+                    )}
+                    {data.client?.adresse?.interphone && (
+                        <p>Interphone: {data.client?.adresse?.interphone}</p>
+                    )}
+                    {data.client?.adresse?.ascenseur && (
+                        <p>Ascenseur: {data.client?.adresse?.ascenseur ? 'Oui' : 'Non'}</p>
+                    )}
                 </div>
 
                 <div>
                     <h4 className="font-medium">Articles</h4>
                     <p>Quantité: {data.articles?.nombre}</p>
-                    <p>{data.articles?.details}</p>
+                    <p>Détails: {data.articles?.details}</p>
                     {data.articles?.photos && data.articles.photos.length > 0 && (
                         <p>Photos: {data.articles.photos.length}</p>
                     )}

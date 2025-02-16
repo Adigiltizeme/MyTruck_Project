@@ -4,10 +4,16 @@ import { CommandeMetier } from '../types/business.types';
 import { AirtableService } from '../services/airtable.service';
 import { DocumentService } from '../services/document.service';
 import { getDocumentInfo } from '../utils/documents.utils';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Map, Marker } from 'react-map-gl';
 import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../helpers/getStatus';
+import mapboxgl from 'mapbox-gl';
 import { isValidForModification, validateCommande } from '../utils/validation.utils';
+import { Modal } from './Modal';
+import AjoutCommande from './AjoutCommande';
+import { useNavigate } from 'react-router-dom';
+import { ArticlesForm, ClientForm, LivraisonForm, RecapitulatifForm } from './forms';
+import { CloudinaryService } from '../services/cloudinary.service';
 
 interface CommandeActionsProps {
     commande: CommandeMetier;
@@ -16,11 +22,18 @@ interface CommandeActionsProps {
 
 const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate }) => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
+    const [editData, setEditData] = useState<Partial<CommandeMetier>>(commande);
     const [loading, setLoading] = useState(false);
     const [showMap, setShowMap] = useState(false);
+    const [mapVisible, setMapVisible] = useState(false);
     const [driverLocation, setDriverLocation] = useState<{ longitude?: number; latitude?: number } | null>(null);
     const [downloading, setDownloading] = useState(false);
+    const [driverLocations, setDriverLocations] = useState<any[]>([]);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [newPhotos, setNewPhotos] = useState<Array<{ url: string; file: File }>>([]);
 
     const documentService = new DocumentService(import.meta.env.VITE_AIRTABLE_TOKEN);
     const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
@@ -28,6 +41,37 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     // Utilisation des validations
     const canModify = isValidForModification(commande);
     const canConfirmTransmission = validateCommande.canConfirmTransmission(commande);
+
+
+
+    // Suivi en temps réel
+    useEffect(() => {
+        if (mapVisible && commande.statuts.livraison === 'EN COURS DE LIVRAISON') {
+            // Initialiser la carte
+            mapboxgl.accessToken = `${import.meta.env.VITE_MAPBOX_TOKEN}`;
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [2.3488, 48.8534], // Paris par défaut
+                zoom: 12
+            });
+
+            // Mettre à jour la position
+            const interval = setInterval(async () => {
+                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+                const updatedCommandes = await airtableService.getCommandes();
+                const updatedCommande = updatedCommandes.find(cmd => cmd.id === commande.id);
+                if (updatedCommande?.chauffeurs?.[0]?.location) {
+                    setDriverLocation(updatedCommande.chauffeurs[0].location);
+                }
+            }, 30000);
+
+            return () => {
+                clearInterval(interval);
+                map.remove();
+            };
+        }
+    }, [mapVisible, commande.id]);
 
     // Utilisation de la gestion des documents
     const handleDocumentDownload = async (type: 'facture' | 'devis') => {
@@ -37,7 +81,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
 
             if (!document) {
                 throw new Error(`Aucun ${type} disponible`);
-                return;
             }
 
             const fileName = type === 'facture'
@@ -53,30 +96,193 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     };
 
     const handleModify = () => {
-        setIsEditing(true);
-        // Navigation vers le formulaire d'édition
+        setShowEditModal(true);
+        if (!canModify) return;
+    };
+
+    const EditCommandeModal = () => {
+        return (
+            <Modal
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+            >
+                <div className="p-6">
+                    <h2 className="text-xl font-semibold mb-4">Modifier la commande</h2>
+                    <AjoutCommande
+                        commande={commande}
+                        initialData={commande}
+                        onSubmit={handleEditSubmit}
+                        onCancel={() => setShowEditModal(false)}
+                        isEditing={true}
+                    />
+                </div>
+            </Modal>
+        );
+    };
+    const handleEditSubmit = async (updatedData: Partial<CommandeMetier>) => {
+        try {
+            setLoading(true);
+            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+
+            const result = await airtableService.updateCommande({
+                ...updatedData,
+                id: commande.id,
+                // Préserver les champs qui ne doivent pas être modifiés
+                numeroCommande: commande.numeroCommande,
+                dates: {
+                    ...commande.dates,
+                    misAJour: new Date().toISOString()
+                }
+            });
+
+            onUpdate(result);
+            setShowEditModal(false);
+        } catch (error) {
+            console.error('Erreur lors de la modification:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    const handleSubmitModification = async () => {
+        try {
+            setLoading(true);
+            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+            const cloudinaryService = new CloudinaryService();
+
+            // Upload des nouvelles photos si présentes
+            const uploadedNewPhotos = await Promise.all(
+                (editData.articles?.newPhotos || []).map(async photo => {
+                    const uploadResult = await cloudinaryService.uploadImage(photo.file);
+                    return {
+                        url: uploadResult.url,
+                        filename: photo.file.name
+                    };
+                })
+            );
+
+            // Combiner les photos existantes avec les nouvelles photos uploadées
+            const allPhotos = [
+                ...(editData.articles?.photos || []),
+                ...uploadedNewPhotos
+            ];
+
+            // S'assurer de garder la date de livraison originale
+            const modifiedData: Partial<CommandeMetier> = {
+                ...editData,
+                ...commande, // Données originales
+                id: commande.id,
+                client: editData.client,
+                articles: {
+                    ...editData.articles,
+                    nombre: editData.articles?.nombre ?? commande.articles?.nombre ?? 0,
+                    photos: allPhotos,
+                    newPhotos: undefined // Nettoyer les nouvelles photos après soumission
+                },
+                dates: {
+                    ...commande.dates,
+                    livraison: editData.dates?.livraison || commande.dates?.livraison,
+                    misAJour: new Date().toISOString()
+                },
+                livraison: editData.livraison
+            };
+
+            // Log pour debug
+            console.log('Données modifiées:', modifiedData);
+
+            const result = await airtableService.updateCommande(modifiedData);
+
+            onUpdate(result);
+            setShowEditModal(false);
+            setIsEditing(false);
+            setNewPhotos([]); // Réinitialiser les nouvelles photos après soumission réussie
+
+        } catch (error) {
+            console.error('Erreur lors de la modification:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const steps = [
+        { id: 1, label: 'Client' },
+        { id: 2, label: 'Articles' },
+        { id: 3, label: 'Livraison' },
+        { id: 4, label: 'Confirmer' }
+    ];
+
+    const renderEditStep = () => {
+        switch (currentStep) {
+            case 1:
+                return (
+                    <ClientForm
+                        data={editData}
+                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                        errors={{}} // Add appropriate error handling here
+                        handleAddressSearch={async (query: string) => { /* Add appropriate address search handling here */ }} // Add appropriate address search handling here
+                        handleAddressSelect={() => { }} // Add appropriate address select handling here
+                        addressSuggestions={[]} // Add appropriate address suggestions here
+                        isEditing
+                    />
+                );
+            case 2:
+                return (
+                    <ArticlesForm
+                        data={editData}
+                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                        errors={{}} // Add the errors prop here
+                    />
+                );
+            case 3:
+                return (
+                    <LivraisonForm
+                        data={editData}
+                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                        showErrors={false}
+                        errors={{}}
+                    />
+                );
+            case 4:
+                return (
+                    <RecapitulatifForm
+                        data={editData}
+                        readOnly
+                        showErrors={false}
+                        errors={{}} // Add appropriate error handling here
+                        onChange={() => { }} // Add appropriate onChange handling here
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        const fieldPath = name.split('.');
+
+        setEditData(prev => {
+            const newData = { ...prev };
+            let current = newData;
+
+            // Navigation dans l'objet jusqu'au champ à modifier
+            for (let i = 0; i < fieldPath.length - 1; i++) {
+                current[fieldPath[i]] = { ...current[fieldPath[i]] };
+                current = current[fieldPath[i]];
+            }
+
+            current[fieldPath[fieldPath.length - 1]] = value;
+            return newData;
+        });
     };
 
     const handleCancel = async () => {
         try {
             setLoading(true);
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-
-            if (!commande.id) {
-                throw new Error('ID de commande manquant');
-            }
-
-            const updatedCommande = {
-                ...commande,
-                statuts: {
-                    ...commande.statuts,
-                    commande: 'Annulée' as const,
-                    livraison: 'ANNULEE' as const
-                }
-            };
-
-            await airtableService.updateCommande(updatedCommande);
-            onUpdate(updatedCommande);
+            const result = await airtableService.updateCommandeStatus(commande.id, {
+                commande: 'Annulée',
+                livraison: 'ANNULEE'
+            });
+            onUpdate(result);
         } catch (error) {
             console.error('Erreur lors de l\'annulation:', error);
         } finally {
@@ -87,17 +293,11 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     const handleConfirmTransmission = async () => {
         try {
             setLoading(true);
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            const updatedCommande = {
-                ...commande,
-                statuts: {
-                    ...commande.statuts,
-                    commande: 'Transmise' as const,
-                    livraison: 'ENLEVEE' as const
-                }
-            };
-            await airtableService.updateCommande(updatedCommande);
-            onUpdate(updatedCommande);
+            const result = await airtableService.updateCommandeStatus(commande.id, {
+                commande: 'Transmise',
+                livraison: 'CONFIRMEE'
+            });
+            onUpdate(result);
         } catch (error) {
             console.error('Erreur lors de la confirmation:', error);
         } finally {
@@ -105,36 +305,15 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
         }
     };
 
-    // Suivi en temps réel
-    useEffect(() => {
-        if (commande.statuts.livraison === 'EN COURS DE LIVRAISON') {
-            // Implémentation du suivi en temps réel
-            const interval = setInterval(async () => {
-                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                const updatedCommandes = await airtableService.getCommandes();
-                if (updatedCommandes && updatedCommandes.length > 0) {
-                    const updatedCommande = updatedCommandes[0];
-                    onUpdate(updatedCommande);
-                    if (updatedCommande.chauffeurs?.[0]?.location) {
-                        setDriverLocation(updatedCommande.chauffeurs[0].location);
-                    }
-                }
-            }, 30000); // Mise à jour toutes les 30 secondes
-
-            return () => clearInterval(interval);
-        }
-    }, [commande.id, commande.statuts.livraison]);
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <div className="space-x-16">
-                    {canModify && (
+                    {canModify ? (
                         <>
                             <button
-                                onClick={handleModify}
-                                disabled={loading}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                onClick={() => setShowEditModal(true)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg"
                             >
                                 Modifier
                             </button>
@@ -145,8 +324,73 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                             >
                                 Annuler
                             </button>
+                            {showEditModal && (
+                                <Modal
+                                    isOpen={showEditModal}
+                                    onClose={() => setShowEditModal(false)}>
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h2 className="text-xl font-semibold">Modifier la commande</h2>
+                                            <div className="flex space-x-4">
+                                                {currentStep > 1 && (
+                                                    <button
+                                                        onClick={() => setCurrentStep(prev => prev - 1)}
+                                                        className="px-4 py-2 border rounded-lg"
+                                                    >
+                                                        Précédent
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={handleSubmitModification}
+                                                    className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                                                >
+                                                    Confirmer les modifications
+                                                </button>
+                                                {currentStep < steps.length && (
+                                                    <button
+                                                        onClick={() => setCurrentStep(prev => prev + 1)}
+                                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+                                                    >
+                                                        Suivant
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Étapes */}
+                                        <div className="flex justify-between mb-8">
+                                            {steps.map(step => (
+                                                <div
+                                                    key={step.id}
+                                                    className={`flex flex-col items-center ${step.id === currentStep ? 'text-blue-600' : 'text-gray-400'
+                                                        }`}
+                                                >
+                                                    <div className="w-8 h-8 rounded-full border-2 flex items-center justify-center">
+                                                        {step.id}
+                                                    </div>
+                                                    <span className="mt-2">{step.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {renderEditStep()}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditing(false)}
+                                        className="px-4 py-2 mb-6 ml-6 text-gray-600 hover:bg-gray-100 rounded-lg"
+                                    >
+                                        Annuler
+                                    </button>
+                                </Modal>
+                            )}
                         </>
+                    ) : (
+                        <div className="text-gray-500 italic mb-4">
+                            Cette commande ne peut plus être modifiée
+                        </div>
                     )}
+
                     {canConfirmTransmission && (
                         <button
                             onClick={handleConfirmTransmission}
@@ -161,39 +405,31 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
 
             {/* Section de suivi */}
             {commande.statuts.livraison === 'EN COURS DE LIVRAISON' && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-4"
-                >
-                    <button
-                        onClick={() => setShowMap(!showMap)}
-                        className="px-4 py-2 bg-primary text-white rounded-lg"
-                    >
-                        {showMap ? 'Masquer la carte' : 'Voir sur la carte'}
-                    </button>
-
-                    {showMap && driverLocation && (
-                        <div className="h-64 mt-4">
-                            <Map
-                                initialViewState={{
-                                    longitude: driverLocation.longitude,
-                                    latitude: driverLocation.latitude,
-                                    zoom: 14
-                                }}
-                                style={{ width: '100%', height: '100%' }}
-                                mapStyle="mapbox://styles/mapbox/streets-v11"
-                            >
-                                <Marker
-                                    longitude={driverLocation.longitude ?? 0}
-                                    latitude={driverLocation.latitude ?? 0}
-                                    color="#E11D48"
-                                />
-                            </Map>
+                <div className="p-4 border rounded-lg">
+                    <h3 className="text-lg font-medium mb-4">Suivi des livraisons</h3>
+                    <div className="flex justify-between items-center mb-4">
+                        <span className='text-sm font-medium text-gray-500'>En temps réel</span>
+                        <button
+                            onClick={() => setMapVisible(!mapVisible)}
+                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                        >
+                            {mapVisible ? 'Masquer la carte' : 'Voir sur la carte'}
+                        </button>
+                    </div>
+                    {mapVisible && (
+                        <div id="map" className="h-96 mt-4 rounded-lg overflow-hidden">
+                            {/* La carte sera montée ici */}
+                            {driverLocation && (
+                                <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow">
+                                    Position du transporteur mise à jour
+                                </div>
+                            )}
                         </div>
                     )}
-                </motion.div>
+                </div>
             )}
+
+            {/* Section des statuts */}
 
             {/* Section des documents */}
             <div className="mt-4">

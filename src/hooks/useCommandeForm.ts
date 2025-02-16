@@ -8,6 +8,7 @@ import { deepEqual } from '../utils/objectComparison';
 import { formatPhoneNumber } from '../utils/formatters';
 import { useStepManagement } from './useStepManagement';
 import { ERROR_MESSAGES } from '../components/constants/errorMessages';
+import { CloudinaryService } from '../services/cloudinary.service';
 
 
 export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>) => {
@@ -16,6 +17,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const [selectedAddress, setSelectedAddress] = useState('');
     const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed } = useDraftStorage();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
         client: {
             nom: '',
@@ -180,6 +182,13 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
             }
         }
 
+        let processedValue = value;
+
+        // Traitement spécial pour le nombre d'articles
+        if (name === 'articles.nombre') {
+            processedValue = (Number(value) || 0).toString();
+        }
+
         setFormData(prev => ({
             ...prev,
             client: {
@@ -188,6 +197,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                     ...prev.client?.adresse,
                     [name.split('.').pop() || '']: value
                 }
+            },
+            articles: {
+                ...prev.articles,
+                [name.split('.')[1]]: processedValue
             }
         }));
 
@@ -268,10 +281,62 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
         }
     }, [state.step, state.data, validateStep, onSubmit, clearDraft]);
 
+    const handleSubmitModification = async () => {
+        try {
+            setLoading(true);
+            const cloudinaryService = new CloudinaryService();
+
+            // Gérer l'upload des nouvelles photos
+            const uploadedNewPhotos = await Promise.all(
+                (state.data.articles?.newPhotos || []).map(async photo => {
+                    if (photo.file) {
+                        const uploadedImage = await cloudinaryService.uploadImage(photo.file);
+                        return {
+                            url: uploadedImage.url,
+                            filename: uploadedImage.filename
+                        };
+                    }
+                    return null;
+                })
+            ).then(photos => photos.filter(photo => photo !== null));
+
+            // Combiner avec les photos existantes
+            const allPhotos = [
+                ...(state.data.articles?.photos || []),
+                ...uploadedNewPhotos
+            ];
+
+            // Mise à jour des données
+            dispatch({
+                type: 'UPDATE_DATA',
+                payload: {
+                    data: {
+                        ...state.data,
+                        articles: {
+                            ...state.data.articles,
+                            photos: allPhotos,
+                            newPhotos: undefined,
+                            nombre: state.data.articles?.nombre || 0
+                        }
+                    }
+                }
+            });
+
+            // Soumission
+            if (state.step === 4 && !Object.keys(validateStep(state.step)).length) {
+                await onSubmit(state.data as CommandeMetier);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la modification:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         state,
         handleInputChange,
-        handleSubmit,
+        handleSubmit: state.isEditing ? handleSubmitModification : handleSubmit,
         isSubmitting,
         ...stepManagement,
         formData,

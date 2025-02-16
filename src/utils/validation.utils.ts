@@ -2,7 +2,8 @@ import { CommandeMetier } from '../types/business.types';
 
 export const isValidForModification = (commande: CommandeMetier): boolean => {
     return commande.statuts.commande === 'En attente' && 
-           commande.statuts.livraison === 'EN ATTENTE';
+           commande.statuts.livraison === 'EN ATTENTE' ||
+           commande.statuts.commande === 'Annulée';
 };
 
 export const validateCommande = {

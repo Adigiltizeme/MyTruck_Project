@@ -50,7 +50,7 @@ export interface AirtableCommandeFields {
   'STATUT DE LA COMMANDE': StatutCommande[];
   'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': StatutLivraison[];
   'TARIF HT': number;
-  'RESERVE TRANSPORT': 'OUI' | 'NON';
+  'RESERVE TRANSPORT': 'NON' | 'OUI';
   'DATE DE MISE A JOUR COMMANDE': string;
   'Magasins'?: string[];
   'CHAUFFEUR(S)'?: string[];
@@ -147,7 +147,7 @@ export interface AirtableDelivery {
     'STATUT DE LA COMMANDE': StatutCommande;
     'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': StatutLivraison;
     'TARIF HT': number;
-    'RESERVE TRANSPORT': 'OUI' | 'NON';
+    'RESERVE TRANSPORT': 'NON' | 'OUI';
     'DATE DE MISE A JOUR COMMANDE': string;
     'Magasins': string[];
     'CHAUFFEUR(S)': string[];

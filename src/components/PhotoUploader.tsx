@@ -8,19 +8,21 @@ interface PhotoUploaderProps {
     onUpload: (photos: { url: string, file: File }[]) => void;
     maxPhotos?: number;
     existingPhotos?: { url: string, file: File }[];
+    MAX_SIZE?: number;
 }
 
 const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     onUpload,
     maxPhotos = 5,
-    existingPhotos = []
+    existingPhotos = [],
+    MAX_SIZE = 10 * 1024 * 1024 // 10MB
 }) => {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
     const [photos, setPhotos] = useState(existingPhotos);
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    // const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
     // Fonction de validation du format des photos
     const validatePhotoFormat = (photo: { url: string, file: File }): boolean => {
@@ -94,7 +96,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                     try {
                         // Upload vers Cloudinary
                         const uploadResult = await cloudinaryService.uploadImage(file);
-                        return { url: uploadResult.url, file };
+                        return { url: uploadResult.url, file: file };
                     } catch (error) {
                         console.error('Erreur upload:', error);
                         throw new Error(`Erreur d'upload pour ${file.name}`);

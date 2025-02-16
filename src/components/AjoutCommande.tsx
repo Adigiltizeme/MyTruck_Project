@@ -14,10 +14,76 @@ import { RecapitulatifForm } from './forms/RecapitulatifForm';
 interface AjoutCommandeProps {
     onSubmit: (commande: Partial<CommandeMetier>) => Promise<void>;
     onCancel: () => void;
+    commande: CommandeMetier;
+    isEditing: boolean;
+    initialData: CommandeMetier;
+    disabledFields?: string[];
 }
 
-const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => {
+const AjoutCommande: React.FC<AjoutCommandeProps> = ({
+    onSubmit,
+    onCancel,
+    commande,
+    isEditing,
+    disabledFields = [],
+    initialData
+}) => {
+    const [formData, setFormData] = useState<Partial<CommandeMetier>>(
+        initialData || {
+            commande: {
+                numeroCommande: '',
+                dates: {
+                    commande: new Date().toISOString(),
+                    livraison: '',
+                    misAJour: new Date().toISOString()
+                },
+            },
+            client: {
+                nom: '',
+                prenom: '',
+                nomComplet: '',
+                telephone: {
+                    principal: '',
+                    secondaire: ''
+                },
+                adresse: {
+                    type: 'Domicile', // ou 'Professionnelle'
+                    ligne1: '',
+                    batiment: '',
+                    etage: '',
+                    ascenseur: false, // ou true
+                    interphone: ''
+                }
+            },
+            articles: {
+                nombre: 0,
+                details: '',
+                photos: []
+            },
+            livraison: {
+                creneau: '',
+                vehicule: '',
+                equipiers: 0,
+                reserve: false,
+                remarques: '',
+                chauffeurs: []
+            },
+            vendeur: {
+                prenom: '',
+            },
+            magasin: {
+                id: '',
+                name: '',
+                address: '',
+                phone: '',
+                email: '',
+                manager: '',
+                status: '',
+                photo: ''
+            }
+        }
 
+    )
     const [creneaux, setCreneaux] = useState(CRENEAUX_LIVRAISON);
     const [vehicules, setVehicules] = useState<{ [key: string]: string }>(VEHICULES);
 
@@ -37,7 +103,10 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({ onSubmit, onCancel }) => 
         handleAddressSearch, // Recherche d'adresse
         handleAddressSelect, // Sélection d'adresse
         addressSuggestions,  // Suggestions d'adresse
-    } = useCommandeForm(onSubmit);
+    } = useCommandeForm(async (data) => {
+        await onSubmit(data);
+        onCancel(); // Ferme le modal après soumission réussie
+    });
 
     const renderStep = () => {
         switch (state.step) {

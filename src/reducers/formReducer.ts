@@ -38,7 +38,8 @@ export const initialFormState: FormState = {
     isDirty: false,
     isSubmitting: false,
     isValid: false,
-    showErrors: false
+    showErrors: false,
+    isEditing: false
 };
 
 export function formReducer(state: FormState, action: FormAction): FormState {
@@ -46,7 +47,16 @@ export function formReducer(state: FormState, action: FormAction): FormState {
         case 'UPDATE_DATA':
             return {
                 ...state,
-                data: { ...state.data, ...action.payload.data },
+                data: {
+                    ...state.data,
+                    articles: {
+                        ...state.data.articles,
+                        ...action.payload.data.articles,
+                        nombre: action.payload.data.articles?.nombre ?? state.data.articles?.nombre ?? 0,
+                        photos: action.payload.data.articles?.photos || state.data.articles?.photos,
+                        newPhotos: action.payload.data.articles?.newPhotos
+                    }
+                },
                 isDirty: action.payload.isDirty ?? true
             };
         case 'SET_ERRORS':

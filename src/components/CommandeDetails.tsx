@@ -125,7 +125,7 @@ import CommandeActions from './CommandeActions';
 import AdminActions from './AdminActions';
 import { AirtableService } from '../services/airtable.service';
 import { Personnel } from '../types/airtable.types';
-import { getStatutLivraisonStyle } from '../helpers/getStatus';
+import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../helpers/getStatus';
 
 interface CommandeDetailsProps {
     commande: CommandeMetier;
@@ -576,6 +576,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                     <h2 className="text-xl font-semibold">
                         Commande #{commande.numeroCommande || 'Non spécifiée'}
                     </h2>
+                    <span className={`ml-2 ${getStatutCommandeStyle(commande.statuts.commande)}`}>
+                        {commande.statuts?.commande || 'Non spécifié'}
+                    </span>
                     <span className={`ml-2 ${getStatutLivraisonStyle(commande.statuts.livraison)}`}>
                         {commande.statuts?.livraison || 'Non spécifié'}
                     </span>

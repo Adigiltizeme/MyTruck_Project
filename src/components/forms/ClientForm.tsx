@@ -1,20 +1,11 @@
 import { CommandeMetier } from "../../types/business.types";
 import { ValidationErrors } from "../../types/validation.types";
-import { AddressSuggestion } from "../../types/form.types"; // Adjust the import path as necessary
+import { AddressSuggestion, ClientFormProps } from "../../types/form.types"; // Adjust the import path as necessary
 import FormInput from "./FormInput";
 import { motion } from "framer-motion";
 
 
-interface ClientFormProps {
-    data: Partial<CommandeMetier>;
-    errors: ValidationErrors;
-    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-    handleAddressSearch: (query: string) => Promise<void>;
-    handleAddressSelect: (suggestion: any) => void;
-    addressSuggestions: AddressSuggestion[];
-}
-
-export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, addressSuggestions, handleAddressSelect, handleAddressSearch }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, addressSuggestions, handleAddressSelect, handleAddressSearch, isEditing = false }) => {
 
     return (
         <div className="space-y-4 mb-6">
@@ -25,6 +16,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                     name="numeroCommande"
                     value={data.numeroCommande || ''}
                     onChange={onChange}
+                    isEditing={isEditing}
                 />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -78,19 +70,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                         animate={{ opacity: 1, y: 0 }}
                         className="absolute z-10 w-full bg-white shadow-lg rounded-md mt-1"
                     >
-                        {/* {addressSuggestions.map((suggestion, index) => (
-                            <div
-                                key={index}
-                                onClick={() => {
-                                    const completeAddress = suggestion.properties;
-                                    console.log('Envoi adresse complète:', completeAddress);
-                                    handleAddressSelect({ completeAddress});
-                                }}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                            >
-                                {suggestion.properties.label}
-                            </div>
-                        ))} */}
                     </motion.div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
@@ -137,7 +116,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                             className='border border-gray-300 rounded-md'
                             name="client.adresse.ascenseur"
                             value={data.client?.adresse?.ascenseur ? 'Oui' : 'Non'}
-                            onChange={onChange}
+                            onChange={(e) => {
+                                const customEvent = {
+                                    target: {
+                                        name: 'client.adresse.ascenseur',
+                                        value: (e.target.value === 'Oui')
+                                    }
+                                } as unknown as React.ChangeEvent<HTMLInputElement>;
+                                onChange(customEvent);
+                            }}
+                    
                         >
                             <option value="Non">Non</option>
                             <option value="Oui">Oui</option>

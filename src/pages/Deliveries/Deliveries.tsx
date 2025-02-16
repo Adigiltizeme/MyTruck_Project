@@ -202,13 +202,27 @@ const Deliveries = () => {
                         <AjoutCommande
                             onSubmit={handleCreateCommande}
                             onCancel={() => setShowNewCommandeModal(false)}
+                            commande={{} as CommandeMetier}
+                            isEditing={false}
+                            initialData={{
+                                id: '',
+                                numeroCommande: '',
+                                dates: { commande: '', livraison: '', misAJour: '' },
+                                statuts: { livraison: 'EN ATTENTE', commande: 'En attente' },
+                                client: { nom: '', prenom: '', nomComplet: '', adresse: { ligne1: '', type: 'Domicile', batiment: '', etage: '', ascenseur: false, interphone: '' }, telephone: { principal: '', secondaire: '' } },
+                                magasin: { id: '', name: '', address: '', phone: '', status: '' },
+                                livraison: { creneau: '', vehicule: '', reserve: false, equipiers: 0, chauffeurs: [] },
+                                chauffeurs: [],
+                                financier: { tarifHT: 0 },
+                                articles: { nombre: 0, details: '', photos: [] }
+                            }}
                         />
                     </Modal>
                 </div>
 
                 {/* Sélecteur de dates */}
                 <div className="flex items-center gap-4 mb-4">
-                    <span className="text-sm text-gray-500">Date :</span>
+                    <span className="text-sm text-gray-500">Date:</span>
                     <select
                         value={dateRange.mode}
                         onChange={(e) => setDateRange(prev => ({
@@ -396,28 +410,16 @@ const Deliveries = () => {
                                                     </div>
                                                 </td>
                                             )}
-                                            {(user?.role === 'magasin') && (
-                                                <td className="px-4 py-2">
-                                                    <div className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={() => commande.id && handleEdit(commande.id)}
-                                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                                        >
-                                                            Éditer
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            )}
                                         </tr>
                                         {expandedRow === commande.id && (
                                             <tr className="bg-gray-50">
                                                 <td colSpan={10} className="px-4 py-2">
                                                     <div className="border-l-4 border-blue-500 pl-4">
-                                                        <CommandeDetails 
-                                                            commande={commande} 
+                                                        <CommandeDetails
+                                                            commande={commande}
                                                             onUpdate={(updatedCommande) => {
                                                                 setData(prevData => prevData.map(c => c.id === updatedCommande.id ? updatedCommande : c));
-                                                            }} 
+                                                            }}
                                                         />
                                                     </div>
                                                 </td>
