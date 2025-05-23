@@ -6,7 +6,6 @@ import { DocumentService } from '../services/document.service';
 import { getDocumentInfo } from '../utils/documents.utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Map, Marker } from 'react-map-gl';
-import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../helpers/getStatus';
 import mapboxgl from 'mapbox-gl';
 import { isValidForModification, validateCommande } from '../utils/validation.utils';
 import { Modal } from './Modal';
@@ -14,6 +13,7 @@ import AjoutCommande from './AjoutCommande';
 import { useNavigate } from 'react-router-dom';
 import { ArticlesForm, ClientForm, LivraisonForm, RecapitulatifForm } from './forms';
 import { CloudinaryService } from '../services/cloudinary.service';
+import { useOffline } from '../contexts/OfflineContext';
 
 interface CommandeActionsProps {
     commande: CommandeMetier;
@@ -33,16 +33,14 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     const [downloading, setDownloading] = useState(false);
     const [driverLocations, setDriverLocations] = useState<any[]>([]);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [newPhotos, setNewPhotos] = useState<Array<{ url: string; file: File }>>([]);
 
     const documentService = new DocumentService(import.meta.env.VITE_AIRTABLE_TOKEN);
     const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+    const { dataService } = useOffline();
 
     // Utilisation des validations
     const canModify = isValidForModification(commande);
     const canConfirmTransmission = validateCommande.canConfirmTransmission(commande);
-
-
 
     // Suivi en temps réel
     useEffect(() => {
@@ -59,7 +57,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
             // Mettre à jour la position
             const interval = setInterval(async () => {
                 const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                const updatedCommandes = await airtableService.getCommandes();
+                const updatedCommandes = await dataService.getCommandes();
                 const updatedCommande = updatedCommandes.find(cmd => cmd.id === commande.id);
                 if (updatedCommande?.chauffeurs?.[0]?.location) {
                     setDriverLocation(updatedCommande.chauffeurs[0].location);
@@ -122,9 +120,16 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     const handleEditSubmit = async (updatedData: Partial<CommandeMetier>) => {
         try {
             setLoading(true);
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
 
-            const result = await airtableService.updateCommande({
+            // Préserver la valeur de réserve si elle n'a pas été explicitement modifiée
+            if (updatedData.livraison && commande.livraison) {
+                updatedData.livraison = {
+                    ...updatedData.livraison,
+                    reserve: commande.livraison.reserve
+                };
+            }
+
+            const result = await dataService.updateCommande({
                 ...updatedData,
                 id: commande.id,
                 // Préserver les champs qui ne doivent pas être modifiés
@@ -147,24 +152,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
         try {
             setLoading(true);
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            const cloudinaryService = new CloudinaryService();
-
-            // Upload des nouvelles photos si présentes
-            const uploadedNewPhotos = await Promise.all(
-                (editData.articles?.newPhotos || []).map(async photo => {
-                    const uploadResult = await cloudinaryService.uploadImage(photo.file);
-                    return {
-                        url: uploadResult.url,
-                        filename: photo.file.name
-                    };
-                })
-            );
-
-            // Combiner les photos existantes avec les nouvelles photos uploadées
-            const allPhotos = [
-                ...(editData.articles?.photos || []),
-                ...uploadedNewPhotos
-            ];
 
             // S'assurer de garder la date de livraison originale
             const modifiedData: Partial<CommandeMetier> = {
@@ -175,8 +162,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                 articles: {
                     ...editData.articles,
                     nombre: editData.articles?.nombre ?? commande.articles?.nombre ?? 0,
-                    photos: allPhotos,
-                    newPhotos: undefined // Nettoyer les nouvelles photos après soumission
+                    dimensions: editData.articles?.dimensions ?? commande.articles?.dimensions ?? [],
                 },
                 dates: {
                     ...commande.dates,
@@ -189,12 +175,11 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
             // Log pour debug
             console.log('Données modifiées:', modifiedData);
 
-            const result = await airtableService.updateCommande(modifiedData);
+            const result = await dataService.updateCommande(modifiedData);
 
             onUpdate(result);
             setShowEditModal(false);
             setIsEditing(false);
-            setNewPhotos([]); // Réinitialiser les nouvelles photos après soumission réussie
 
         } catch (error) {
             console.error('Erreur lors de la modification:', error);
@@ -219,8 +204,9 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                         onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
                         errors={{}} // Add appropriate error handling here
                         handleAddressSearch={async (query: string) => { /* Add appropriate address search handling here */ }} // Add appropriate address search handling here
-                        handleAddressSelect={() => { }} // Add appropriate address select handling here
+                        handleAddressSelect={() => { [] }} // Add appropriate address select handling here
                         addressSuggestions={[]} // Add appropriate address suggestions here
+                        setAddressSuggestions={() => { }} // Add appropriate setAddressSuggestions handling here
                         isEditing
                     />
                 );
@@ -239,6 +225,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                         onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
                         showErrors={false}
                         errors={{}}
+                        isEditing={true}
                     />
                 );
             case 4:
@@ -278,7 +265,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     const handleCancel = async () => {
         try {
             setLoading(true);
-            const result = await airtableService.updateCommandeStatus(commande.id, {
+            const result = await dataService.updateCommandeStatus(commande.id, {
                 commande: 'Annulée',
                 livraison: 'ANNULEE'
             });
@@ -293,7 +280,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
     const handleConfirmTransmission = async () => {
         try {
             setLoading(true);
-            const result = await airtableService.updateCommandeStatus(commande.id, {
+            const result = await dataService.updateCommandeStatus(commande.id, {
                 commande: 'Transmise',
                 livraison: 'CONFIRMEE'
             });
@@ -327,7 +314,8 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                             {showEditModal && (
                                 <Modal
                                     isOpen={showEditModal}
-                                    onClose={() => setShowEditModal(false)}>
+                                    onClose={() => setShowEditModal(false)}
+                                >
                                     <div className="p-6">
                                         <div className="flex justify-between items-center mb-6">
                                             <h2 className="text-xl font-semibold">Modifier la commande</h2>
@@ -377,7 +365,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate })
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={() => setIsEditing(false)}
+                                        onClick={() => setShowEditModal(false)}
                                         className="px-4 py-2 mb-6 ml-6 text-gray-600 hover:bg-gray-100 rounded-lg"
                                     >
                                         Annuler

@@ -25,6 +25,9 @@ interface PersonnelMap {
     // autres propriétés...
 }
 export class AirtableService {
+    private isOfflineMode(): boolean {
+        return localStorage.getItem('forceOfflineMode') === 'true';
+    }
     private cache = new Map<string, { data: any; timestamp: number; }>();
     private batchQueue = new Map<string, Promise<any>>();
     private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -47,6 +50,11 @@ export class AirtableService {
     }
 
     async initialize() {
+        if (this.isOfflineMode()) {
+            console.log('[Mode hors ligne] Initialisation Airtable ignorée');
+            return; // Ne pas tenter d'initialisation en mode hors ligne
+        }
+
         try {
             // Vérification de la connexion
             const testResponse = await this.fetchFromAirtable(this.tables.commandes, { maxRecords: 1 });
@@ -57,9 +65,15 @@ export class AirtableService {
         }
     }
 
-    private async fetchFromAirtable(tableId: string, options: any = {}) {
+    private async fetchFromAirtable(tableId: string, options: any = {}): Promise<any> {
+        // Vérifier d'abord si nous sommes en mode hors ligne
+        const url = `https://api.airtable.com/v0/${this.baseId}/${tableId}`;
+        if (this.isOfflineMode()) {
+            console.log(`[Mode hors ligne] Appel API bloqué: ${options.method || 'GET'} ${url}`);
+            throw new Error('Mode hors ligne actif - Appel API non autorisé');
+        }
+
         try {
-            const url = `https://api.airtable.com/v0/${this.baseId}/${tableId}`;
             const response = await fetch(url, {
                 ...options,
                 headers: {
@@ -95,6 +109,10 @@ export class AirtableService {
             console.error('Erreur de connexion:', error);
             return false;
         }
+    }
+
+    public getToken(): string {
+        return this.token;
     }
 
     private async getCachedData<T>(key: string, fetchFn: () => Promise<T>): Promise<T> {
@@ -242,6 +260,12 @@ export class AirtableService {
 
     async deleteCommande(id: string): Promise<void> {
         try {
+            // Si l'ID est temporaire, on retourne simplement sans erreur
+            if (id.startsWith('temp_')) {
+                console.log(`Suppression ignorée pour l'ID temporaire ${id}`);
+                return;
+            }
+
             const url = `https://api.airtable.com/v0/${this.baseId}/${this.tables.commandes}/${id}`;
             const response = await fetch(url, {
                 method: 'DELETE',
@@ -252,11 +276,25 @@ export class AirtableService {
             });
 
             if (!response.ok) {
+                // Si c'est une erreur 404 pour un ID normal, on la considère comme réussie
+                // (l'enregistrement n'existe plus, ce qui est le but de la suppression)
+                if (response.status === 404) {
+                    console.log(`L'enregistrement ${id} n'existe pas (déjà supprimé?)`);
+                    return;
+                }
+
                 const error = await response.json();
-                throw new Error(`Erreur Airtable: ${error.error?.message || 'Erreur inconnue'}`);
+                throw {
+                    status: response.status,
+                    message: `Erreur Airtable: ${error.error?.message || 'Erreur inconnue'}`
+                };
             }
-        } catch (error) {
-            throw new Error('Failed to delete commande');
+        } catch (error: any) {
+            if (error.status === 404) {
+                console.log(`L'enregistrement ${id} n'existe pas (déjà supprimé?)`);
+                return;
+            }
+            throw error;
         }
     }
 
@@ -303,6 +341,11 @@ export class AirtableService {
 
     async createCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
         try {
+            // Log de début pour suivre le flux
+            console.log('AirtableService.createCommande appelé avec:', {
+                magasinId: commande.magasin?.id,
+                numeroCommande: commande.numeroCommande || 'Non défini'
+            });
             const cloudinaryService = new CloudinaryService();
 
             // Upload des photos vers Cloudinary
@@ -319,11 +362,27 @@ export class AirtableService {
                 })
             );
 
+            // Vérifier que les données sont valides
+            if (!commande.client?.nom) {
+                console.error('Tentative de création d\'une commande sans nom client');
+            }
+
+            if (!commande.magasin?.id) {
+                console.error('Tentative de création d\'une commande sans ID magasin');
+            }
+
             // S'assurer que equipiers est une chaîne de caractères
             const equipiers = commande.livraison?.equipiers?.toString() || '0';
+            // Générer un numéro de commande uniquement s'il n'en a pas déjà un
+            const numeroCommande = commande.numeroCommande || `CMD${Date.now()}`;
+
+            // UUID unique pour tracer cette demande de création
+            const requestId = Math.random().toString(36).substring(2, 12);
+            console.log(`[${requestId}] Début création commande dans Airtable`);
+
             // Préparation des champs en respectant les noms exacts d'Airtable
             const fields: { [key: string]: any } = {
-                'NUMERO DE COMMANDE': commande.numeroCommande || `CMD${Date.now()}`,
+                'NUMERO DE COMMANDE': numeroCommande,
                 'NOM DU CLIENT': commande.client?.nom,
                 'PRENOM DU CLIENT': commande.client?.prenom,
                 'TELEPHONE DU CLIENT': commande.client?.telephone?.principal,
@@ -340,13 +399,29 @@ export class AirtableService {
                 'OPTION EQUIPIER DE MANUTENTION': equipiers, // Utilisation de la valeur convertie en chaîne
                 'NOMBRE TOTAL D\'ARTICLES': commande.articles?.nombre?.toString(),
                 'DETAILS SUR LES ARTICLES': commande.articles?.details,
-                'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
+                // 'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
                 'AUTRES REMARQUES': commande.livraison?.remarques,
-                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'NON' : 'OUI',
+                'RESERVE TRANSPORT': commande.livraison?.reserve ? 'OUI' : 'NON',
                 'STATUT DE LA COMMANDE': 'En attente',
                 'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': 'EN ATTENTE',
                 'PRENOM DU VENDEUR/INTERLOCUTEUR': commande.magasin?.manager,
+                'Magasins': commande.magasin?.id ? [commande.magasin.id] : undefined,
             };
+
+            console.log('Données envoyées à Airtable pour la création de commande:', {
+                ...fields,
+                'Magasin ID': commande.magasin?.id || 'Non spécifié'
+            });
+
+            // Traitement spécial pour les photos
+            if ((commande.articles?.photos?.length ?? 0) > 0) {
+                fields['PHOTOS ARTICLES'] = (commande.articles?.photos ?? []).map(photo => {
+                    if (typeof photo === 'string') {
+                        return { url: photo };
+                    }
+                    return { url: photo.url };
+                });
+            }
 
             console.log('Données envoyées à Airtable:', {
                 ...fields,
@@ -366,12 +441,155 @@ export class AirtableService {
                 // }
             });
 
+            // Log final pour confirmer la création
+            console.log(`[${requestId}] Commande créée avec succès dans Airtable, ID: ${response.id}`);
+
             return transformAirtableToCommande(response);
         } catch (error) {
             console.error('Erreur createCommande:', error);
             throw error;
         }
     }
+
+    /**
+     * Crée un nouveau magasin dans Airtable
+     * @param magasinData Données du magasin à créer
+     * @returns Le magasin créé
+     */
+    async createMagasin(magasinData: {
+        id?: string;
+        name: string;
+        address: string;
+        phone: string;
+        email?: string;
+        status: string;
+    }): Promise<any> {
+        try {
+            // Vérifier si nous sommes en mode hors ligne
+            if (this.isOfflineMode()) {
+                throw new Error('Mode hors ligne actif - Opération non disponible');
+            }
+
+            // Préparation des champs pour Airtable
+            const fields = {
+                'NOM DU MAGASIN': magasinData.name,
+                'ADRESSE DU MAGASIN': magasinData.address,
+                'TÉLÉPHONE': magasinData.phone,
+                'E-MAIL': magasinData.email || '',
+                'STATUT': magasinData.status || 'Actif'
+            };
+
+            // Envoi de la requête à Airtable
+            const response = await this.fetchFromAirtable(this.tables.magasins, {
+                method: 'POST',
+                body: JSON.stringify({
+                    fields,
+                    typecast: true
+                })
+            });
+
+            // Conversion au format attendu par l'application
+            return {
+                id: response.id,
+                name: response.fields['NOM DU MAGASIN'] || '',
+                address: response.fields['ADRESSE DU MAGASIN'] || '',
+                phone: response.fields['TÉLÉPHONE'] || '',
+                email: response.fields['E-MAIL'] || '',
+                status: response.fields['STATUT'] || 'Actif'
+            };
+        } catch (error) {
+            console.error('Erreur lors de la création du magasin:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Récupère un magasin par son ID
+     * @param id ID du magasin
+     * @returns Le magasin trouvé ou null
+     */
+    async getMagasinById(id: string): Promise<any | null> {
+        try {
+            // Vérifier si nous sommes en mode hors ligne
+            if (this.isOfflineMode()) {
+                throw new Error('Mode hors ligne actif - Opération non disponible');
+            }
+
+            const response = await this.fetchFromAirtable(`${this.tables.magasins}/${id}`);
+
+            if (!response || !response.fields) {
+                return null;
+            }
+
+            return {
+                id: response.id,
+                name: response.fields['NOM DU MAGASIN'] || '',
+                address: response.fields['ADRESSE DU MAGASIN'] || '',
+                phone: response.fields['TÉLÉPHONE'] || '',
+                email: response.fields['E-MAIL'] || '',
+                status: response.fields['STATUT'] || 'Actif'
+            };
+        } catch (error) {
+            console.error(`Erreur lors de la récupération du magasin ${id}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Crée un nouveau membre du personnel dans Airtable
+     * @param personnelData Données du personnel à créer
+     * @returns Le personnel créé
+     */
+    async createPersonnel(personnelData: {
+        id?: string;
+        nom: string;
+        prenom: string;
+        telephone: string;
+        email?: string;
+        role: string;
+        status: string;
+    }): Promise<any> {
+        try {
+            // Vérifier si nous sommes en mode hors ligne
+            if (this.isOfflineMode()) {
+                throw new Error('Mode hors ligne actif - Opération non disponible');
+            }
+
+            // Préparation des champs pour Airtable
+            const fields = {
+                'NOM': personnelData.nom,
+                'PRENOM': personnelData.prenom,
+                'TELEPHONE': personnelData.telephone,
+                'E-MAIL': personnelData.email || '',
+                'RÔLE': personnelData.role || 'Chauffeur',
+                'STATUT': personnelData.status || 'Actif'
+            };
+
+            // Envoi de la requête à Airtable
+            const response = await this.fetchFromAirtable(this.tables.personnel, {
+                method: 'POST',
+                body: JSON.stringify({
+                    fields,
+                    typecast: true
+                })
+            });
+
+            // Conversion au format attendu par l'application
+            return {
+                id: response.id,
+                nom: response.fields['NOM'] || '',
+                prenom: response.fields['PRENOM'] || '',
+                telephone: response.fields['TELEPHONE'] || '',
+                email: response.fields['E-MAIL'] || '',
+                role: response.fields['RÔLE'] || 'Chauffeur',
+                status: response.fields['STATUT'] || 'Actif'
+            };
+        } catch (error) {
+            console.error('Erreur lors de la création du personnel:', error);
+            throw error;
+        }
+    }
+
     // Méthode utilitaire pour convertir un fichier en base64
     private async convertFileToBase64(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -460,6 +678,11 @@ export class AirtableService {
 
     async updateCommande(updatedData: Partial<CommandeMetier>): Promise<CommandeMetier> {
         try {
+            // Si l'ID est temporaire, on refuse la mise à jour
+            if (updatedData.id && updatedData.id.startsWith('temp_')) {
+                throw new Error(`Impossible de mettre à jour un enregistrement temporaire: ${updatedData.id}`);
+            }
+
             const cloudinaryService = new CloudinaryService();
 
             // Upload des photos vers Cloudinary
@@ -476,7 +699,55 @@ export class AirtableService {
                 })
             );
 
-            const existingCommande = await this.fetchFromAirtable(`${this.tables.commandes}/${updatedData.id}`);
+            // Récupérer d'abord les données existantes
+            let existingCommande;
+            if (updatedData.id) {
+                existingCommande = await this.fetchFromAirtable(`${this.tables.commandes}/${updatedData.id}`);
+            }
+
+            // Vérifier si des commentaires ou photos ont été ajoutés et déterminer si on doit mettre à jour le champ réserve
+            let shouldUpdateReserve: boolean = false;
+
+            // Vérifier si des commentaires ou photos ont été ajoutés
+            if (updatedData.livraison) {
+                // Vérifier le commentaire d'enlèvement (avec protection contre undefined)
+                const hasNewCommentaireEnlevement = Boolean(
+                    updatedData.livraison.commentaireEnlevement &&
+                    (!existingCommande?.fields['COMMENTAIRE ENLÈVEMENT'] ||
+                        existingCommande.fields['COMMENTAIRE ENLÈVEMENT'] !== updatedData.livraison.commentaireEnlevement)
+                );
+
+                // Vérifier le commentaire de livraison (avec protection contre undefined)
+                const hasNewCommentaireLivraison = Boolean(
+                    updatedData.livraison.commentaireLivraison &&
+                    (!existingCommande?.fields['COMMENTAIRE LIVRAISON'] ||
+                        existingCommande.fields['COMMENTAIRE LIVRAISON'] !== updatedData.livraison.commentaireLivraison)
+                );
+
+                // Vérifier les photos d'enlèvement (avec protection contre undefined)
+                const hasNewPhotosEnlevement = Boolean(
+                    updatedData.livraison.photosEnlevement &&
+                    Array.isArray(updatedData.livraison.photosEnlevement) &&
+                    updatedData.livraison.photosEnlevement.length > 0
+                );
+
+                // Vérifier les photos de livraison (avec protection contre undefined)
+                const hasNewPhotosLivraison = Boolean(
+                    updatedData.livraison.photosLivraison &&
+                    Array.isArray(updatedData.livraison.photosLivraison) &&
+                    updatedData.livraison.photosLivraison.length > 0
+                );
+
+                // Activer la réserve uniquement si des commentaires ou photos ont été ajoutés
+                // Utilisation de Boolean() pour s'assurer que le résultat est bien un boolean
+                shouldUpdateReserve = Boolean(
+                    hasNewCommentaireEnlevement ||
+                    hasNewCommentaireLivraison ||
+                    hasNewPhotosEnlevement ||
+                    hasNewPhotosLivraison
+                );
+            }
+
             const existingPhotos = existingCommande.fields['PHOTOS ARTICLES'] || [];
 
             const nombreArticles = updatedData.articles?.nombre;
@@ -484,12 +755,16 @@ export class AirtableService {
             if (updatedData.financier?.tarifHT && typeof updatedData.financier.tarifHT !== 'number') {
                 throw new Error('Le tarif HT doit être un nombre');
             }
+            if (!updatedData.id) {
+                throw new Error('ID de commande manquant');
+            }
 
             // S'assurer que equipiers est une chaîne de caractères
             const equipiers = updatedData.livraison?.equipiers?.toString() || '0';
+
             // Préparation des champs en respectant les noms exacts d'Airtable
             const fields: { [key: string]: any } = {
-                'NUMERO DE COMMANDE': updatedData.numeroCommande || `CMD${Date.now()}`,
+                'NUMERO DE COMMANDE': existingCommande.fields['NUMERO DE COMMANDE'] || updatedData.numeroCommande,
                 'NOM DU CLIENT': updatedData.client?.nom,
                 'PRENOM DU CLIENT': updatedData.client?.prenom,
                 'TELEPHONE DU CLIENT': updatedData.client?.telephone?.principal,
@@ -508,13 +783,13 @@ export class AirtableService {
                 'OPTION EQUIPIER DE MANUTENTION': equipiers, // Utilisation de la valeur convertie en chaîne
                 'NOMBRE TOTAL D\'ARTICLES': typeof nombreArticles === 'number' ? nombreArticles : (nombreArticles ? parseInt(nombreArticles as string) : 0),
                 'DETAILS SUR LES ARTICLES': updatedData.articles?.details,
-                'PHOTOS ARTICLES': updatedData.articles?.photos?.map(photo => ({
-                    url: photo.url,
-                    filename: photo.file || 'photo'
-                })) || [],
+                // 'PHOTOS ARTICLES': updatedData.articles?.photos?.map(photo => ({
+                //     url: photo.url,
+                //     filename: photo.file || 'photo'
+                // })) || [],
                 // 'PHOTOS ARTICLES': photosAttachments.length > 0 ? photosAttachments : undefined,
                 'AUTRES REMARQUES': updatedData.livraison?.remarques,
-                'RESERVE TRANSPORT': updatedData.livraison?.reserve ? 'NON' : 'OUI',
+                'RESERVE TRANSPORT': updatedData.livraison?.reserve ? 'OUI' : 'NON',
                 // 'STATUT DE LA COMMANDE': [updatedData.statuts?.commande || 'En attente'],
                 // 'STATUT DE LA LIVRAISON (ENCART MYTRUCK)': [updatedData.statuts?.livraison || 'EN ATTENTE'],
                 'PRENOM DU VENDEUR/INTERLOCUTEUR': updatedData.magasin?.manager,
@@ -538,12 +813,36 @@ export class AirtableService {
             if (updatedData.articles?.photos && updatedData.articles.photos.length > 0) {
                 fields['PHOTOS ARTICLES'] = existingPhotos;
             }
+            // Formatage des photos pour Airtable
+            if (updatedData.articles?.photos) {
+                fields['PHOTOS ARTICLES'] = updatedData.articles.photos.map(photo => {
+                    if (typeof photo === 'string') {
+                        return { url: photo };
+                    }
+                    return { url: photo.url };
+                });
+            }
+
+            // Ne mettre à jour le champ RESERVE TRANSPORT que si nécessaire
+            if (shouldUpdateReserve) {
+                fields['RESERVE TRANSPORT'] = 'OUI';
+                console.log('Réserve transport activée en raison de nouveaux commentaires ou photos');
+            } else if (existingCommande) {
+                // Préserver la valeur existante
+                fields['RESERVE TRANSPORT'] = existingCommande.fields['RESERVE TRANSPORT'] || 'NON';
+            } else {
+                // Utiliser la valeur fournie ou la valeur par défaut
+                fields['RESERVE TRANSPORT'] = updatedData.livraison?.reserve ? 'OUI' : 'NON';
+            }
 
             const response = await this.fetchFromAirtable(
                 `${this.tables.commandes}/${updatedData.id}`,
                 {
                     method: 'PATCH',
-                    body: JSON.stringify({ fields }),
+                    body: JSON.stringify({
+                        fields,
+                        typecast: true
+                    }),
                     headers: {
                         'Content-Type': 'application/json'
                     }
@@ -552,6 +851,11 @@ export class AirtableService {
 
             return transformAirtableToCommande(response);
         } catch (error) {
+            // Gestion spéciale pour les erreurs 404
+            if ((error as { status?: number }).status === 404 && updatedData.id) {
+                console.error(`Enregistrement non trouvé pour mise à jour: ${updatedData.id}`);
+                throw new Error(`Enregistrement non trouvé: ${updatedData.id}`);
+            }
             console.error('Erreur updateCommande:', error);
             throw error;
         }
@@ -642,6 +946,56 @@ export class AirtableService {
 
             return transformAirtableToCommande(response);
         } catch (error) {
+            throw error;
+        }
+    }
+
+    async addPhotosToCommande(commandeId: string, newPhotos: Array<{ url: string }>, existingPhotos: Array<{ url: string }> = []): Promise<CommandeMetier> {
+        try {
+            const allPhotos = [...existingPhotos, ...newPhotos];
+
+            const fields = {
+                'PHOTOS ARTICLES': allPhotos.map(photo => ({ url: photo.url })),
+            };
+
+            const response = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${commandeId}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        fields,
+                        typecast: true
+                    })
+                }
+            );
+
+            return transformAirtableToCommande(response);
+        } catch (error) {
+            console.error('Erreur lors de l\'ajout des photos:', error);
+            throw error;
+        }
+    }
+
+    async deletePhotoFromCommande(commandeId: string, updatedPhotos: Array<{ url: string }>): Promise<CommandeMetier> {
+        try {
+            const fields = {
+                'PHOTOS ARTICLES': updatedPhotos.map(photo => ({ url: photo.url })),
+            };
+
+            const response = await this.fetchFromAirtable(
+                `${this.tables.commandes}/${commandeId}`,
+                {
+                    method: 'PATCH',
+                    body: JSON.stringify({
+                        fields,
+                        typecast: true
+                    })
+                }
+            );
+
+            return transformAirtableToCommande(response);
+        } catch (error) {
+            console.error('Erreur lors de la suppression de la photo:', error);
             throw error;
         }
     }

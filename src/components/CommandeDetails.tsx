@@ -1,119 +1,3 @@
-// import { CommandeMetier } from '../types/business.types';
-// import { useState } from 'react';
-
-// interface CommandeDetailsProps {
-//     commande: CommandeMetier;
-// }
-
-// const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande }) => {
-//     const [activeTab, setActiveTab] = useState('infos');
-
-//     const formatPrice = (price: number) => {
-//         return new Intl.NumberFormat('fr-FR', {
-//             style: 'currency',
-//             currency: 'EUR'
-//         }).format(price);
-//     };
-
-//     return (
-//         <div className="p-4">
-//             {/* Tabs Navigation */}
-//             <div className="border-b mb-4">
-//                 <nav className="flex gap-4">
-//                     <button
-//                         onClick={() => setActiveTab('infos')}
-//                         className={`py-2 px-4 ${activeTab === 'infos' ? 'border-b-2 border-red-600' : ''}`}
-//                     >
-//                         Informations Générales
-//                     </button>
-//                     <button
-//                         onClick={() => setActiveTab('articles')}
-//                         className={`py-2 px-4 ${activeTab === 'articles' ? 'border-b-2 border-red-600' : ''}`}
-//                     >
-//                         Articles & Photos
-//                     </button>
-//                     <button
-//                         onClick={() => setActiveTab('livraison')}
-//                         className={`py-2 px-4 ${activeTab === 'livraison' ? 'border-b-2 border-red-600' : ''}`}
-//                     >
-//                         Détails Livraison
-//                     </button>
-//                     <button
-//                         onClick={() => setActiveTab('historique')}
-//                         className={`py-2 px-4 ${activeTab === 'historique' ? 'border-b-2 border-red-600' : ''}`}
-//                     >
-//                         Historique & Commentaires
-//                     </button>
-//                 </nav>
-//             </div>
-
-//             {/* Content Sections */}
-//             <div className="space-y-4">
-//             {/* Informations Client */}
-//             <div className="bg-white p-4 rounded-lg shadow">
-//                 <h3 className="font-medium text-lg mb-3">Informations Client</h3>
-//                 <div className="space-y-2">
-//                     <p><span className="font-medium">Nom complet:</span> {commande.client?.nomComplet || 'Non spécifié'}</p>
-//                     <p><span className="font-medium">Téléphone principal:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
-//                     {commande.client?.telephone?.secondaire && (
-//                         <p><span className="font-medium">Téléphone secondaire:</span> {commande.client.telephone.secondaire}</p>
-//                     )}
-//                     <p><span className="font-medium">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
-//                     <p><span className="font-medium">Type:</span> {commande.client?.adresse?.type || 'Non spécifié'}</p>
-//                 </div>
-//             </div>
-
-//             {/* Informations Livraison */}
-//             <div className="bg-white p-4 rounded-lg shadow">
-//                 <h3 className="font-medium text-lg mb-3">Informations Livraison</h3>
-//                 <div className="space-y-2">
-//                     <p><span className="font-medium">Créneau:</span> {commande.livraison?.creneau || 'Non spécifié'}</p>
-//                     <p><span className="font-medium">Véhicule:</span> {commande.livraison?.vehicule || 'Non spécifié'}</p>
-//                     <p><span className="font-medium">Équipiers:</span> {commande.livraison?.equipiers || '0'}</p>
-//                     <p><span className="font-medium">Réserve transport:</span> {commande.livraison?.reserve ? 'Oui' : 'Non'}</p>
-//                     {commande.livraison?.remarques && (
-//                         <p><span className="font-medium">Notes:</span> {commande.livraison.remarques}</p>
-//                     )}
-//                 </div>
-//             </div>
-
-//             {/* Informations Commande */}
-//             <div className="bg-white p-4 rounded-lg shadow">
-//                 <h3 className="font-medium text-lg mb-3">Détails Commande</h3>
-//                 <div className="space-y-2">
-//                     <p><span className="font-medium">Numéro:</span> {commande.numeroCommande}</p>
-//                     <p><span className="font-medium">Statut commande:</span> {commande.statuts?.commande || 'Non spécifié'}</p>
-//                     <p><span className="font-medium">Statut livraison:</span> {commande.statuts?.livraison || 'Non spécifié'}</p>
-//                     <p><span className="font-medium">Date commande:</span> {new Date(commande.dates?.commande).toLocaleDateString() || 'Non spécifiée'}</p>
-//                     <p><span className="font-medium">Date livraison:</span> {new Date(commande.dates?.livraison).toLocaleDateString() || 'Non spécifiée'}</p>
-//                     <p><span className="font-medium">Tarif HT:</span> {formatPrice(commande.financier?.tarifHT || 0)}</p>
-//                 </div>
-//             </div>
-
-//             {/* Commentaires */}
-//             {(commande.livraison?.commentaireEnlevement || commande.livraison?.commentaireLivraison) && (
-//                 <div className="bg-white p-4 rounded-lg shadow">
-//                     <h3 className="font-medium text-lg mb-3">Commentaires</h3>
-//                     {commande.livraison.commentaireEnlevement && (
-//                         <div className="mb-4">
-//                             <p className="font-medium">À l'enlèvement:</p>
-//                             <p className="mt-1 text-gray-700">{commande.livraison.commentaireEnlevement}</p>
-//                         </div>
-//                     )}
-//                     {commande.livraison.commentaireLivraison && (
-//                         <div>
-//                             <p className="font-medium">À la livraison:</p>
-//                             <p className="mt-1 text-gray-700">{commande.livraison.commentaireLivraison}</p>
-//                         </div>
-//                     )}
-//                 </div>
-//             )}
-//         </div>
-//         </div>
-//     );
-// };
-// export default CommandeDetails;
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 import React, { useEffect, useState } from 'react';
 import { CommandeMetier } from '../types/business.types';
 import { format } from 'date-fns';
@@ -125,7 +9,13 @@ import CommandeActions from './CommandeActions';
 import AdminActions from './AdminActions';
 import { AirtableService } from '../services/airtable.service';
 import { Personnel } from '../types/airtable.types';
-import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../helpers/getStatus';
+import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../styles/getStatus';
+import PhotoUploader from './PhotoUploader';
+import { Upload, XCircle } from 'lucide-react';
+import { useOffline } from '../contexts/OfflineContext';
+import { SecureImage } from './SecureImage';
+import DocumentViewer from './DocumentViewer';
+import { ArticleDimension } from './forms/ArticleDimensionForm';
 
 interface CommandeDetailsProps {
     commande: CommandeMetier;
@@ -134,17 +24,29 @@ interface CommandeDetailsProps {
 }
 
 const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate }) => {
+    // Vérification de sécurité - si commande est undefined ou null, afficher un message
+    if (!commande) {
+        return <div className="p-4 bg-red-100 text-red-700 rounded">Données de commande indisponibles.</div>;
+    }
+
     const [activeTab, setActiveTab] = useState('informations');
-    const [chauffeurs, setChauffeurs] = useState([]);
+    const [chauffeurs, setChauffeurs] = useState<Personnel[]>([]);
+    const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+
+    const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+    const { dataService } = useOffline();
 
     // Chargement des chauffeurs pour l'admin
     useEffect(() => {
         const loadChauffeurs = async () => {
             if (user?.role === 'admin') {
                 const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                const personnelData = await airtableService.getPersonnel();
-                setChauffeurs(personnelData.filter((p: Personnel) => p.role === 'Chauffeur'));
+                const personnelData = await dataService.getPersonnel();
+                setChauffeurs(personnelData.filter((p: any) => p.role === 'Chauffeur').map((p: any) => ({
+                    ...p,
+                    status: p.status === 'En route vers magasin' ? 'Actif' : p.status
+                })));
             }
         };
 
@@ -154,8 +56,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
     // Vérification sécurisée des dates
     const timelineEvents = [
         {
-            date: commande.dates?.commande ? new Date(commande.dates.commande) : new Date(),
-            status: commande.statuts?.commande || 'Non spécifié',
+            date: commande?.dates?.commande ? new Date(commande.dates.commande) : new Date(),
+            status: commande?.statuts?.commande || 'Non spécifié',
             type: 'commande'
         },
         {
@@ -194,7 +96,48 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
         ...(user?.role === 'magasin' || user?.role === 'admin' ? [{ id: 'actions', label: 'Actions' }] : []),
     ];
 
+    // Gestion des photos
+    const handlePhotoUpload = async (uploadedPhotos: Array<{ url: string; file: File }>) => {
+        try {
+            const existingPhotos = commande.articles?.photos || [];
+            const newPhotos = uploadedPhotos.map(photo => ({ url: photo.url }));
+
+            const updatedCommande = await dataService.addPhotosToCommande(
+                commande.id,
+                newPhotos,
+                existingPhotos
+            );
+
+            onUpdate(updatedCommande);
+        } catch (error) {
+            setError('Erreur lors de l\'ajout des photos');
+            console.error('Erreur lors de l\'ajout des photos:', error);
+        }
+    };
+
+    const handlePhotoDelete = async (indexToDelete: number) => {
+        try {
+            if (!commande.articles?.photos) return;
+
+            const updatedPhotos = commande.articles.photos.filter((_, index) => index !== indexToDelete);
+
+            const updatedCommande = await dataService.deletePhotoFromCommande(
+                commande.id,
+                updatedPhotos
+            );
+
+            onUpdate(updatedCommande);
+        } catch (error) {
+            setError('Erreur lors de la suppression de la photo');
+            console.error('Erreur lors de la suppression de la photo:', error);
+        }
+    };
+
     const renderContent = () => {
+        // Vérification des propriétés nécessaires avant le switch
+        if (!commande) {
+            return <div>Données manquantes</div>;
+        }
         switch (activeTab) {
             case 'informations':
                 return (
@@ -214,7 +157,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Client</h3>
                             <div className="space-y-2">
-                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p>
+                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom}</p>
+                                {/* <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p> */}
                                 <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
                                 <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
                             </div>
@@ -239,7 +183,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                     <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
                                     <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
                                 </div>
-                                {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) && (
+                                {(commande.articles?.photos && Array.isArray(commande.articles.photos)) && (
                                     <div className="grid grid-cols-2 gap-2 mt-2">
                                         {commande.articles.photos.map((photo: string | { url: string }, index) => {
                                             // Vérifier si l'URL de la photo est un URL valide
@@ -247,14 +191,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                             return (
                                                 <div key={index} className="relative group">
                                                     {photoUrl && (
-                                                        <img
+                                                        <SecureImage
                                                             src={photoUrl}
-                                                            alt={`Photo article ${index + 1}`}
-                                                            className="rounded-lg w-20 h-20 object-cover"
-                                                            onError={(e) => {
-                                                                console.error('Erreur chargement image:', photoUrl);
-                                                                e.currentTarget.src = '/placeholder-image.jpg';
-                                                            }}
+                                                            alt={`Photo ${index + 1}`}
+                                                            className="rounded-lg w-full h-48 object-cover"
                                                         />
                                                     )}
                                                 </div>
@@ -262,12 +202,38 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                         })}
                                     </div>
                                 )}
+                                {commande.articles?.dimensions && commande.articles.dimensions.length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="font-medium text-gray-700 mb-2">Dimensions des articles</h4>
+                                        <div className="space-y-3">
+                                            {commande.articles.dimensions.map((article: ArticleDimension, index: number) => (
+                                                <div key={index} className="border rounded-lg p-3 bg-gray-50">
+                                                    <p className="font-medium">{article.nom} (x{article.quantite})</p>
+                                                    <div className="grid grid-cols-2 text-sm text-gray-600 mt-1">
+                                                        {article.longueur && (
+                                                            <p>Longueur: {article.longueur} cm</p>
+                                                        )}
+                                                        {article.largeur && (
+                                                            <p>Largeur: {article.largeur} cm</p>
+                                                        )}
+                                                        {article.hauteur && (
+                                                            <p>Hauteur: {article.hauteur} cm</p>
+                                                        )}
+                                                        {article.poids && (
+                                                            <p>Poids: {article.poids} kg</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Chauffeur(s)</h3>
-                            {commande.chauffeurs.length > 0 ? (
+                            {commande?.chauffeurs?.length ?? 0 > 0 ? (
                                 commande.chauffeurs.map((chauffeur, index) => (
                                     <div key={index} className="bg-gray-50 p-3 rounded">
                                         <p>{chauffeur.prenom} {chauffeur.nom}</p>
@@ -320,55 +286,72 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                     </div>
                 );
             case 'photos-articles':
+                // Calcul sécurisé des photos existantes
+                const articles = commande.articles || {};
+                const photos = Array.isArray(articles.photos) ? articles.photos : [];
+                const totalPhotos = photos.length;
+                const remainingPhotos = 5 - totalPhotos;
+
                 return (
                     <div className="space-y-4">
-                        {(commande.articles?.photos && Array.isArray(commande.articles.photos) && commande.articles.photos.length > 0) ? (
+                        {/* Photos existantes */}
+                        {totalPhotos > 0 ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {commande.articles.photos.map((photo: string | { url: string }, index) => {
-                                    // Vérifier si l'URL de la photo est un URL valide
-                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
+                                {photos.map((photo, index) => {
+                                    // Vérification et extraction sécurisée de l'URL
+                                    const photoUrl = typeof photo === 'string'
+                                        ? photo
+                                        : (photo && typeof photo === 'object' && 'url' in photo)
+                                            ? photo.url
+                                            : null;
+
+                                    if (!photoUrl) return null;
+
                                     return (
                                         <div key={index} className="relative group">
-                                            {photoUrl && (
-                                                <img
-                                                    src={photoUrl}
-                                                    alt={`Photo article ${index + 1}`}
-                                                    className="rounded-lg w-full h-48 object-cover"
-                                                    onError={(e) => {
-                                                        console.error('Erreur chargement image:', photoUrl);
-                                                        e.currentTarget.src = '/placeholder-image.jpg';
-                                                    }}
-                                                />
-                                            )}
-                                            <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                    onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
+                                            <SecureImage
+                                                src={photoUrl}
+                                                alt={`Photo ${index + 1}`}
+                                                className="rounded-lg w-full h-48 object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                                                <button
+                                                    className="text-white bg-red-600 px-4 py-2 rounded-lg"
+                                                    onClick={() => typeof showImageInSameWindow === 'function' && showImageInSameWindow(photoUrl)}
                                                 >
                                                     Voir
+                                                </button>
+                                                <button
+                                                    onClick={() => typeof handlePhotoDelete === 'function' && handlePhotoDelete(index)}
+                                                    className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <XCircle className="w-5 h-5" />
                                                 </button>
                                             </div>
                                         </div>
                                     );
-                                })}
+                                }).filter(Boolean)} {/* Filtrer les photos nulles */}
                             </div>
                         ) : (
                             <p className="text-center text-gray-500">Aucune photo d'article disponible</p>
                         )}
-                        <div className="flex justify-center mt-4">
-                            <button
-                                className="bg-red-600 text-white px-4 py-2 rounded-lg"
-                                onClick={() => addArticlePhoto()}
-                            >
-                                Ajouter photo
-                            </button>
+
+                        {/* Zone d'upload */}
+                        <div className="flex flex-col items-center">
+                            <PhotoUploader
+                                onUpload={handlePhotoUpload}
+                                maxPhotos={remainingPhotos}
+                                existingPhotos={photos.map(photo => ({ url: photo.url, file: new File([], '') }))}
+                                MAX_SIZE={10 * 1024 * 1024}
+                            />
                         </div>
                     </div>
                 );
             case 'photos-commentaires':
                 return (
                     <div className="space-y-4">
-                        {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && commande.livraison?.photosEnlevement.length > 0)
-                            || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && commande.livraison?.photosLivraison.length > 0) ? (
+                        {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && (commande?.livraison?.photosEnlevement?.length ?? 0) > 0)
+                            || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && (commande?.livraison?.photosLivraison?.length ?? 0) > 0) ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {commande.livraison?.photosEnlevement && commande.livraison.photosEnlevement.map((photo: string | { url: string }, index) => {
                                     // Vérifier si l'URL de la photo est un URL valide
@@ -379,14 +362,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                             <div className="relative group">
 
                                                 {photoUrl && (
-                                                    <img
+                                                    <SecureImage
                                                         src={photoUrl}
-                                                        alt={`Photo commentaire ${index + 1}`}
+                                                        alt={`Photo ${index + 1}`}
                                                         className="rounded-lg w-full h-48 object-cover"
-                                                        onError={(e) => {
-                                                            console.error('Erreur chargement image:', photoUrl);
-                                                            e.currentTarget.src = '/placeholder-image.jpg';
-                                                        }}
                                                     />
                                                 )}
                                                 <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
@@ -409,14 +388,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                             <div className="relative group">
 
                                                 {photoUrl && (
-                                                    <img
+                                                    <SecureImage
                                                         src={photoUrl}
-                                                        alt={`Photo commentaire ${index + 1}`}
+                                                        alt={`Photo ${index + 1}`}
                                                         className="rounded-lg w-full h-48 object-cover"
-                                                        onError={(e) => {
-                                                            console.error('Erreur chargement image:', photoUrl);
-                                                            e.currentTarget.src = '/placeholder-image.jpg';
-                                                        }}
                                                     />
                                                 )}
                                                 <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
@@ -434,11 +409,13 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                         ) : (
                             <p className="text-center text-gray-500">Aucune photo de commentaire disponible</p>
                         )}
-                        <div className="flex justify-center mt-4">
-                            <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
-                                Ajouter photo
-                            </button>
-                        </div>
+                        {user?.role === 'admin' && (
+                            <div className="flex justify-center mt-4">
+                                <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
+                                    Ajouter photo
+                                </button>
+                            </div>
+                        )}
                     </div>
                 );
             case 'chronologie':
@@ -449,7 +426,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                                 {timelineEvents.map((event, index) => (
                                     <li key={index}>
                                         <div className="relative pb-8">
-                                            {index !== timelineEvents.length - 1 && (
+                                            {index !== (timelineEvents?.length ?? 0) - 1 && (
                                                 <span
                                                     className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
                                                     aria-hidden="true"
@@ -516,34 +493,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                 );
             case 'documents':
                 return (
-                    <div className="space-y-4">
-                        {(commande.articles?.photos?.length ?? 0) > 0 ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {commande.articles.photos?.map((photo, index) => (
-                                    <div key={index} className="relative group">
-                                        <img
-                                            src={photo.url}
-                                            alt={`Document ${index + 1}`}
-                                            className="rounded-lg w-full h-48 object-cover"
-                                        />
-                                        <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                            <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
-                                                Voir
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-center text-gray-500">Aucun document disponible</p>
-                        )}
-                        {/* Ajouter factures et devis */}
-                        {<div className="flex justify-center">
-                            <button className="text-white bg-red-600 px-4 py-2 rounded-lg">
-                                Ajouter document
-                            </button>
-                        </div>}
-                    </div>
+                    <DocumentViewer
+                        commande={commande}
+                        onUpdate={onUpdate}
+                    />
                 );
             case 'actions':
                 return (

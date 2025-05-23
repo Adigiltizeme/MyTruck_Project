@@ -25,7 +25,7 @@ interface FormInputProps {
     value: string | number;
     min?: number;
     max?: number;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
     onSearch?: (query: string) => void;
     onSearchSelect?: (suggestion: any) => void;
     error?: string;
@@ -33,6 +33,8 @@ interface FormInputProps {
     required?: boolean;
     suggestions?: Array<{ properties: { label: string } }>;
     isEditing?: boolean;
+    disabled?: boolean;
+    readOnly?: boolean;
 }
 
 const FormInput = React.memo(({
@@ -50,10 +52,22 @@ const FormInput = React.memo(({
     type = 'text',
     required = false,
     suggestions,
-    isEditing = false
+    isEditing = false,
+    disabled = false,
+    readOnly = false
 }: FormInputProps) => {
 
-    const isDisabled = isEditing && name === 'numeroCommande';
+    const isDisabledField = disabled || (isEditing && name === 'numeroCommande');
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        // Assurer que l'événement est bien formé
+        const syntheticEvent = {
+            target: {
+                name: e.target.name,
+                value: e.target.value
+            }
+        };
+        onChange(syntheticEvent as any);
+    };
 
     return (
         <AnimatePresence>
@@ -72,13 +86,8 @@ const FormInput = React.memo(({
                     value={value || ''}
                     min={min}
                     max={max}
-                    onChange={(e) => {
-                        onChange(e);
-                        if (onSearch) {
-                            onSearch(e.target.value);
-                        }
-                    }}
-                    disabled={isDisabled}
+                    onChange={handleChange}
+                    disabled={isDisabledField}
                     // onInput={onSearch ? (e) => onSearch(e.currentTarget.value) : undefined}
                     // list={onSearch ? `${name}-suggestions` : undefined}
                     className={`mt-1 block w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'

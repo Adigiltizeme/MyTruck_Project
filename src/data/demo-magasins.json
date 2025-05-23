@@ -1,0 +1,92 @@
+[
+    {
+        "id": "demo1_Truffaut Paris Rive Gauche",
+        "name": "Truffaut Paris Rive Gauche",
+        "address": "85 Quai d'Austerlitz, 75013 Paris",
+        "phone": "0144063333",
+        "email": "paris-rivegauche@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw9bd56a9e/Truffaut%202019/700x534_magasins/700x534_RIVEGAUCHE.jpg",
+        "status": "Actif",
+        "manager": "Jeanne Dupuis"
+    },
+    {
+        "id": "demo2_Truffaut Ivry-sur-Seine",
+        "name": "Truffaut Ivry-sur-Seine",
+        "address": "36 Rue Ernest Renan, 94200 Ivry-sur-Seine",
+        "phone": "0146861500",
+        "email": "ivry@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw5f03e883/emagaza_store%20pages/IVRY_BANDEAU.jpg",
+        "status": "Actif",
+        "manager": "Pierre Durand"
+    },
+    {
+        "id": "demo3_Truffaut Arcueil",
+        "name": "Truffaut Arcueil",
+        "address": "232 Avenue Aristide Briand, 94230 Cachan",
+        "phone": "0149691212",
+        "email": "arcueil@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw14f8222a/Truffaut%202019/700x534_magasins/700x534_ARCUEIL.jpg",
+        "status": "Actif",
+        "manager": "Sophie Martin"
+    },
+    {
+        "id": "demo4_Truffaut Domus",
+        "name": "Truffaut Domus",
+        "address": "16 Rue de Paris, 91300 Massy",
+        "phone": "0169321515",
+        "email": "domus@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw50f20ac1/Truffaut%202019/700x534_magasins/700x534_DOMUS.jpg",
+        "status": "Actif",
+        "manager": "Luc Bernard"
+    },
+    {
+        "id": "demo5_Truffaut Boulogne",
+        "name": "Truffaut Boulogne",
+        "address": "33 Av. Edouard Vaillant, 92100 Boulogne-Billancourt",
+        "phone": "0146100900",
+        "email": "boulogne@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw2e42aec1/Truffaut%202019/700x534_magasins/700x534_BOULOGNE.jpg",
+        "status": "Actif",
+        "manager": "Marie Lefevre"
+    },
+    {
+        "id": "demo6_Truffaut Batignolles",
+        "name": "Truffaut Batignolles",
+        "address": "65 boulevard de Courcelles 75008 Paris",
+        "phone": "0143872121",
+        "email": "batignolles@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dwa118c50e/Truffaut%202019/700x534_magasins/700x534_BATIGNOLLES.jpg",
+        "status": "Actif",
+        "manager": "Patrick Moreau"
+    },
+    {
+        "id": "demo7_Truffaut Villepinte",
+        "name": "Truffaut Villepinte",
+        "address": "Avenue des Nations, 93420 Villepinte",
+        "phone": "0148178888",
+        "email": "villepinte@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dwa15a9c50/Truffaut%202019/700x534_magasins/700x534_VILLEPINTE.jpg",
+        "status": "Actif",
+        "manager": "Caroline Petit"
+    },
+    {
+        "id": "demo8_Truffaut La Défense",
+        "name": "Truffaut La Défense",
+        "address": "CC Les Quatre Temps, 92800 Puteaux",
+        "phone": "0146731919",
+        "email": "ladefense@truffaut.com",
+        "photo": "https://www.truffaut.com/on/demandware.static/-/Sites/default/dw1ecc2e5b/Truffaut%202019/700x534_magasins/700x534_LADEFENSE.jpg",
+        "status": "Actif",
+        "manager": "Nicolas Lambert"
+    },
+    {
+        "id":"demo9_Truffaut Bry-sur-Marne",
+        "name":"Truffaut Bry-sur-Marne",
+        "address":"19 bis Boulevard Jean Monnet, 94360 Bry-sur-Marne",
+        "phone":"0144335000",
+        "email":"r.bessaraoui@truffaut.com",
+        "photo":"https://www.truffaut.com/on/demandware.static/-/Sites/default/dw1f3a0b8c/Truffaut%202019/700x534_magasins/700x534_BRY.jpg",
+        "status":"Actif",
+        "manager":"Rayan Bessaraoui"
+    }
+]

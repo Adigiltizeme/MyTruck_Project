@@ -10,8 +10,8 @@ export interface DashboardPermissions {
 
 export interface DashboardContext {
     role: UserRole;
-    storeId?: string;  // Pour les magasins
-    driverId?: string; // Pour les chauffeurs
+    storeId?: string;
+    driverId?: string;
     permissions: DashboardPermissions;
 }
 

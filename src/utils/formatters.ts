@@ -51,18 +51,32 @@ export const dateFormatter = {
   }
 };
 
-export const formatPhoneNumber = (value: string) => {
-  // Supprime tout sauf les chiffres
-  const cleaned = value.replace(/\D/g, '');
+/**
+ * Formate un numéro de téléphone en format français standard
+ * @param value Le numéro de téléphone à formater
+ * @returns Le numéro formaté
+ */
+export const formatPhoneNumber = (value: string): string => {
+  if (!value) return '';
 
-  // Format français : XX XX XX XX XX
-  const match = cleaned.match(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/);
+  // Supprimer tous les caractères non numériques
+  const numericValue = value.replace(/\D/g, '');
 
-  if (match) {
-    return `${match[1]} ${match[2]} ${match[3]} ${match[4]} ${match[5]}`;
+  // Si le numéro commence par 33 (code pays France), le garder intact
+  if (numericValue.startsWith('33') && numericValue.length > 9) {
+    // Format +33 X XX XX XX XX
+    return numericValue
+      .replace(/^33/, '+33 ')
+      .replace(/(\d{1})(\d{2})(\d{2})(\d{2})(\d{2})$/, '$1 $2 $3 $4 $5');
   }
 
-  return value;
+  // Format 0X XX XX XX XX pour les numéros français standard
+  if (numericValue.length === 10) {
+    return numericValue.replace(/(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+  }
+
+  // Si le format ne correspond pas, retourner tel quel par groupes de 2
+  return numericValue.replace(/(\d{2})/g, '$1 ').trim();
 };
 
 export const formatData = {
@@ -118,3 +132,40 @@ export const formatData = {
     }).format(value);
   }
 };
+
+export const formatPrice = (price: number) => {
+  return price.toFixed(2) + ' €';
+};
+
+/**
+ * Formate un texte en limitant sa longueur
+ * @param text Texte à formater
+ * @param maxLength Longueur maximale
+ * @returns Texte tronqué avec "..." si nécessaire
+ */
+export const truncateText = (text: string, maxLength: number = 50): string => {
+  if (!text || text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+};
+
+/**
+ * Convertit un statut en texte lisible
+ * @param status Statut à convertir
+ * @returns Statut formaté
+ */
+export const formatStatus = (status: string): string => {
+  // Mapper les statuts techniques vers des libellés plus lisibles
+  const statusMap: Record<string, string> = {
+    'EN_ATTENTE': 'En attente',
+    'EN ATTENTE': 'En attente',
+    'CONFIRMEE': 'Confirmée',
+    'ENLEVEE': 'Enlevée',
+    'EN_COURS_DE_LIVRAISON': 'En cours',
+    'EN COURS DE LIVRAISON': 'En cours',
+    'LIVREE': 'Livrée',
+    'ANNULEE': 'Annulée',
+    'ECHEC': 'Échec'
+  };
+
+  return statusMap[status] || status;
+}

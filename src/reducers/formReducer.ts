@@ -22,7 +22,12 @@ export const initialFormState: FormState = {
                 interphone: ''
             }
         },
-        articles: { nombre: 0, details: '', photos: [] },
+        articles: {
+            nombre: 0,
+            details: '',
+            photos: [],
+            dimensions: []
+        },
         livraison: {
             creneau: '',
             vehicule: '',
@@ -45,19 +50,66 @@ export const initialFormState: FormState = {
 export function formReducer(state: FormState, action: FormAction): FormState {
     switch (action.type) {
         case 'UPDATE_DATA':
+            if (!action.payload.name) return state;
+
+            const fieldPath = action.payload.name.split('.');
+            const newData = { ...state.data };
+            let current = newData;
+
+            // Navigation jusqu'au dernier nœud parent
+            for (let i = 0; i < fieldPath.length - 1; i++) {
+                if (!current[fieldPath[i]]) {
+                    current[fieldPath[i]] = {};
+                }
+                // Important : créer une nouvelle référence pour forcer la mise à jour
+                current[fieldPath[i]] = { ...current[fieldPath[i]] };
+                current = current[fieldPath[i]];
+            }
+
+            // Mise à jour de la valeur finale
+            current[fieldPath[fieldPath.length - 1]] = action.payload.value;
+
+            // Gestion spéciale pour les tableaux comme les dimensions
+            if (fieldPath[0] === 'articles' && fieldPath[1] === 'dimensions') {
+                return {
+                    ...state,
+                    isDirty: true,
+                    data: {
+                        ...state.data,
+                        articles: {
+                            ...state.data.articles,
+                            dimensions: action.payload.value,
+                            nombre: state.data.articles?.nombre ?? 0
+                        }
+                    }
+                };
+            }
+
             return {
                 ...state,
-                data: {
-                    ...state.data,
+                data: newData,
+                isDirty: true
+            };
+        case 'RESTORE_DRAFT':
+            console.log("Reducer - Restauration du brouillon:", action.payload.data);
+            // s'assurer que les dimensions sont correctement restaurées
+            let restoredData = action.payload.data;
+
+            // Si les dimensions ne sont pas définies dans les données restaurées, les initialiser
+            if (restoredData.articles && !restoredData.articles.dimensions) {
+                restoredData = {
+                    ...restoredData,
                     articles: {
-                        ...state.data.articles,
-                        ...action.payload.data.articles,
-                        nombre: action.payload.data.articles?.nombre ?? state.data.articles?.nombre ?? 0,
-                        photos: action.payload.data.articles?.photos || state.data.articles?.photos,
-                        newPhotos: action.payload.data.articles?.newPhotos
+                        ...restoredData.articles,
+                        dimensions: []
                     }
-                },
-                isDirty: action.payload.isDirty ?? true
+                };
+            }
+
+            return {
+                ...state,
+                data: restoredData,
+                isDirty: action.payload.isDirty
             };
         case 'SET_ERRORS':
             return {

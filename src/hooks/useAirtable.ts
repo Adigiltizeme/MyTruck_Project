@@ -1,13 +1,24 @@
 import { useState, useEffect } from 'react';
 import { AirtableService } from '../services/airtable.service';
+import { useOffline } from '../contexts/OfflineContext';
 
 export const useAirtable = () => {
   const [service, setService] = useState<AirtableService | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const isOffline = localStorage.getItem('forceOfflineMode') === 'true';
+
+  const { dataService } = useOffline();
 
   useEffect(() => {
     const initializeAirtable = async () => {
+      // Ne pas initialiser si mode hors ligne
+      if (isOffline) {
+        console.log('Mode hors ligne détecté - Initialisation Airtable ignorée');
+        setIsInitialized(false);
+        return;
+      }
+
       try {
         const token = import.meta.env.VITE_AIRTABLE_TOKEN;
         if (!token) {
@@ -27,7 +38,7 @@ export const useAirtable = () => {
     };
 
     initializeAirtable();
-  }, []);
+  }, [isOffline]); // Ajout de isOffline comme dépendance
 
   return { service, error, isInitialized };
 };

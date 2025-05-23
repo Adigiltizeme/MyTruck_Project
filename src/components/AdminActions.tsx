@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ChauffeurStatus, CommandeMetier, PersonnelInfo } from '../types/business.types';
+import { ChauffeurStatus, CommandeMetier, DevisInfo, PersonnelInfo } from '../types/business.types';
 import { AirtableService } from '../services/airtable.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import mapboxgl from 'mapbox-gl';
 import { Map } from 'react-map-gl';
 import { Marker } from 'react-map-gl';
 import { Modal } from './Modal';
+import { useOffline } from '../contexts/OfflineContext';
 
 interface AdminActionsProps {
     commande: CommandeMetier;
@@ -30,6 +31,8 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     const [driverLocations, setDriverLocations] = useState<any[]>([]);
     const [driverLocation, setDriverLocation] = useState<{ longitude?: number; latitude?: number } | null>(null);
 
+    const { dataService, isOnline } = useOffline();
+
     // Suivi en temps réel
     useEffect(() => {
         if (mapVisible && commande.statuts.livraison === 'EN COURS DE LIVRAISON') {
@@ -45,7 +48,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             // Mettre à jour la position
             const interval = setInterval(async () => {
                 const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                const updatedCommandes = await airtableService.getCommandes();
+                const updatedCommandes = await dataService.getCommandes();
                 const updatedCommande = updatedCommandes.find(cmd => cmd.id === commande.id);
                 if (updatedCommande?.chauffeurs?.[0]?.location) {
                     setDriverLocation(updatedCommande.chauffeurs[0].location);
@@ -64,7 +67,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             if (showChauffeursModal) {  // Charger seulement quand le modal est ouvert
                 try {
                     const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                    const personnelData = await airtableService.getPersonnel();
+                    const personnelData = await dataService.getPersonnel();
                     setChauffeursData(personnelData.filter((p: PersonnelInfo) => p.role === 'Chauffeur'));
                 } catch (error) {
                     console.error('Erreur chargement chauffeurs:', error);
@@ -136,7 +139,6 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     const handleDispatch = async () => {
         try {
             setLoading(true);
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
 
             // Créer un tableau de chauffeurs sélectionnés avec leurs informations complètes
             const selectedChauffeursData = chauffeursData.filter(chauffeur =>
@@ -148,11 +150,11 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 chauffeurs: selectedChauffeursData,
                 statuts: {
                     commande: 'Confirmée' as const,
-                    livraison: 'EN COURS DE LIVRAISON' as const
+                    livraison: 'CONFIRMEE' as const
                 }
             };
 
-            const result = await airtableService.updateCommande(updatedCommande);
+            const result = await dataService.updateCommande(updatedCommande);
             onUpdate(result);
             setShowChauffeursModal(false);
         } catch (error) {
@@ -172,7 +174,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 'DATE DE MISE A JOUR COMMANDE': new Date().toISOString()
             };
 
-            await airtableService.updateTarif(commande.id, Number(tarif));
+            await dataService.updateTarif(commande.id, Number(tarif));
 
             onUpdate({
                 ...commande,
@@ -200,7 +202,9 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 dateFacture,
                 dateEcheance: new Date(new Date(dateFacture).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 montantHT: commande.financier.tarifHT,
-                statut: 'En attente' as const
+                statut: 'En attente' as const,
+                magasin: commande.magasin || null,
+                client: commande.client || null
             };
 
             const updatedCommande = {
@@ -211,8 +215,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 }
             };
 
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            await airtableService.updateCommande({ ...updatedCommande });
+            await dataService.updateCommande({ ...updatedCommande });
             onUpdate(updatedCommande);
             setShowFactureModal(false);
         } catch (error) {
@@ -240,12 +243,19 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 ...commande,
                 financier: {
                     ...commande.financier,
-                    devis: [...(commande.financier.devis || []), nouveauDevis]
+                    devis: [
+                        ...(commande.financier.devis || []),
+                        {
+                            ...nouveauDevis,
+                            magasin: commande.magasin || null,
+                            client: commande.client || null
+                        } as DevisInfo
+                    ]
                 }
             };
 
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            await airtableService.updateCommande(updatedCommande);
+            await dataService.updateCommande(updatedCommande);
             onUpdate(updatedCommande);
         } catch (error) {
             console.error('Erreur lors de la génération du devis:', error);

@@ -6,11 +6,13 @@ import { UserRole } from '../types/dashboard.types';
 interface ProtectedRouteProps {
     children: React.ReactNode;
     allowedRoles?: UserRole[];
+    requiresAuth?: boolean;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     children,
-    allowedRoles
+    allowedRoles = [],
+    requiresAuth = true // Par défaut*
 }) => {
     const { user, loading } = useAuth();
     const location = useLocation();
@@ -19,11 +21,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return <div>Chargement...</div>;
     }
 
+    if (!requiresAuth) {
+        return <>{children}</>;
+    }
+
     if (!user) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // Si des rôles sont spécifiés et que l'utilisateur n'a pas le bon rôle
+    if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
         return <Navigate to="/unauthorized" replace />;
     }
 

@@ -22,7 +22,12 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     const [photos, setPhotos] = useState(existingPhotos);
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
-    // const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    // Le nombre maximal est toujours 5
+    const TOTAL_MAX_PHOTOS = 5;
+    // Le nombre actuel de photos
+    const currentPhotoCount = existingPhotos.length;
+    // Le nombre de photos qu'on peut encore ajouter
+    const remainingPhotos = TOTAL_MAX_PHOTOS - currentPhotoCount;
 
     // Fonction de validation du format des photos
     const validatePhotoFormat = (photo: { url: string, file: File }): boolean => {
@@ -69,11 +74,14 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             setError('');
 
             // Validation initiale
-            if (photos.length + files.length > maxPhotos) {
-                throw new Error(`Maximum ${maxPhotos} photos autorisées`);
+            if (existingPhotos.length + files.length > 5) {
+                throw new Error('Maximum 5 photos autorisées');
             }
             // Validation du volume total
-            if (photos.reduce((acc, photo) => acc + photo.file.size, 0) + Array.from(files).reduce((acc, file) => acc + file.size, 0) > 50 * 1024 * 1024) {
+            const totalSize = photos.reduce((acc, photo) => acc + photo.file.size, 0) +
+                Array.from(files).reduce((acc, file) => acc + file.size, 0);
+
+            if (totalSize > 50 * 1024 * 1024) {
                 throw new Error('Volume total des photos trop élevé');
             }
 
@@ -83,29 +91,20 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             // Traitement des fichiers
             const newPhotos = await Promise.all(
                 Array.from(files).map(async (file) => {
-                    // Validation du type
                     if (!ALLOWED_TYPES.includes(file.type)) {
                         throw new Error(`Type de fichier non supporté: ${file.type}`);
                     }
 
-                    // Validation de la taille
                     if (file.size > MAX_SIZE) {
                         throw new Error(`Fichier trop volumineux: ${file.name}`);
                     }
 
-                    try {
-                        // Upload vers Cloudinary
-                        const uploadResult = await cloudinaryService.uploadImage(file);
-                        return { url: uploadResult.url, file: file };
-                    } catch (error) {
-                        console.error('Erreur upload:', error);
-                        throw new Error(`Erreur d'upload pour ${file.name}`);
-                    }
+                    const uploadResult = await cloudinaryService.uploadImage(file);
+                    return { url: uploadResult.url, file };
                 })
             );
 
-            setPhotos([...photos, ...newPhotos]);
-            onUpload([...photos, ...newPhotos]);
+            onUpload(newPhotos);
 
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Erreur lors du chargement');
@@ -116,9 +115,9 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     };
 
     const removePhoto = (index: number) => {
-        const newPhotos = photos.filter((_, i) => i !== index);
-        setPhotos(newPhotos);
-        onUpload(newPhotos);
+        const updatedPhotos = photos.filter((_, i) => i !== index);
+        setPhotos(updatedPhotos);
+        onUpload(updatedPhotos); // Envoyer les photos mises à jour au parent
     };
 
     // Clean up des URLs lors du démontage du composant
@@ -208,7 +207,8 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                         {uploading ? 'Chargement...' : 'Cliquez ou déposez vos photos ici'}
                     </span>
                     <span className="mt-1 text-xs text-gray-400">
-                        {`${photos.length}/${maxPhotos} photos - JPG/PNG jusqu'à 10MB`}
+                        {`${currentPhotoCount}/5 photos max - ${remainingPhotos} restante(s) - JPG/PNG jusqu'à 10MB`}
+                        {/* {`${maxPhotos} photos restantes - JPG/PNG jusqu'à 10MB`} */}
                     </span>
                     <input
                         type="file"
@@ -216,7 +216,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                         accept="image/jpeg,image/png"
                         onChange={handleUpload}
                         className="hidden"
-                        disabled={uploading}
+                        disabled={uploading || remainingPhotos <= 0}
                     />
                 </label>
             </div>
@@ -237,7 +237,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             </AnimatePresence>
 
             {/* Prévisualisation */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {/* <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {photos.map((photo, index) => (
                     <motion.div
                         key={index}
@@ -258,7 +258,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                         </button>
                     </motion.div>
                 ))}
-            </div>
+            </div> */}
         </div>
     );
 };

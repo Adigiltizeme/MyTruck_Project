@@ -56,3 +56,12 @@
 .status-badge.completed {
   @apply bg-green-100 text-green-800;
 }
+
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #3b82f6;
+}
+
+.toggle-label {
+  transition: background-color 0.2s ease;
+}

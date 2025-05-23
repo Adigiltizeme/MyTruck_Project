@@ -5,14 +5,22 @@ export const CRENEAUX_LIVRAISON = [
 ];
 
 export type VehiculeType = 
-    | "3M3 (Utilitaire 150kg, 180x125x180cm)"
-    | "6M3 (Camionnette 300kg, 240x169x138cm)"
-    | "10M3 (Camionnette 1000kg, 308x207x176cm)"
-    | "20M3 (Avec hayon 1000kg, 420, 207, 230cm)";
+    // | "3M3 (Utilitaire 150kg, 180x125x180cm)"
+    // | "6M3 (Camionnette 300kg, 240x169x138cm)"
+    // | "10M3 (Camionnette 1000kg, 308x207x176cm)"
+    // | "20M3 (Avec hayon 1000kg, 420, 207, 230cm)";
+    | "1M3 (Utilitaire 150kg, 100x100x100cm)"
+    | "6M3 (Camionnette 300kg, 260x160x125cm)"
+    | "10M3 (Camionnette 800kg, 310x178x190cm)"
+    | "20M3 (Avec hayon 750kg, 410, 200, 210cm)";
 
 export const VEHICULES: Record<string, string> = {
-    "3M3 (Utilitaire 150kg, 180x125x180cm)": "3M3",
-    "6M3 (Camionnette 300kg, 240x169x138cm)": "6M3",
-    "10M3 (Camionnette 1000kg, 308x207x176cm)": "10M3",
-    "20M3 (Avec hayon 1000kg, 420, 207, 230cm)": "20M3"
+    // "3M3 (Utilitaire 150kg, 180x125x180cm)": "3M3",
+    // "6M3 (Camionnette 300kg, 240x169x138cm)": "6M3",
+    // "10M3 (Camionnette 1000kg, 308x207x176cm)": "10M3",
+    // "20M3 (Avec hayon 1000kg, 420, 207, 230cm)": "20M3"
+    "1M3 (Utilitaire 150kg, 100x100x100cm)": "1M3",
+    "6M3 (Camionnette 300kg, 260x160x125cm)": "6M3",
+    "10M3 (Camionnette 800kg, 310x178x190cm)": "10M3",
+    "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
 };

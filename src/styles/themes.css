@@ -1,0 +1,65 @@
+/* Styles de base pour le mode clair */
+:root {
+    --color-background: #f9fafb;
+    --color-surface: #ffffff;
+    --color-text-primary: #111827;
+    --color-text-secondary: #4b5563;
+    --color-border: #e5e7eb;
+    --color-primary: #ef4444;
+    --color-primary-hover: #dc2626;
+    --color-accent: #3b82f6;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-success: #10b981;
+}
+
+/* Styles pour le mode sombre */
+.dark {
+    --color-background: #111827;
+    --color-surface: #1f2937;
+    --color-text-primary: #f9fafb;
+    --color-text-secondary: #d1d5db;
+    --color-border: #374151;
+    --color-primary: #ef4444;
+    --color-primary-hover: #b91c1c;
+    --color-accent: #60a5fa;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-success: #34d399;
+}
+
+/* Classes d'application du thème */
+.bg-theme {
+    background-color: var(--color-background);
+}
+
+.bg-surface {
+    background-color: var(--color-surface);
+}
+
+.text-theme-primary {
+    color: var(--color-text-primary);
+}
+
+.text-theme-secondary {
+    color: var(--color-text-secondary);
+}
+
+.border-theme {
+    border-color: var(--color-border);
+}
+
+/* Transition douce lors du changement de thème */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body {
+    transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+.transition-theme {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}

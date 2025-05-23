@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AirtableService } from '../../services/airtable.service';
 import { CommandeMetier } from '../../types/business.types';
 import Pagination from '../../components/Pagination';
@@ -6,9 +6,8 @@ import CommandeDetails from '../../components/CommandeDetails';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAirtable } from '../../hooks/useAirtable';
 import { RoleSelector } from '../../components/RoleSelector';
-import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../../helpers/getStatus';
+import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../../styles/getStatus';
 import { useSearch } from '../../hooks/useSearch';
-import { useDateRange } from '../../hooks/useDateRange';
 import { useSort } from '../../hooks/useSort';
 import { usePagination } from '../../hooks/usePagination';
 import { DateRange, SortableFields } from '../../types/hooks.types';
@@ -16,12 +15,12 @@ import { dateFormatter } from '../../utils/formatters';
 import { Modal } from '../../components/Modal';
 import AjoutCommande from '../../components/AjoutCommande';
 import { useDraftStorage } from '../../hooks/useDraftStorage';
+import { useOffline } from '../../contexts/OfflineContext';
 
 const Deliveries = () => {
     const { user } = useAuth();
+    const { dataService, isOnline } = useOffline();
     const airtable = useAirtable();
-
-    console.log('Utilisateur actuel:', user); // Pour déboguer
 
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [data, setData] = useState<CommandeMetier[]>([]);
@@ -35,20 +34,46 @@ const Deliveries = () => {
     });
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+    // Filtrer les données selon le rôle de l'utilisateur
+    const filteredByRoleData = useMemo(() => {
+        // Si c'est un admin, pas de filtrage
+        if (user?.role === 'admin') return data;
+
+        // Si c'est un magasin, filtrer par storeId
+        if (user?.role === 'magasin' && user.storeId) {
+            return data.filter(item => item.magasin?.id === user.storeId);
+        }
+
+        // Si c'est un chauffeur, filtrer par driverId
+        if (user?.role === 'chauffeur' && user.driverId) {
+            return data.filter(item =>
+                item.chauffeurs?.some(chauffeur => chauffeur.id === user.driverId)
+            );
+        }
+
+        // Par défaut, retourner toutes les données
+        // (ce cas ne devrait pas arriver souvent)
+        return data;
+    }, [data, user?.role, user?.storeId, user?.driverId]);
+
+    // Filtrer par date après le filtrage par rôle
     const filteredData: CommandeMetier[] = useMemo(() => {
-        return data.filter(item => {
+        return filteredByRoleData.filter(item => {
             if (!dateRange.start || !dateRange.end) return true;
             const itemDate = new Date(item.dates.livraison);
             return itemDate >= new Date(dateRange.start) &&
                 itemDate <= new Date(dateRange.end);
         });
-    }, [data, dateRange]);
+    }, [filteredByRoleData, dateRange]);
 
     const { clearDraft } = useDraftStorage();
 
+    const isCreatingCommandeRef = useRef(false);
+
     const searchKeys: Array<keyof CommandeMetier | string> = [
         'numeroCommande',
-        'client.nomComplet',
+        'client.nom',
+        'client.prenom',
         'client.adresse.ligne1',
         'client.adresse.type',
         'client.telephone.principal',
@@ -80,11 +105,30 @@ const Deliveries = () => {
         fetchData();
     }, [user]);
 
+    // Réagir aux changements de rôle/magasin
+    useEffect(() => {
+        const handleRoleChange = (event: Event) => {
+            console.log('Changement de rôle détecté, rechargement des commandes...');
+            // Recharger les données
+            fetchData();
+            // Réinitialiser la pagination
+            setCurrentPage(1);
+        };
+
+        window.addEventListener('rolechange', handleRoleChange);
+        window.addEventListener('storechange', handleRoleChange);
+
+        return () => {
+            window.removeEventListener('rolechange', handleRoleChange);
+            window.removeEventListener('storechange', handleRoleChange);
+        };
+    }, []);
+
     const fetchData = async () => {
         setLoading(true);
         try {
             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            const records = await airtableService.getCommandes();
+            const records = await dataService.getCommandes();
             setData(records);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
@@ -102,7 +146,7 @@ const Deliveries = () => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
             try {
                 const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                await airtableService.deleteCommande(id);
+                await dataService.deleteCommande(id);
                 setData(prevData => prevData.filter(commande => commande.id !== id));
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la suppression');
@@ -114,15 +158,45 @@ const Deliveries = () => {
     const [showSuccess, setShowSuccess] = useState(false);
 
     const handleCreateCommande = async (commande: Partial<CommandeMetier>) => {
+        // Éviter les créations multiples
+        if (loading || isCreatingCommandeRef.current) {
+            console.log('Création déjà en cours, blocage');
+            return;
+        }
+
         setLoading(true);
+        isCreatingCommandeRef.current = true;
+        console.log('=== DÉBUT CRÉATION COMMANDE ===');
+
         try {
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            await airtableService.createCommande(commande);
+            // S'assurer que le magasin est correctement spécifié pour les utilisateurs magasin
+            let commandeToCreate = { ...commande };
+
+            if (user?.role === 'magasin' && user.storeId && (!commande.magasin?.id || commande.magasin.id === '')) {
+                console.log('Ajout des informations du magasin à la commande');
+                commandeToCreate.magasin = {
+                    ...(commandeToCreate.magasin || {}),
+                    id: user.storeId,
+                    name: user.storeName || '',
+                    address: user.storeAddress || '',
+                    phone: commande.magasin?.phone || '',
+                    status: commande.magasin?.status || ''
+                };
+            }
+
+            // Appel unique à dataService.createCommande
+            console.log('Appel à createCommande (UNIQUE)');
+            await dataService.createCommande(commandeToCreate);
+
+            // Nettoyer après création réussie
+            console.log('Commande créée, nettoyage...');
             // La commande a été créée avec succès, maintenant on peut supprimer le brouillon
             await clearDraft();
+
             setShowNewCommandeModal(false);
             setShowSuccess(true);
             setTimeout(() => setShowSuccess(false), 3000);
+
             await fetchData(); // Recharge les données
         } catch (error) {
             if (error instanceof Error && error.message.includes('Token')) {
@@ -132,26 +206,38 @@ const Deliveries = () => {
                 console.error('Erreur lors de la création:', error);
             }
         } finally {
+            console.log('=== FIN CRÉATION COMMANDE ===');
             setLoading(false);
+            // Réinitialiser le drapeau après un délai de sécurité
+            setTimeout(() => {
+                isCreatingCommandeRef.current = false;
+            }, 1000);
         }
     };
 
-    const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur'];
+    const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur', 'tarifHT'];
 
     return (
         <div className="p-6">
+            {/* Indicateur de mode hors ligne - sans l'OfflineIndicator qui est déjà dans App */}
+            {!isOnline && (
+                <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
+                    Vous êtes en mode hors ligne. Les données seront synchronisées lorsque vous serez à nouveau connecté.
+                </div>
+            )}
+
             <div className="mb-6">
                 <RoleSelector />
             </div>
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">
-                    {user?.role === 'admin' && 'Direction My Truck'}
-                    {user?.role === 'magasin' && 'Gestion des Commandes'}
+                    {user?.role === 'admin' && 'Direction My Truck - Toutes les commandes'}
+                    {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
                     {user?.role === 'chauffeur' && 'Mes Livraisons'}
                 </h1>
                 <select
-                    className="border rounded px-3 py-2"
+                    className="border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                     value={rowsPerPage}
                     onChange={(e) => {
                         setCurrentPage(1);
@@ -176,7 +262,7 @@ const Deliveries = () => {
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             placeholder="Rechercher..."
-                            className="w-full px-4 py-2 border rounded-lg"
+                            className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                         {search && (
                             <button
@@ -197,7 +283,14 @@ const Deliveries = () => {
 
                     <Modal
                         isOpen={showNewCommandeModal}
-                        onClose={() => setShowNewCommandeModal(false)}
+                        onClose={() => {
+                            // Nettoyer complètement lors de la fermeture
+                            setShowNewCommandeModal(false);
+                            // Utiliser un court délai pour s'assurer que le modal est bien fermé
+                            // setTimeout(() => {
+                            //     clearDraft().catch(err => console.error('Erreur lors du nettoyage du brouillon:', err));
+                            // }, 100);
+                        }}
                     >
                         <AjoutCommande
                             onSubmit={handleCreateCommande}
@@ -210,7 +303,21 @@ const Deliveries = () => {
                                 dates: { commande: '', livraison: '', misAJour: '' },
                                 statuts: { livraison: 'EN ATTENTE', commande: 'En attente' },
                                 client: { nom: '', prenom: '', nomComplet: '', adresse: { ligne1: '', type: 'Domicile', batiment: '', etage: '', ascenseur: false, interphone: '' }, telephone: { principal: '', secondaire: '' } },
-                                magasin: { id: '', name: '', address: '', phone: '', status: '' },
+                                magasin: user?.role === 'magasin' ? {
+                                    id: user.storeId || '',
+                                    name: user.storeName || '',
+                                    address: user.storeAddress || '',
+                                    phone: '',
+                                    email: '',
+                                    status: ''
+                                } : {
+                                    id: '',
+                                    name: '',
+                                    address: '',
+                                    phone: '',
+                                    email: '',
+                                    status: ''
+                                },
                                 livraison: { creneau: '', vehicule: '', reserve: false, equipiers: 0, chauffeurs: [] },
                                 chauffeurs: [],
                                 financier: { tarifHT: 0 },
@@ -233,7 +340,7 @@ const Deliveries = () => {
                             end: null,
                             singleDate: null
                         }))}
-                        className="border rounded-lg px-3 py-2"
+                        className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                     >
                         <option value="range">Période</option>
                         <option value="single">Date unique</option>
@@ -249,7 +356,7 @@ const Deliveries = () => {
                                 start: e.target.value,
                                 end: e.target.value
                             }))}
-                            className="border rounded-lg px-3 py-2"
+                            className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                         />
                     ) : (
                         <div className="flex gap-2">
@@ -257,14 +364,14 @@ const Deliveries = () => {
                                 type="date"
                                 value={dateRange.start || ''}
                                 onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                className="border rounded-lg px-3 py-2"
+                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                             />
-                            <span className="text-gray-500 content-center">à</span>
+                            <span className="text-gray-500 content-center dark:text-gray-100">à</span>
                             <input
                                 type="date"
                                 value={dateRange.end || ''}
                                 onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                className="border rounded-lg px-3 py-2"
+                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                             />
                         </div>
                     )}
@@ -298,7 +405,7 @@ const Deliveries = () => {
                             <button
                                 key={key}
                                 onClick={handleClick}
-                                className={`px-3 py-1 rounded-lg text-sm ${sortConfig.key === key ? 'bg-red-100 text-red-800' : 'bg-gray-100'
+                                className={`px-3 py-1 rounded-lg text-sm ${sortConfig.key === key ? 'bg-red-100 text-red-800' : 'bg-gray-100 dark:bg-gray-800'
                                     }`}
                             >
                                 {key.charAt(0).toUpperCase() + key.slice(1)}
@@ -315,43 +422,55 @@ const Deliveries = () => {
 
             {data.length > 0 && (
                 <div className="bg-white rounded-lg shadow overflow-hidden">
+                    {/* Afficher le nombre de résultats filtrés */}
+                    <div className="mb-2 text-sm text-gray-500">
+                        {filteredByRoleData.length !== data.length && (
+                            <div>
+                                Affichage de {filteredByRoleData.length} commandes
+                                {user?.role === 'magasin' && ` pour ${user.storeName || 'ce magasin'}`}
+                                {user?.role === 'chauffeur' && ` assignées à ce chauffeur`}
+                            </div>
+                        )}
+                    </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th className="w-10 px-4 py-2"></th>
                                     <th
-                                        className="px-4 py-2 text-left cursor-pointer hover:bg-gray-100"
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                                     >
                                         Numéro {sortConfig.key === 'numeroCommande' && (
                                             sortConfig.direction === 'asc' ? '↑' : '↓'
                                         )}
                                     </th>
                                     {user?.role !== 'magasin' && (
-                                        <th className="px-4 py-2 text-left">Client</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Client</th>
                                     )}
-                                    <th className="px-4 py-2 text-left">Date livraison</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date livraison</th>
                                     {user?.role !== 'magasin' && (
-                                        <th className="px-4 py-2 text-left">Statut commande</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>
                                     )}
-                                    <th className="px-4 py-2 text-left">Statut livraison</th>
-                                    <th className="px-4 py-2 text-left">Créneau</th>
-                                    <th className="px-4 py-2 text-left">Véhicule</th>
-                                    <th className="px-4 py-2 text-left">Réserve</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut livraison</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Créneau</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Véhicule</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réserve</th>
                                     {user?.role === 'admin' && (
-                                        <th className="px-4 py-2 text-right">Tarif HT</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tarif HT</th>
+                                    )}
+                                    {user?.role === 'admin' && (
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
                                     {(user?.role === 'admin' || user?.role === 'magasin') && (
-                                        <th className="px-4 py-2"></th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {(paginatedItems as CommandeMetier[]).map((commande: CommandeMetier) => (
-                                    console.log('Date de livraison:', commande.dates.livraison),
                                     <React.Fragment key={commande.id}>
-                                        <tr className="border-t hover:bg-gray-50">
-                                            <td className="px-4 py-2">
+                                        <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-700">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 <button
                                                     onClick={() => setExpandedRow(
                                                         expandedRow === commande.id ? null : (commande.id || null)
@@ -361,39 +480,44 @@ const Deliveries = () => {
                                                     {expandedRow === commande.id ? '▼' : '▶'}
                                                 </button>
                                             </td>
-                                            <td className="px-4 py-2">{commande.numeroCommande || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.numeroCommande || 'N/A'}</td>
                                             {user?.role !== 'magasin' && (
-                                                <td className="px-4 py-2">{commande.client?.nomComplet || 'N/A'}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande?.client?.nom.toUpperCase() || 'N/A'} {commande.client?.prenom}</td>
                                             )}
-                                            <td className="px-4 py-2 secondary">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary">
                                                 {(commande.dates?.livraison) ?
                                                     dateFormatter.forDisplay(commande.dates?.livraison) : 'N/A'}
                                             </td>
                                             {user?.role !== 'magasin' && (
-                                                <td className="px-4 py-2">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <span className={getStatutCommandeStyle(commande.statuts?.commande || 'N/A')}>
                                                         {commande.statuts?.commande || 'N/A'}
                                                     </span>
                                                 </td>
                                             )}
-                                            <td className="px-4 py-2">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'N/A')}>
                                                     {commande.statuts?.livraison || 'N/A'}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-2">{commande.livraison?.creneau || 'N/A'}</td>
-                                            <td className="px-4 py-2">{commande.livraison?.vehicule || 'N/A'}</td>
-                                            <td className="px-4 py-2">{commande.livraison.reserve || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.creneau || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.vehicule || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.reserve || 'NON'}</td>
                                             {user?.role === 'admin' && (
-                                                <td className="px-4 py-2 text-right">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-right">
                                                     {commande.financier?.tarifHT
                                                         ? `${commande.financier.tarifHT}€`
                                                         : 'N/A'
                                                     }
                                                 </td>
                                             )}
+                                            {user?.role === 'admin' && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
+                                                    {commande.magasin?.name}
+                                                </td>
+                                            )}
                                             {(user?.role === 'admin') && (
-                                                <td className="px-4 py-2">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="flex gap-2 justify-end">
                                                         <button
                                                             onClick={() => commande.id && handleEdit(commande.id)}
@@ -413,7 +537,7 @@ const Deliveries = () => {
                                         </tr>
                                         {expandedRow === commande.id && (
                                             <tr className="bg-gray-50">
-                                                <td colSpan={10} className="px-4 py-2">
+                                                <td colSpan={10} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="border-l-4 border-blue-500 pl-4">
                                                         <CommandeDetails
                                                             commande={commande}
@@ -430,7 +554,7 @@ const Deliveries = () => {
                             </tbody>
                         </table>
                         {showSuccess && (
-                            <div className="fixed bottom-5 right-5 bg-green-400 text-white px-6 py-3 rounded shadow-lg z-50">
+                            <div className="fixed bottom-5 left-5 bg-green-400 text-white px-6 py-3 rounded shadow-lg z-50">
                                 Commande créée avec succès !
                             </div>
                         )}
@@ -448,189 +572,6 @@ const Deliveries = () => {
                 />
             </div>
         </div>
-        //         <div className="p-6">
-        //        {/* En-tête */}
-        //        <div className="mb-6">
-        //            <RoleSelector />
-        //        </div>
-
-        //        <div className="flex justify-between items-center mb-8">
-        //            <h1 className="text-2xl font-bold">Administration Airtable</h1>
-        //            <div className="flex space-x-4">
-        //                <select
-        //                    value={rowsPerPage}
-        //                    className="border rounded px-3 py-2"
-        //                >
-        //                    <option value={10}>10 par page</option>
-        //                    <option value={25}>25 par page</option>
-        //                    <option value={50}>50 par page</option>
-        //                </select>
-        //            </div>
-        //        </div>
-
-        //        {/* Filtres */}
-        //        <div className="mb-8">
-        //            {/* Barre de recherche */}
-        //            <div className="flex gap-4 items-center mb-4">
-        //                <div className="relative flex-1">
-        //                    <input
-        //                        type="text"
-        //                        value={search}
-        //                        onChange={(e) => setSearch(e.target.value)}
-        //                        placeholder="Rechercher..."
-        //                        className="w-full px-4 py-2 border rounded-lg"
-        //                    />
-        //                    {search && (
-        //                        <button 
-        //                            onClick={() => setSearch("")}
-        //                            className="absolute right-3 top-1/2 -translate-y-1/2"
-        //                        >
-        //                            ×
-        //                        </button>
-        //                    )}
-        //                </div>
-        //            </div>
-
-        //            {/* Sélecteur de dates */}
-        //            <div className="flex items-center gap-4 mb-4">
-        //                <span className="text-sm text-gray-500">Période:</span>
-        //                <div className="flex gap-2">
-        //                    <input
-        //                        type="date"
-        //                        value={dateRange.start || ''}
-        //                        onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-        //                        className="border rounded-lg px-3 py-2"
-        //                    />
-        //                    <span className="text-gray-500">à</span>
-        //                    <input
-        //                        type="date"
-        //                        value={dateRange.end || ''}
-        //                        onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-        //                        className="border rounded-lg px-3 py-2"
-        //                    />
-        //                </div>
-        //                {(dateRange.start || dateRange.end) && (
-        //                    <button
-        //                        onClick={() => setDateRange({ start: null, end: null })}
-        //                        className="text-sm text-gray-500 hover:text-gray-700"
-        //                    >
-        //                        Réinitialiser
-        //                    </button>
-        //                )}
-        //            </div>
-
-        //            {/* Système de tri */}
-        //            <div className="flex items-center gap-2">
-        //                <span className="text-sm text-gray-500">Trier par:</span>
-        //                {sortableFields.map((key) => (
-        //                    <button
-        //                        key={key}
-        //                        onClick={() => setSortConfig({
-        //                            key,
-        //                            direction: sortConfig.key === key && sortConfig.direction === 'asc' 
-        //                                ? 'desc' 
-        //                                : 'asc'
-        //                        })}
-        //                        className={`px-3 py-1 rounded-lg text-sm ${
-        //                            sortConfig.key === key ? 'bg-red-100 text-red-800' : 'bg-gray-100'
-        //                        }`}
-        //                    >
-        //                        {key.charAt(0).toUpperCase() + key.slice(1)}
-        //                        {sortConfig.key === key && (
-        //                            <span className="ml-1">
-        //                                {sortConfig.direction === 'asc' ? '↑' : '↓'}
-        //                            </span>
-        //                        )}
-        //                    </button>
-        //                ))}
-        //            </div>
-        //        </div>
-
-        //        {/* Table */}
-        //        {loading ? (
-        //            <div>Chargement...</div>
-        //        ) : error ? (
-        //            <div className="text-red-600">{error}</div>
-        //        ) : (
-        //            <div className="bg-white rounded-lg shadow overflow-hidden">
-        //                <div className="overflow-x-auto">
-        //                    <table className="min-w-full">
-        //                        <thead>
-        //                            <tr>
-        //                                <th className="px-4 py-2">Numéro</th>
-        //                                {user?.role !== 'magasin' && (
-        //                                    <th className="px-4 py-2">Client</th>
-        //                                )}
-        //                                <th className="px-4 py-2">Chauffeur</th>
-        //                                <th className="px-4 py-2">Statut</th>
-        //                                <th className="px-4 py-2">Date livraison</th>
-        //                                <th className="px-4 py-2">Actions</th>
-        //                            </tr>
-        //                        </thead>
-        //                        <tbody>
-        //                            {(paginatedItems as CommandeMetier[]).map((commande: CommandeMetier) => (
-        //                                <tr key={commande.id} className="border-t">
-        //                                    <td className="px-4 py-2">{commande.numeroCommande}</td>
-        //                                    {user?.role !== 'magasin' && (
-        //                                        <td className="px-4 py-2">{commande.client?.nomComplet || 'N/A'}</td>
-        //                                    )}
-        //                                    <td className="px-4 py-2">
-        //                                        {commande.chauffeurs?.[0]?.nom || 'N/A'}
-        //                                    </td>
-        //                                    <td className="px-4 py-2">
-        //                                        <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-        //                                            commande.statuts.livraison === 'LIVREE' 
-        //                                                ? 'bg-green-100 text-green-800'
-        //                                                : 'bg-blue-100 text-blue-800'
-        //                                        }`}>
-        //                                            {commande.statuts.livraison}
-        //                                        </span>
-        //                                    </td>
-        //                                    <td className="px-4 py-2">
-        //                                        {format(new Date(commande.dates.livraison), 'dd/MM/yyyy')}
-        //                                    </td>
-        //                                    <td className="px-4 py-2">
-        //                                        <div className="flex gap-2">
-        //                                            <button className="text-blue-600 hover:text-blue-800">
-        //                                                Éditer
-        //                                            </button>
-        //                                            <button className="text-red-600 hover:text-red-800">
-        //                                                Supprimer
-        //                                            </button>
-        //                                        </div>
-        //                                    </td>
-        //                                </tr>
-        //                            ))}
-        //                        </tbody>
-        //                    </table>
-        //                </div>
-
-        //                {/* Pagination */}
-        //                <div className="p-4 border-t">
-        //                    <div className="flex justify-between items-center">
-        //                        <div className="text-sm text-gray-500">
-        //                            Affichage de {paginatedItems.length} sur {data.length} commandes
-        //                        </div>
-        //                        <div className="flex gap-2">
-        //                            {Array.from({ length: totalPages }, (_, i) => (
-        //                                <button
-        //                                    key={i}
-        //                                    onClick={() => setCurrentPage(i + 1)}
-        //                                    className={`px-3 py-1 rounded ${
-        //                                        currentPage === i + 1
-        //                                            ? 'bg-red-600 text-white'
-        //                                            : 'bg-gray-100 hover:bg-gray-200'
-        //                                    }`}
-        //                                >
-        //                                    {i + 1}
-        //                                </button>
-        //                            ))}
-        //                        </div>
-        //                    </div>
-        //                </div>
-        //            </div>
-        //        )}
-        //    </div>
     );
 };
 

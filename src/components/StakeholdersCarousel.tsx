@@ -86,7 +86,7 @@ const stakeholders: Stakeholder[] = [
     {
         id: 3,
         image: '/images/3d-figures/transportant-meubles-plantes.jpg',
-        title: 'Chauffeurs-Livreurs',
+        title: 'Transporteurs',
         description: 'Les héros du dernier kilomètre, assurant des livraisons précises et professionnelles',
         role: 'Transport & Livraison',
         animation: driverAnimation

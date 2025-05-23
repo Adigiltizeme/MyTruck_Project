@@ -79,6 +79,7 @@ import { FilterOptions, MetricData } from '../types/metrics';
 import { AirtableService } from '../services/airtable.service';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useOffline } from '../contexts/OfflineContext';
 
 interface UseMetricsDataResult {
   data: MetricData | null;
@@ -98,6 +99,7 @@ export const useMetricsData = (filters: FilterOptions): UseMetricsDataResult => 
         setError(null);
         
         const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+        // const { dataService, isOnline } = useOffline();
         
         // Attendre l'initialisation
         await airtableService.initialize();

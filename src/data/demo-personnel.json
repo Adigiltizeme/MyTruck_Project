@@ -1,0 +1,90 @@
+[
+    {
+        "id": "chauf_demo1",
+        "nom": "Martin",
+        "prenom": "Sophie",
+        "telephone": "0678901234",
+        "email": "sophie.martin@mytruck.fr",
+        "role": "Chauffeur",
+        "status": "Actif",
+        "location": {
+            "latitude": 48.8566,
+            "longitude": 2.3522
+        }
+    },
+    {
+        "id": "chauf_demo2",
+        "nom": "Dubois",
+        "prenom": "Thomas",
+        "telephone": "0645678912",
+        "email": "thomas.dubois@mytruck.fr",
+        "role": "Chauffeur",
+        "status": "Actif",
+        "location": {
+            "latitude": 48.8534,
+            "longitude": 2.3488
+        }
+    },
+    {
+        "id": "chauf_demo3",
+        "nom": "Petit",
+        "prenom": "Julie",
+        "telephone": "0712345678",
+        "email": "julie.petit@mytruck.fr",
+        "role": "Chauffeur",
+        "status": "En route vers magasin",
+        "location": {
+            "latitude": 48.8738,
+            "longitude": 2.3749
+        }
+    },
+    {
+        "id": "admin_demo1",
+        "nom": "Leroy",
+        "prenom": "Marc",
+        "telephone": "0687654321",
+        "email": "marc.leroy@mytruck.fr",
+        "role": "Direction",
+        "status": "Actif"
+    },
+    {
+        "id": "disp_demo1",
+        "nom": "Moreau",
+        "prenom": "Claire",
+        "telephone": "0623456789",
+        "email": "claire.moreau@mytruck.fr",
+        "role": "Dispatcher",
+        "status": "Actif"
+    },
+    {
+        "id": "tech_demo1",
+        "nom": "Bernard",
+        "prenom": "Antoine",
+        "telephone": "0734567890",
+        "email": "antoine.bernard@mytruck.fr",
+        "role": "Section IT",
+        "status": "Actif"
+    },
+    {
+        "id": "chauf_demo4",
+        "nom": "Richard",
+        "prenom": "Émilie",
+        "telephone": "0698765432",
+        "email": "emilie.richard@mytruck.fr",
+        "role": "Chauffeur",
+        "status": "En route vers client",
+        "location": {
+            "latitude": 48.8417,
+            "longitude": 2.3197
+        }
+    },
+    {
+        "id": "chauf_demo5",
+        "nom": "Lambert",
+        "prenom": "Alexandre",
+        "telephone": "0756781234",
+        "email": "alexandre.lambert@mytruck.fr",
+        "role": "Chauffeur",
+        "status": "Inactif"
+    }
+]

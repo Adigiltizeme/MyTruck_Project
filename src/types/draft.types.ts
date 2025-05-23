@@ -8,6 +8,7 @@ export interface DraftData {
     version?: string;         // Version optionnelle pour migrations futures
     lastModified: string;     // Date de dernière modification
     status: DraftStatus;      // Statut du brouillon
+    storeId?: string;         // ID du magasin associé
 }
 
 // Statuts possibles d'un brouillon

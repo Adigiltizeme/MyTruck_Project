@@ -34,11 +34,30 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                 <div>
                     <h4 className="font-medium">Articles</h4>
                     <p>Quantité: {data.articles?.nombre}</p>
-                    <p>Détails: {data.articles?.details}</p>
+                    {data.articles?.details && (
+                        <p>Détails: {data.articles.details}</p>
+                    )}
                     {data.articles?.photos && data.articles.photos.length > 0 && (
                         <p>Photos: {data.articles.photos.length}</p>
                     )}
                 </div>
+
+                {data.articles?.dimensions && data.articles.dimensions.length > 0 && (
+                    <div className="mt-2">
+                        <p className="font-medium">Dimensions:</p>
+                        <ul className="list-disc pl-5 text-sm">
+                            {data.articles.dimensions.map((article, index) => (
+                                <li key={index}>
+                                    {article.nom} (x{article.quantite}):
+                                    {article.longueur && ` L:${article.longueur}cm`}
+                                    {article.largeur && ` l:${article.largeur}cm`}
+                                    {article.hauteur && ` H:${article.hauteur}cm`}
+                                    {article.poids && ` P:${article.poids}kg`}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
 
                 <div>
                     <h4 className="font-medium">Livraison</h4>

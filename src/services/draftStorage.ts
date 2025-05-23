@@ -363,9 +363,9 @@ export class DraftStorageService {
         try {
             const dbConfig: DatabaseConfig = {
                 name: 'MyTruckDrafts',
-                version: 1,
+                version: 2,
                 stores: {
-                    drafts: '++id,timestamp,status',
+                    drafts: '++id,timestamp,status,storeId',
                     photos: '++id,draftId',
                     metadata: 'key'
                 }
@@ -373,6 +373,13 @@ export class DraftStorageService {
 
             this.db = new Dexie(dbConfig.name);
             this.db.version(dbConfig.version).stores(dbConfig.stores);
+
+            // Migration des anciennes données si nécessaire
+            this.db.version(1).stores({
+                drafts: '++id,timestamp,status',
+                photos: '++id,draftId',
+                metadata: 'key'
+            });
 
             this.db.open().catch((error: Error) => {
                 console.error('Erreur lors de l\'initialisation de la base de données:', error);
@@ -383,17 +390,67 @@ export class DraftStorageService {
         }
     }
 
-    async saveDraft(data: Partial<CommandeMetier>): Promise<DraftStorageResult> {
+    async saveDraft(data: Partial<CommandeMetier>, storeId?: string): Promise<DraftStorageResult> {
         try {
+            const currentStoreId = storeId || this.getCurrentStoreId();
+
+            // IMPORTANT: S'assurer que l'ID du magasin dans les données correspond au storeId externe
+            // ET que les dimensions des articles sont préservées
+            const dataWithSyncedMagasinId = {
+                ...data,
+                magasin: {
+                    ...(data.magasin || {}),
+                    id: currentStoreId // Synchroniser l'ID interne avec l'ID externe
+                },
+                articles: {
+                    ...(data.articles || {}),
+                    dimensions: data.articles?.dimensions || []
+                }
+            };
+
+            console.log(`Sauvegarde du brouillon pour le magasin ${currentStoreId}, 
+                        en synchronisant magasin.id=${dataWithSyncedMagasinId.magasin.id},
+                        avec ${dataWithSyncedMagasinId.articles.dimensions?.length} dimensions d'articles`);
+
+            // Vérifier s'il existe déjà un brouillon pour ce magasin
+            const existingDraft = await this.db.table('drafts')
+                .where('storeId')
+                .equals(currentStoreId)
+                .first();
+
             const draftData: DraftData = {
-                data,
+                data: {
+                    ...dataWithSyncedMagasinId,
+                    magasin: {
+                        ...dataWithSyncedMagasinId.magasin,
+                        name: dataWithSyncedMagasinId.magasin?.name || 'Default Name', // Ensure name is a valid string
+                        address: dataWithSyncedMagasinId.magasin?.address || '', // Ensure address is a valid string
+                        phone: dataWithSyncedMagasinId.magasin?.phone || '', // Ensure phone is a valid string
+                        status: dataWithSyncedMagasinId.magasin?.status || '' // Ensure status is a valid string
+                    },
+                    articles: {
+                        ...dataWithSyncedMagasinId.articles,
+                        nombre: dataWithSyncedMagasinId.articles?.nombre || 0,
+                        dimensions: dataWithSyncedMagasinId.articles?.dimensions || []
+                    }
+                }, // Utiliser les données avec ID synchronisé
                 timestamp: Date.now(),
                 lastModified: new Date().toISOString(),
                 status: DraftStatus.PENDING,
-                version: '1.0'
+                version: '1.0',
+                storeId: currentStoreId
             };
 
-            const id = await this.db.table('drafts').add(draftData);
+            let id: number;
+
+            if (existingDraft) {
+                // Mettre à jour le brouillon existant
+                id = existingDraft.id;
+                await this.db.table('drafts').update(id, draftData);
+            } else {
+                // Créer un nouveau brouillon
+                id = await this.db.table('drafts').add(draftData) as number;
+            }
 
             return {
                 success: true,
@@ -408,22 +465,103 @@ export class DraftStorageService {
         }
     }
 
-    async loadDraft(): Promise<DraftStorageResult> {
+    /**
+ * Charge un brouillon pour le magasin spécifié.
+ * Si storeId n'est pas fourni, utilise le magasin actuel.
+ */
+    async loadDraft(storeId?: string): Promise<DraftStorageResult> {
         try {
-            const draft = await this.db.table('drafts')
-                .orderBy('timestamp')
-                .last();
+            const isDevelopment = process.env.NODE_ENV === 'development' ||
+                window.location.hostname === 'localhost';
 
-            if (!draft) {
+            const currentStoreId = storeId || this.getCurrentStoreId();
+            console.log(`Chargement du brouillon pour le magasin: ${currentStoreId}`);
+
+            // Rechercher le brouillon approprié
+            let draft = await this.db.table('drafts')
+                .where('storeId')
+                .equals(currentStoreId)
+                .first();
+
+            if (draft) {
+                // Vérifier et corriger la date de livraison si elle est dans le passé
+                const livraisonDate = draft.data?.dates?.livraison ?
+                    new Date(draft.data.dates.livraison) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (livraisonDate && livraisonDate < today) {
+                    console.log(`Date de livraison dans le passé détectée: ${livraisonDate.toLocaleDateString()}`);
+
+                    // Calculer une nouvelle date (lendemain)
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+
+                    // Mettre à jour la date dans le brouillon
+                    if (draft.data && draft.data.dates) {
+                        draft.data.dates.livraison = tomorrow.toISOString().split('T')[0];
+                        // Ne pas enregistrer automatiquement la modification
+                        // L'utilisateur sera informé lors de la restauration
+                    }
+                }
+                
+                // TRÈS IMPORTANT: S'assurer que le magasin.id dans les données correspond au storeId externe
+                if (draft.data && draft.data.magasin) {
+                    if (draft.data.magasin.id !== currentStoreId) {
+                        console.log(`Correction automatique: magasin.id dans les données 
+                                    (${draft.data.magasin.id}) ne correspond pas au storeId externe 
+                                    (${currentStoreId})`);
+
+                        // Mettre à jour l'ID interne
+                        draft.data.magasin.id = currentStoreId;
+
+                        // Sauvegarder la correction
+                        await this.db.table('drafts').update(draft.id, draft);
+                    }
+                }
+
+                console.log(`Brouillon chargé pour le magasin ${currentStoreId} avec magasin.id synchronisé`);
                 return {
-                    success: false,
-                    message: 'Aucun brouillon trouvé'
+                    success: true,
+                    data: draft
                 };
             }
 
+            // Si nous sommes en développement et qu'aucun brouillon n'a été trouvé,
+            // nous pouvons être plus permissifs
+            if (isDevelopment) {
+                // Prendre n'importe quel brouillon et l'adapter
+                draft = await this.db.table('drafts')
+                    .orderBy('timestamp')
+                    .reverse()
+                    .first();
+
+                if (draft) {
+                    console.log(`Mode développement: adaptation d'un brouillon existant au magasin ${currentStoreId}`);
+
+                    // Mettre à jour le storeId externe
+                    draft.storeId = currentStoreId;
+
+                    // Mettre à jour le magasin.id interne
+                    if (draft.data && draft.data.magasin) {
+                        draft.data.magasin.id = currentStoreId;
+                    } else if (draft.data) {
+                        draft.data.magasin = { id: currentStoreId };
+                    }
+
+                    // Sauvegarder les modifications
+                    await this.db.table('drafts').update(draft.id, draft);
+
+                    return {
+                        success: true,
+                        data: draft
+                    };
+                }
+            }
+
             return {
-                success: true,
-                data: draft
+                success: false,
+                message: 'Aucun brouillon trouvé'
             };
         } catch (error) {
             return {
@@ -434,17 +572,27 @@ export class DraftStorageService {
         }
     }
 
-    async clearDraft(): Promise<DraftStorageResult> {
+    async clearDraft(storeId?: string): Promise<DraftStorageResult> {
         try {
-            // Vérifier que la base de données est initialisée
-            if (!this.db) {
-                throw new Error('Base de données non initialisée');
+            const currentStoreId = storeId || this.getCurrentStoreId();
+            console.log(`Suppression du brouillon pour le magasin: ${currentStoreId}`);
+
+            // Trouver et supprimer le brouillon spécifique à ce magasin
+            const draft = await this.db.table('drafts')
+                .where('storeId')
+                .equals(currentStoreId)
+                .first();
+
+            if (draft) {
+                await this.db.table('drafts').delete(draft.id);
+                console.log(`Brouillon supprimé pour le magasin ${currentStoreId}`);
+            } else {
+                console.log(`Aucun brouillon à supprimer pour le magasin ${currentStoreId}`);
             }
-            await this.db.table('drafts').clear();
-            console.log('Base de données nettoyée');
+
             return {
                 success: true,
-                message: 'Brouillons supprimés'
+                message: 'Brouillon supprimé avec succès'
             };
         } catch (error) {
             console.error('Erreur clearDraft:', error);
@@ -453,6 +601,35 @@ export class DraftStorageService {
                 error: error as Error,
                 message: error instanceof Error ? error.message : 'Erreur inconnue'
             };
+        }
+    }
+
+    /**
+     * Récupère l'ID du magasin actuel depuis le localStorage
+     */
+    private getCurrentStoreId(): string {
+        try {
+            const userString = localStorage.getItem('user');
+            if (userString) {
+                const user = JSON.parse(userString);
+                if (user.role === 'magasin' && user.storeId) {
+                    return user.storeId;
+                }
+            }
+
+            // Si le localStorage n'a pas l'info, essayer le contexte du store
+            const storeInfoString = localStorage.getItem('currentStoreInfo');
+            if (storeInfoString) {
+                const storeInfo = JSON.parse(storeInfoString);
+                if (storeInfo.id) {
+                    return storeInfo.id;
+                }
+            }
+
+            return 'unknown_store'; // Valeur par défaut si aucun magasin n'est identifié
+        } catch (error) {
+            console.error('Erreur lors de la récupération du storeId:', error);
+            return 'unknown_store';
         }
     }
 }

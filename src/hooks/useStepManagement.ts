@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { FormAction, FormState } from '../types/form.types';
 import { CommandeMetier } from '../types/business.types';
 import { useFormValidation } from './useFormValidation';
+import { useDraftStorage } from './useDraftStorage';
 
 interface StepConfig {
     title: string;
@@ -41,31 +42,71 @@ export const useStepManagement = (
 ) => {
 
     const { validateStep, validateForm } = useFormValidation(formState.data);
+    const { saveDraft } = useDraftStorage();
 
     const handleNext = useCallback(() => {
+
+        console.log('Étape actuelle avant passage à la suivante:', formState.step);
+        console.log('Données avant passage à l\'étape suivante: ', formState.data);
+        console.log('Dimensions des articles avant passage à l\'étape suivante: ', formState.data.articles?.dimensions);
+
         const errors = validateStep(formState.step);
         if (Object.keys(errors).length === 0) {
+            if (formState.step === 2) { // Étape des articles
+                // Assurez-vous que les dimensions des articles sont bien dans l'état global
+                const articleDimensions = formState.data.articles?.dimensions || [];
+
+                // Mettre à jour l'état global pour s'assurer que les dimensions sont sauvegardées
+                dispatch({
+                    type: 'UPDATE_DATA',
+                    payload: {
+                        data: {
+                            articles: {
+                                ...formState.data.articles,
+                                nombre: formState.data.articles?.nombre || 0,
+                                dimensions: articleDimensions,
+                            }
+                        }
+                    }
+                });
+
+                // Sauvegarder immédiatement un brouillon
+                setTimeout(() => {
+                    saveDraft(formState.data);
+                }, 0);
+            }
+
+            // Passer à l'étape suivante
             dispatch({
                 type: 'CHANGE_STEP',
-                payload: { step: formState.step + 1, direction: 'right' }
+                payload: {
+                    step: formState.step + 1,
+                    direction: 'right'
+                }
             });
-            dispatch({ type: 'SET_ERRORS', payload: {} }); // Réinitialiser les erreurs
         } else {
+            // Afficher les erreurs
             dispatch({ type: 'SET_ERRORS', payload: errors });
         }
-    }, [formState.step, validateStep]);
+    }, [formState.step, formState.data, validateStep]);
 
     // N'afficher les erreurs que si une tentative de validation a eu lieu
     const displayErrors = formState.showErrors ? formState.errors.magasin?.manager : null;
 
     const handlePrev = useCallback(() => {
-        if (formState.step > 1) {
+
+        console.log('Retour à l\'étape précédente depuis l\'étape:', formState.step);
+        console.log('Données avant retour à l\'étape précédente: ', formState.data);
+        console.log('Dimensions des articles avant retour à l\'étape précédente: ', formState.data.articles?.dimensions);
+
+        if (formState.step > 1 || formState.step === 3) {
+            saveDraft(formState.data); // Sauvegarder le brouillon avant de revenir en arrière
             dispatch({
                 type: 'CHANGE_STEP',
                 payload: { step: formState.step - 1, direction: 'left' }
             });
         }
-    }, [formState.step]);
+    }, [formState.step, formState.data, saveDraft]);
 
     const progress = useMemo(() => {
         const errors = validateStep(formState.step);

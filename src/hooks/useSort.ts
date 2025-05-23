@@ -36,6 +36,10 @@ export function useSort<T extends ItemWithMagasin>( items: T[], defaultKey: Sort
                     const aName = a.chauffeur?.nom || '';
                     const bName = b.chauffeur?.nom || '';
                     return aName.localeCompare(bName) * direction;
+                case 'tarifHT':
+                    const aPrice = getNestedPropertyValue(a, 'financier.tarifHT');
+                    const bPrice = getNestedPropertyValue(b, 'financier.tarifHT');
+                    return (aPrice - bPrice) * direction;
                 default:
                     return 0;
             }

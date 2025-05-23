@@ -139,7 +139,7 @@ export class DashboardService {
             commandes
                 .filter(c => ['EN COURS DE LIVRAISON', 'CONFIRMEE', 'ENLEVEE']
                     .includes(c.statuts.livraison))
-                .flatMap(c => c.chauffeurs)
+                .flatMap(c => c.chauffeurs.map(chauffeur => chauffeur.nom)) // Assuming 'nom' is the string representation
         )];
     }
 
@@ -194,7 +194,17 @@ export class DashboardService {
                 performance: this.calculatePerformance(commandes),
                 chauffeursActifs: this.getChauffeursActifs(commandes).length,
                 historique,
-                statutsDistribution: this.calculateStatutsDistribution(commandes)
+                statutsDistribution: this.calculateStatutsDistribution(commandes),
+                commandes,
+                chauffeurs: this.getChauffeursActifs(commandes).map(chauffeur => ({
+                    id: '', // Provide appropriate id
+                    nom: chauffeur, // Assuming chauffeur is the name
+                    prenom: '', // Provide appropriate prenom
+                    role: '', // Provide appropriate role
+                    telephone: '', // Provide appropriate telephone
+                    email: '', // Provide appropriate email
+                    status: 'Actif' // Assuming the default status is 'Actif'
+                }))
             };
         } catch (error) {
             console.error('Erreur lors de la récupération des métriques:', error);

@@ -37,7 +37,7 @@ export interface DateRange {
     singleDate: string | null;
 }
 
-export type SortableFields = 'dates' | 'creneau' | 'statuts' | 'magasin' | 'chauffeur' | 'numeroCommande';
+export type SortableFields = 'dates' | 'creneau' | 'statuts' | 'magasin' | 'chauffeur' | 'numeroCommande' | 'tarifHT';
 
 export interface SortConfigCommandeMetier {
     key: SortableFields;

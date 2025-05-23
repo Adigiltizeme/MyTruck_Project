@@ -1,0 +1,356 @@
+[
+    {
+        "id": "cmd_demo1",
+        "numeroCommande": "CMD202502001",
+        "dates": {
+            "commande": "2025-02-20T10:00:00.000Z",
+            "livraison": "2025-02-25T00:00:00.000Z",
+            "misAJour": "2025-02-20T10:00:00.000Z"
+        },
+        "statuts": {
+            "livraison": "EN ATTENTE",
+            "commande": "En attente"
+        },
+        "client": {
+            "nom": "Dupont",
+            "prenom": "Jean",
+            "nomComplet": "Jean Dupont",
+            "adresse": {
+                "ligne1": "123 Rue de Paris, 75011 Paris",
+                "type": "Domicile",
+                "batiment": "A",
+                "etage": "3",
+                "ascenseur": true,
+                "interphone": "3B"
+            },
+            "telephone": {
+                "principal": "0612345678",
+                "secondaire": ""
+            }
+        },
+        "magasin": {
+            "id": "mag_demo1",
+            "name": "Truffaut Paris Rive Gauche",
+            "address": "85 Quai d'Austerlitz, 75013 Paris",
+            "phone": "0144063333",
+            "status": "Actif"
+        },
+        "articles": {
+            "nombre": 2,
+            "details": "2 plantes exotiques (Monstera Deliciosa et Ficus Lyrata)",
+            "photos": [
+                {
+                    "url": "https://images.unsplash.com/photo-1614594975525-e45190c55d0b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80"
+                },
+                {
+                    "url": "https://images.unsplash.com/photo-1558693168-c370615b54e0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80"
+                }
+            ]
+        },
+        "livraison": {
+            "creneau": "14h-16h",
+            "vehicule": "6M3",
+            "equipiers": 1,
+            "reserve": false,
+            "remarques": "Faire attention aux plantes, fragiles",
+            "chauffeurs": []
+        },
+        "chauffeurs": [],
+        "financier": {
+            "tarifHT": 68
+        }
+    },
+    {
+        "id": "cmd_demo2",
+        "numeroCommande": "CMD202502002",
+        "dates": {
+            "commande": "2025-02-21T14:30:00.000Z",
+            "livraison": "2025-02-26T00:00:00.000Z",
+            "misAJour": "2025-02-21T14:30:00.000Z"
+        },
+        "statuts": {
+            "livraison": "CONFIRMEE",
+            "commande": "Confirmée"
+        },
+        "client": {
+            "nom": "Martin",
+            "prenom": "Laura",
+            "nomComplet": "Laura Martin",
+            "adresse": {
+                "ligne1": "45 Avenue Victor Hugo, 92100 Boulogne-Billancourt",
+                "type": "Domicile",
+                "batiment": "C",
+                "etage": "2",
+                "ascenseur": false,
+                "interphone": "C21"
+            },
+            "telephone": {
+                "principal": "0623456789",
+                "secondaire": "0145678901"
+            }
+        },
+        "magasin": {
+            "id": "mag_demo5",
+            "name": "Truffaut Boulogne",
+            "address": "33 Av. Edouard Vaillant, 92100 Boulogne-Billancourt",
+            "phone": "0146100900",
+            "status": "Actif"
+        },
+        "articles": {
+            "nombre": 1,
+            "details": "Salon de jardin en teck, 4 chaises",
+            "photos": [
+                {
+                    "url": "https://images.unsplash.com/photo-1595426496987-37189df2c150?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80"
+                }
+            ]
+        },
+        "livraison": {
+            "creneau": "09h-11h",
+            "vehicule": "20M3",
+            "equipiers": 2,
+            "reserve": false,
+            "remarques": "Attention, rue étroite",
+            "chauffeurs": [
+                "chauf_demo1"
+            ]
+        },
+        "chauffeurs": [
+            {
+                "id": "chauf_demo1",
+                "nom": "Martin",
+                "prenom": "Sophie",
+                "telephone": "0678901234",
+                "role": "Chauffeur",
+                "status": "Actif"
+            }
+        ],
+        "financier": {
+            "tarifHT": 120,
+            "factures": [
+                {
+                    "id": "FAC202502001",
+                    "numeroFacture": "FAC202502001",
+                    "dateFacture": "2025-02-21T00:00:00.000Z",
+                    "dateEcheance": "2025-03-21T00:00:00.000Z",
+                    "montantHT": 120,
+                    "statut": "En attente"
+                }
+            ]
+        }
+    },
+    {
+        "id": "cmd_demo3",
+        "numeroCommande": "CMD202502003",
+        "dates": {
+            "commande": "2025-02-22T09:15:00.000Z",
+            "livraison": "2025-02-23T00:00:00.000Z",
+            "misAJour": "2025-02-22T15:45:00.000Z"
+        },
+        "statuts": {
+            "livraison": "EN COURS DE LIVRAISON",
+            "commande": "Confirmée"
+        },
+        "client": {
+            "nom": "Petit",
+            "prenom": "Michel",
+            "nomComplet": "Michel Petit",
+            "adresse": {
+                "ligne1": "12 Rue de la Paix, 75002 Paris",
+                "type": "Professionnelle",
+                "batiment": "",
+                "etage": "RDC",
+                "ascenseur": false,
+                "interphone": "Boutique"
+            },
+            "telephone": {
+                "principal": "0687654321",
+                "secondaire": ""
+            }
+        },
+        "magasin": {
+            "id": "mag_demo6",
+            "name": "Truffaut Batignolles",
+            "address": "65 boulevard de Courcelles 75008 Paris",
+            "phone": "0143872121",
+            "status": "Actif"
+        },
+        "articles": {
+            "nombre": 5,
+            "details": "5 bacs à fleurs en terre cuite, diamètre 50cm",
+            "photos": [
+                {
+                    "url": "https://images.unsplash.com/photo-1612363148951-15f16817648f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80"
+                }
+            ]
+        },
+        "livraison": {
+            "creneau": "17h-19h",
+            "vehicule": "10M3",
+            "equipiers": 1,
+            "reserve": true,
+            "remarques": "Livraison en zone piétonne, prévoir un diable",
+            "chauffeurs": [
+                "chauf_demo4"
+            ]
+        },
+        "chauffeurs": [
+            {
+                "id": "chauf_demo4",
+                "nom": "Richard",
+                "prenom": "Émilie",
+                "telephone": "0698765432",
+                "role": "Chauffeur",
+                "status": "En route vers client"
+            }
+        ],
+        "financier": {
+            "tarifHT": 84
+        }
+    },
+    {
+        "id": "cmd_demo4",
+        "numeroCommande": "CMD202502004",
+        "dates": {
+            "commande": "2025-02-15T16:45:00.000Z",
+            "livraison": "2025-02-20T00:00:00.000Z",
+            "misAJour": "2025-02-20T18:30:00.000Z"
+        },
+        "statuts": {
+            "livraison": "LIVREE",
+            "commande": "Confirmée"
+        },
+        "client": {
+            "nom": "Durand",
+            "prenom": "Sophie",
+            "nomComplet": "Sophie Durand",
+            "adresse": {
+                "ligne1": "78 Avenue des Champs-Élysées, 75008 Paris",
+                "type": "Professionnelle",
+                "batiment": "",
+                "etage": "4",
+                "ascenseur": true,
+                "interphone": "SARL Durand"
+            },
+            "telephone": {
+                "principal": "0712345678",
+                "secondaire": "0145678901"
+            }
+        },
+        "magasin": {
+            "id": "mag_demo1",
+            "name": "Truffaut Paris Rive Gauche",
+            "address": "85 Quai d'Austerlitz, 75013 Paris",
+            "phone": "0144063333",
+            "status": "Actif"
+        },
+        "articles": {
+            "nombre": 3,
+            "details": "3 oliviers en pot, hauteur 1m50",
+            "photos": [
+                {
+                    "url": "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=764&q=80"
+                }
+            ]
+        },
+        "livraison": {
+            "creneau": "14h-16h",
+            "vehicule": "10M3",
+            "equipiers": 2,
+            "reserve": false,
+            "remarques": "Accès par l'arrière du bâtiment",
+            "chauffeurs": [
+                "chauf_demo2"
+            ],
+            "commentaireEnlevement": "Arbres bien protégés pour le transport",
+            "commentaireLivraison": "Livraison effectuée sans encombre, client satisfait"
+        },
+        "chauffeurs": [
+            {
+                "id": "chauf_demo2",
+                "nom": "Dubois",
+                "prenom": "Thomas",
+                "telephone": "0645678912",
+                "role": "Chauffeur",
+                "status": "Actif"
+            }
+        ],
+        "financier": {
+            "tarifHT": 108,
+            "factures": [
+                {
+                    "id": "FAC202502002",
+                    "numeroFacture": "FAC202502002",
+                    "dateFacture": "2025-02-20T00:00:00.000Z",
+                    "dateEcheance": "2025-03-20T00:00:00.000Z",
+                    "montantHT": 108,
+                    "statut": "Payée"
+                }
+            ]
+        }
+    },
+    {
+        "id": "cmd_demo5",
+        "numeroCommande": "CMD202502005",
+        "dates": {
+            "commande": "2025-02-23T11:20:00.000Z",
+            "livraison": "2025-03-01T00:00:00.000Z",
+            "misAJour": "2025-02-23T11:20:00.000Z"
+        },
+        "statuts": {
+            "livraison": "EN ATTENTE",
+            "commande": "En attente"
+        },
+        "client": {
+            "nom": "Bernard",
+            "prenom": "Paul",
+            "nomComplet": "Paul Bernard",
+            "adresse": {
+                "ligne1": "5 Rue des Lilas, 94200 Ivry-sur-Seine",
+                "type": "Domicile",
+                "batiment": "B",
+                "etage": "1",
+                "ascenseur": false,
+                "interphone": "102"
+            },
+            "telephone": {
+                "principal": "0634567890",
+                "secondaire": ""
+            }
+        },
+        "magasin": {
+            "id": "mag_demo2",
+            "name": "Truffaut Ivry-sur-Seine",
+            "address": "36 Rue Ernest Renan, 94200 Ivry-sur-Seine",
+            "phone": "0146861500",
+            "status": "Actif"
+        },
+        "articles": {
+            "nombre": 1,
+            "details": "1 serre de jardin en verre, dimensions 2m50 x 3m",
+            "photos": []
+        },
+        "livraison": {
+            "creneau": "10h-12h",
+            "vehicule": "20M3",
+            "equipiers": 2,
+            "reserve": false,
+            "remarques": "Demande d'installation sur place",
+            "chauffeurs": []
+        },
+        "chauffeurs": [],
+        "financier": {
+            "tarifHT": 150,
+            "devis": [
+                {
+                    "id": "DEV202502001",
+                    "numeroDevis": "DEV202502001",
+                    "dateDevis": "2025-02-23T00:00:00.000Z",
+                    "dateEcheance": "2025-03-10T00:00:00.000Z",
+                    "montantHT": 150,
+                    "statut": "Accepté"
+                }
+            ]
+        }
+    }
+]

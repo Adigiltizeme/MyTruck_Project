@@ -1,4 +1,6 @@
-interface ClientInfo {
+import { ArticleDimension } from "../components/forms/ArticleDimensionForm";
+
+export interface ClientInfo {
     nom: string;
     prenom: string;
     nomComplet: string;
@@ -33,17 +35,28 @@ export interface FactureInfo {
     numeroFacture: string;
     dateFacture: string;
     dateEcheance: string;
+    magasin: MagasinInfo;
+    client: ClientInfo;
     montantHT: number;
-    statut: 'En attente' | 'Payée'
+    statut: 'En attente' | 'Payée';
+    url?: string;
+    notes?: string;
+    additionalItems?: Array<{ description: string, price: number, quantity: number }>;
 }
 
 export interface DevisInfo {
     id: string;
     numeroDevis: string;
     dateDevis: string;
+    magasin: MagasinInfo;
+    client: ClientInfo;
     dateEcheance: string;
     montantHT: number;
-    statut: 'En attente' | 'Accepté' | 'Refusé'
+    montantTTC?: number;
+    statut: 'En attente' | 'Accepté' | 'Refusé';
+    url?: string;
+    notes?: string;
+    additionalServices?: Array<{ name: string, price: number }>;
 }
 
 export type ChauffeurStatus = 'Actif' | 'En route vers magasin' | 'En route vers client' | 'Inactif';
@@ -70,16 +83,31 @@ export interface FormattedDate {
 
 export interface ArticlesType {
     nombre: number;
-    details: string;
-    photos: Array<{
+    details?: string;
+    photos?: Array<{
         url: string;
         file?: File;
     }>;
+    dimensions?: ArticleDimension[];
     newPhotos: Array<{
         url: string;
         file: File
     }>;
     categories: string[];
+}
+
+export interface LivraisonInfo {
+    creneau: string;
+    vehicule: string;  // Utiliser le type strict d'Airtable
+    equipiers: number;
+    commentaireEnlevement?: string;
+    commentaireLivraison?: string;
+    photosEnlevement?: string[];
+    photosLivraison?: string[];
+    reserve: boolean;
+    chauffeurs?: PersonnelInfo[];
+    remarques?: string;
+    details?: string;
 }
 
 
@@ -97,24 +125,14 @@ export interface CommandeMetier {
         livraison: 'EN ATTENTE' | 'CONFIRMEE' | 'ENLEVEE' | 'EN COURS DE LIVRAISON' | 'LIVREE' | 'ANNULEE' | 'ECHEC';
     };
     client: ClientInfo;
-    livraison: {
-        creneau: string;
-        vehicule: string;
-        equipiers: number;
-        commentaireEnlevement?: string;
-        commentaireLivraison?: string;
-        photosEnlevement?: string[];
-        photosLivraison?: string[];
-        reserve: boolean;
-        chauffeurs: PersonnelInfo[];
-        remarques?: string;
-    };
+    livraison: LivraisonInfo;
     articles: {
         nombre: number;
         details?: string;
         photos?: ArticlesType['photos'];
         newPhotos?: ArticlesType['newPhotos'];
         categories?: string[];
+        dimensions?: ArticleDimension[];
     };
     financier: {
         tarifHT: number;

@@ -49,6 +49,11 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
             id: '', name: 'N/A', address: 'N/A', phone: 'N/A', status: 'N/A'
         };
 
+        const photos = fields['PHOTOS ARTICLES'] ? fields['PHOTOS ARTICLES'].map((photo: any) => ({
+            url: photo.url || photo, // Gère à la fois les objets photo et les URLs directes
+            file: undefined // Les photos existantes n'ont pas de File associé
+        })) : [];
+
         return {
             id: record.id || '',
             numeroCommande: fields['NUMERO DE COMMANDE'] || '',
@@ -80,13 +85,13 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
                     batiment: fields['BÂTIMENT'] || '',
                     etage: fields['ETAGE'] || 'N/A',
                     ascenseur: fields['ASCENSEUR'] === 'Oui',
-                    interphone: fields['INTERPHONE'] || 'N/A',
+                    interphone: fields['INTERPHONE/CODE'] || 'N/A',
                 },
                 nomComplet: `${fields['PRENOM DU CLIENT'] || 'Non spécifié'} ${fields['NOM DU CLIENT'] || 'N/A'}`
             },
             livraison: {
                 creneau: fields['CRENEAU DE LIVRAISON'] || 'N/A',
-                vehicule: VEHICULES[record.fields['CATEGORIE DE VEHICULE']] || record.fields['CATEGORIE DE VEHICULE'],
+                vehicule: VEHICULES[record.fields['CATEGORIE DE VEHICULE'] as keyof typeof VEHICULES] || record.fields['CATEGORIE DE VEHICULE'],
                 equipiers: Number(fields['OPTION EQUIPIER DE MANUTENTION']) || 0,
                 commentaireEnlevement: fields['COMMENTAIRE MYTRUCK A L\'ENLEVEMENT'] || '',
                 commentaireLivraison: fields['COMMENTAIRE MYTRUCK A LA LIVRAISON'] || '',
@@ -99,7 +104,8 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
             articles: {
                 nombre: Number(fields['NOMBRE TOTAL D\'ARTICLES']) || 0,
                 details: fields['DETAILS SUR LES ARTICLES'] || '',
-                photos: fields['PHOTOS ARTICLES'] || [],
+                photos: photos,
+                newPhotos: [],
                 categories: fields['CATEGORIE DE L\'ARTICLE COMMANDE'] || [],
             },
             financier: {

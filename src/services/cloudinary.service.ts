@@ -1,49 +1,137 @@
-import { Cloudinary } from '@cloudinary/url-gen';
+import axios from 'axios';
 
 export class CloudinaryService {
-    private cloudinary: Cloudinary;
+    private cloudName: string;
+    private uploadPreset: string;
+    // private apiKey: string;
 
     constructor() {
-        this.cloudinary = new Cloudinary({
-            cloud: {
-                cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
-                apiKey: import.meta.env.VITE_CLOUDINARY_API_KEY,
-                apiSecret: import.meta.env.VITE_CLOUDINARY_API_SECRET
-            }
-        });
+        this.cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string;
+        this.uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string || 'my_truck_images';
+        // this.apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY as string;
     }
 
-    async uploadImage(file: File) {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', 'my_truck_images');
-        formData.append('cloud_name', import.meta.env.VITE_CLOUDINARY_CLOUD_NAME);
-        formData.append('api_key', import.meta.env.VITE_CLOUDINARY_API_KEY);
-    
+    /**
+     * Vérifie si une URL est une URL Airtable
+     * @param url URL à vérifier
+     * @returns true si c'est une URL Airtable
+     */
+    isAirtableUrl(url: string): boolean {
+        return typeof url === 'string' && (
+            url.includes('airtableusercontent.com') ||
+            url.includes('airtable.com') ||
+            url.includes('dl.airtable.com')
+        );
+    }
+
+    /**
+     * Upload une image vers Cloudinary
+     * @param file Fichier image à uploader
+     * @returns Résultat de l'upload contenant l'URL et autres métadonnées
+     */
+    async uploadImage(file: File): Promise<{ url: string; filename: string }> {
         try {
-            const response = await fetch(
-                `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
+            console.log(`Début de l'upload vers Cloudinary: ${file.name} (${file.size} octets)`);
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', this.uploadPreset);
+
+            // Ne pas inclure les secrets API dans les requêtes client-side
+            // Utiliser uniquement upload_preset qui est configuré côté Cloudinary
+
+            const response = await axios.post(
+                `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`,
+                formData,
                 {
-                    method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
                 }
             );
-    
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Erreur Cloudinary:', errorData);
-                throw new Error(errorData.error?.message || 'Erreur upload');
-            }
-    
-            const data = await response.json();
+
             return {
-                url: data.secure_url,
-                filename: file.name
+                url: response.data.secure_url,
+                filename: response.data.public_id || file.name
             };
         } catch (error) {
-            console.error('Erreur upload:', error);
+            console.error('Erreur lors de l\'upload vers Cloudinary:', error);
+
+            // Journaliser plus de détails sur l'erreur pour le débogage
+            if (axios.isAxiosError(error) && error.response) {
+                console.error('Détails de l\'erreur Cloudinary:', error.response.data);
+            }
+
+            throw new Error('Erreur lors de l\'upload de l\'image. Veuillez réessayer.');
+        }
+    }
+
+    /**
+     * Upload un fichier (PDF, etc.) vers Cloudinary
+     * @param file Fichier Blob à uploader
+     * @param fileName Nom du fichier pour identification
+     * @returns Résultat de l'upload
+     */
+    async uploadFile(file: Blob, fileName: string): Promise<{ url: string; filename: string }> {
+        try {
+            // Convertir le Blob en File avec un nom de fichier spécifique
+            const formData = new FormData();
+            const fileObj = new File([file], fileName, { type: file.type || 'application/octet-stream' });
+
+            formData.append('file', fileObj);
+            formData.append('upload_preset', this.uploadPreset);
+            formData.append('resource_type', 'auto');
+
+            const response = await axios.post(
+                `https://api.cloudinary.com/v1_1/${this.cloudName}/upload`,
+                formData,
+                {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                }
+            );
+
+            return {
+                url: response.data.secure_url,
+                filename: response.data.public_id || fileName
+            };
+        } catch (error) {
+            console.error('Erreur lors de l\'upload du fichier vers Cloudinary:', error);
+            throw new Error('Erreur lors de l\'upload du fichier. Veuillez réessayer.');
+        }
+    }
+
+    /**
+     * Upload une image depuis une URL externe vers Cloudinary
+     * @param url URL de l'image à uploader
+     * @returns Résultat de l'upload
+     */
+    async uploadFromUrl(url: string): Promise<{ url: string; filename: string }> {
+        try {
+            const response = await axios.post(
+                `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`,
+                {
+                    file: url,
+                    upload_preset: this.uploadPreset
+                }
+            );
+
+            return {
+                url: response.data.secure_url,
+                filename: response.data.public_id
+            };
+        } catch (error) {
+            console.error('Erreur lors de l\'upload depuis URL vers Cloudinary:', error);
             throw error;
         }
+    }
+
+    /**
+     * Vérifie si une URL est une URL Cloudinary
+     */
+    isCloudinaryUrl(url: string): boolean {
+        return typeof url === 'string' && url.includes(`res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}`);
     }
 }
 
