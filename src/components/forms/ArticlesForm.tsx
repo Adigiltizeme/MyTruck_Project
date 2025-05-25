@@ -217,6 +217,14 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         }
     }, [data.articles?.dimensions, isEditing]);
 
+    useEffect(() => {
+        console.log("[ARTICLES] État actuel des données véhicule:", {
+            'data.livraison?.vehicule': data.livraison?.vehicule,
+            'typeof': typeof data.livraison?.vehicule,
+            'articleDimensions.length': articleDimensions.length
+        });
+    }, [data.livraison?.vehicule, articleDimensions]);
+
     // Récupérer les informations de livraison si elles existent
     useEffect(() => {
         const newDeliveryInfo = {
@@ -333,15 +341,18 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     // Gérer la sélection du véhicule
     const handleVehicleSelect = (vehicleType: "" | VehicleType) => {
+        console.log(`[ARTICLES] Sélection véhicule reçue: ${vehicleType}`);
+
         if (vehicleType === "") {
-            // Handle the case where no vehicle is selected
+            // Aucun véhicule sélectionné
             onChange({
                 target: {
                     name: 'livraison.vehicule',
-                    value: null
+                    value: ''
                 }
             });
         } else {
+            console.log(`[ARTICLES] Sauvegarde véhicule format court: ${vehicleType}`);
             onChange({
                 target: {
                     name: 'livraison.vehicule',
@@ -371,6 +382,18 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             target: {
                 name: 'livraison.details',
                 value: JSON.stringify(updatedInfo)
+            }
+        });
+    };
+
+    const handleDeliveryDetailsChange = (details: any) => {
+        setDeliveryInfo(details);
+
+        // Mise à jour du formulaire avec tous les détails
+        onChange({
+            target: {
+                name: 'livraison.details',
+                value: JSON.stringify(details)
             }
         });
     };
@@ -456,10 +479,21 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         articles={articleDimensions}
                         onVehicleSelect={handleVehicleSelect}
                         onCrewSelect={handleCrewSelect}
+                        onDeliveryDetailsChange={handleDeliveryDetailsChange}
                         initialVehicle={data.livraison?.vehicule as VehicleType}
                         initialCrew={data.livraison?.equipiers}
                         deliveryInfo={deliveryInfo}
                     />
+
+                    {/* Debug en mode développement */}
+                    {process.env.NODE_ENV === 'development' && (
+                        <div className="mt-2 p-2 bg-gray-100 text-xs">
+                            <strong>Debug ArticlesForm:</strong><br />
+                            Véhicule sauvegardé: {data.livraison?.vehicule || 'aucun'}<br />
+                            Équipiers: {data.livraison?.equipiers || 0}<br />
+                            Détails: {data.livraison?.details || 'aucun'}
+                        </div>
+                    )}
                 </div>
             )}
 

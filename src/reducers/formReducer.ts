@@ -34,7 +34,8 @@ export const initialFormState: FormState = {
             equipiers: 0,
             reserve: false,
             remarques: '',
-            chauffeurs: []
+            chauffeurs: [],
+            details: '{}'
         },
     },
     errors: {},
@@ -85,6 +86,29 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                 };
             }
 
+            if (fieldPath[0] === 'livraison' && fieldPath[1] === 'details') {
+                return {
+                    ...state,
+                    isDirty: true,
+                    data: {
+                        ...state.data,
+                        livraison: {
+                            ...state.data.livraison,
+                            details: typeof action.payload.value === 'string'
+                                ? action.payload.value
+                                : JSON.stringify(action.payload.value),
+                            // Assurez-vous que les autres champs sont préservés
+                            vehicule: state.data.livraison?.vehicule || '',
+                            equipiers: state.data.livraison?.equipiers || 0,
+                            creneau: state.data.livraison?.creneau || '',
+                            reserve: typeof state.data.livraison?.reserve === 'boolean'
+                                ? state.data.livraison.reserve
+                                : false
+                        }
+                    }
+                };
+            }
+
             return {
                 ...state,
                 data: newData,
@@ -93,54 +117,60 @@ export function formReducer(state: FormState, action: FormAction): FormState {
         case 'RESTORE_DRAFT':
             console.log("Reducer - Restauration du brouillon:", action.payload.data);
             // s'assurer que les dimensions sont correctement restaurées
-            let restoredData = action.payload.data;
+            let restoredData = { ...action.payload.data };
 
-            // S'assurer que toutes les données de livraison sont préservées
-            if (restoredData.livraison) {
-                // Préserver les détails de livraison (incluant canBeTilted)
-                if (restoredData.livraison.details) {
-                    try {
-                        const details = typeof restoredData.livraison.details === 'string'
-                            ? JSON.parse(restoredData.livraison.details)
-                            : restoredData.livraison.details;
-
-                        restoredData = {
-                            ...restoredData,
-                            livraison: {
-                                ...restoredData.livraison,
-                                details: details
-                            }
-                        };
-                    } catch (e) {
-                        console.warn("Erreur parsing détails livraison:", e);
-                    }
-                }
-            }
-
-            // Si les dimensions ne sont pas définies dans les données restaurées, les initialiser
+            // S'assurer que les dimensions sont correctement restaurées
             if (restoredData.articles && !restoredData.articles.dimensions) {
-                restoredData = {
-                    ...restoredData,
-                    articles: {
-                        ...restoredData.articles,
-                        dimensions: []
-                    }
-                };
+                restoredData.articles.dimensions = [];
             }
 
-            // S'assurer que toutes les données de livraison sont restaurées
+            // Restaurer correctement les informations de livraison
             if (restoredData.livraison) {
+                // Préserver le véhicule sélectionné en format court
+                const vehicule = restoredData.livraison.vehicule || '';
+                const equipiers = restoredData.livraison.equipiers || 0;
+                const creneau = restoredData.livraison.creneau || '';
+                const reserve = typeof restoredData.livraison.reserve === 'boolean'
+                    ? restoredData.livraison.reserve
+                    : false;
+
                 // Restaurer les détails de livraison (incluant canBeTilted)
-                if (!restoredData.livraison.details && restoredData.livraison.canBeTilted !== undefined) {
-                    restoredData.livraison.details = JSON.stringify({
-                        canBeTilted: restoredData.livraison.canBeTilted
-                    });
+                let details = restoredData.livraison.details || '{}';
+                if (typeof details !== 'string') {
+                    details = JSON.stringify(details);
                 }
+
+                // Créer un objet LivraisonInfo complet avec tous les champs requis
+                restoredData.livraison = {
+                    creneau, // string requis
+                    vehicule, // Format court attendu
+                    equipiers, // number requis
+                    reserve, // boolean requis
+                    details,
+                    remarques: restoredData.livraison.remarques || '',
+                    chauffeurs: restoredData.livraison.chauffeurs || [],
+                    commentaireEnlevement: restoredData.livraison.commentaireEnlevement,
+                    commentaireLivraison: restoredData.livraison.commentaireLivraison,
+                    photosEnlevement: restoredData.livraison.photosEnlevement,
+                    photosLivraison: restoredData.livraison.photosLivraison
+                };
+
+                console.log(`[REDUCER] Véhicule restauré: ${vehicule}`);
+                console.log(`[REDUCER] Équipiers restaurés: ${equipiers}`);
+                console.log(`[REDUCER] Créneau restauré: ${creneau}`);
+                console.log(`[REDUCER] Détails restaurés: ${details}`);
             }
 
-            console.log("Données restaurées avec dimensions:", restoredData.articles?.dimensions?.length || 0);
-            console.log("Véhicule restauré:", restoredData.livraison?.vehicule);
-            console.log("Détails livraison restaurés:", restoredData.livraison?.details);
+            // S'assurer que toutes les propriétés financières sont préservées
+            if (!restoredData.financier) {
+                restoredData.financier = { tarifHT: 0 };
+            }
+
+            console.log("Données finales restaurées:", {
+                vehicule: restoredData.livraison?.vehicule,
+                dimensions: restoredData.articles?.dimensions?.length || 0,
+                details: restoredData.livraison?.details
+            });
 
             return {
                 ...state,
