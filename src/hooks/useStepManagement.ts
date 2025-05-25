@@ -65,6 +65,13 @@ export const useStepManagement = (
                                 ...formState.data.articles,
                                 nombre: formState.data.articles?.nombre || 0,
                                 dimensions: articleDimensions,
+                            },
+                            livraison: {
+                                ...(formState.data.livraison || {}),
+                                equipiers: formState.data.livraison?.equipiers || 0,
+                                vehicule: formState.data.livraison?.vehicule || '',
+                                creneau: formState.data.livraison?.creneau ?? '',
+                                reserve: typeof formState.data.livraison?.reserve === 'boolean' ? formState.data.livraison.reserve : false
                             }
                         }
                     }

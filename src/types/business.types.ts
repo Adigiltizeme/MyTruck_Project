@@ -108,6 +108,7 @@ export interface LivraisonInfo {
     chauffeurs?: PersonnelInfo[];
     remarques?: string;
     details?: string;
+    // canBeTilted?: boolean;
 }
 
 
@@ -133,6 +134,7 @@ export interface CommandeMetier {
         newPhotos?: ArticlesType['newPhotos'];
         categories?: string[];
         dimensions?: ArticleDimension[];
+        canBeTilted?: boolean; // Indique si la commande peut être inclinée
     };
     financier: {
         tarifHT: number;

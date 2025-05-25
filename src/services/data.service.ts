@@ -22,13 +22,15 @@ export class DataService {
     private syncInterval: NodeJS.Timeout | null = null;
     private token: string;
 
+    // Flag statique pour éviter les logs multiples
+    private static offlineModeLogged: boolean = false;
+
     constructor(airtableToken: string, forcedOfflineMode = false) {
         this.airtableService = new AirtableService(airtableToken);
         this.userAirtableService = new UserAirtableService(airtableToken);
         this.isNetworkOnline = navigator.onLine;
         this.token = airtableToken;
         this.isOfflineForced = forcedOfflineMode || localStorage.getItem('forceOfflineMode') === 'true';
-        this.setupNetworkListeners();
         this.setupNetworkListeners();
         // Écouter les changements du mode hors ligne
         window.addEventListener('offlinemodechange', (event: Event) => {
@@ -39,7 +41,12 @@ export class DataService {
     }
 
     public setForcedOfflineMode(forced: boolean): void {
-        console.log(`Setting forced offline mode to: ${forced}`);
+        // Éviter les logs répétitifs - ne logger que si la valeur change vraiment
+        if (this.isOfflineForced !== forced || !DataService.offlineModeLogged) {
+            console.log(`Setting forced offline mode to: ${forced}`);
+            DataService.offlineModeLogged = true;
+        }
+
         this.isOfflineForced = forced;
 
         // Si on force le mode hors ligne, arrêter toute synchronisation en cours
@@ -192,7 +199,7 @@ export class DataService {
                         console.log(`Remplacement du numéro temporaire ${data.numeroCommande}`);
                         data.numeroCommande = `CMD${Date.now()}`;
                     }
-                    
+
                     await this.airtableService.createCommande(data);
                     break;
 
@@ -935,7 +942,7 @@ export class DataService {
                             "15h-17h", "16h-18h", "17h-19h", "18h-20h"
                         ];
                     case 'CATEGORIE DE VEHICULE':
-                        return ["3M3", "6M3", "10M3", "20M3"];
+                        return ["1M3", "6M3", "10M3", "20M3"];
                     default:
                         console.warn(`Options pour le champ ${field} non disponibles hors ligne`);
                         return [];
@@ -954,7 +961,7 @@ export class DataService {
                         "15h-17h", "16h-18h", "17h-19h", "18h-20h"
                     ];
                 case 'CATEGORIE DE VEHICULE':
-                    return ["3M3", "6M3", "10M3", "20M3"];
+                    return ["1M3", "6M3", "10M3", "20M3"];
                 default:
                     return [];
             }

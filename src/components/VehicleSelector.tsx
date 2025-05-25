@@ -21,6 +21,8 @@ interface VehicleSelectorProps {
     stairCount?: number;
     parkingDistance?: number;
     needsAssembly?: boolean;
+    details?: string;
+    canBeTilted?: boolean;
   };
 }
 
@@ -52,8 +54,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     // Vérifie s'il y a des articles longs qui pourraient nécessiter d'être couchés
     const hasLongItems = articles.some(article => {
       const maxDimension = Math.max(
-        article.longueur || 0, 
-        article.largeur || 0, 
+        article.longueur || 0,
+        article.largeur || 0,
         article.hauteur || 0
       );
       return maxDimension > 100; // 1 mètre comme seuil pour considérer un article comme long
@@ -63,7 +65,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     // Déterminer les véhicules qui ne peuvent pas transporter les articles
     const restricted: VehicleType[] = [];
-    
+
     availableVehicles.forEach(vehicleType => {
       const canFitAll = articles.every(article => {
         return VehicleValidationService.canFitInVehicle(article, vehicleType, canBeTilted);
@@ -107,7 +109,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     // Ajouter des avertissements en fonction des conditions de livraison
     const newWarnings: string[] = [];
-    
+
     if (needsAdditionalCrew && crew < 1) {
       newWarnings.push('Les conditions de livraison suggèrent l\'ajout d\'un équipier.');
     }
@@ -124,7 +126,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     // Validation des erreurs
     const errors: string[] = [];
-    
+
     if (selectedVehicle && restrictedVehicles.includes(selectedVehicle)) {
       errors.push(`Le véhicule sélectionné (${selectedVehicle}) ne peut pas transporter tous les articles.`);
     }
@@ -136,6 +138,44 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     setValidationErrors(errors);
 
   }, [articles, canBeTilted, deliveryInfo, selectedVehicle]);
+
+  // Restaurer la valeur de canBeTilted depuis deliveryInfo.details
+  useEffect(() => {
+    if (deliveryInfo && typeof deliveryInfo === 'object') {
+      try {
+        // Si deliveryInfo.details est une chaîne JSON, la parser
+        if (typeof deliveryInfo.details === 'string' && deliveryInfo.details) {
+          const details = JSON.parse(deliveryInfo.details);
+          if (details.canBeTilted !== undefined) {
+            setCanBeTilted(details.canBeTilted);
+            console.log("Restauration de canBeTilted:", details.canBeTilted);
+          }
+        }
+        // Si deliveryInfo contient directement canBeTilted
+        else if (deliveryInfo.canBeTilted !== undefined) {
+          setCanBeTilted(deliveryInfo.canBeTilted);
+          console.log("Restauration directe de canBeTilted:", deliveryInfo.canBeTilted);
+        }
+      } catch (e) {
+        console.warn("Erreur lors de la restauration de canBeTilted:", e);
+      }
+    }
+  }, [deliveryInfo]);
+
+  // Restaurer les valeurs initiales du véhicule et des équipiers
+  useEffect(() => {
+    if (initialVehicle && initialVehicle !== selectedVehicle) {
+      setSelectedVehicle(initialVehicle);
+      console.log("Restauration du véhicule:", initialVehicle);
+    }
+  }, [initialVehicle]);
+
+  useEffect(() => {
+    if (initialCrew !== undefined && initialCrew !== crewSize) {
+      setCrewSize(initialCrew);
+      console.log("Restauration des équipiers:", initialCrew);
+    }
+  }, [initialCrew]);
 
   const handleVehicleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = event.target.value as VehicleType;
@@ -156,7 +196,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Sélection du véhicule et des équipiers</h3>
-      
+
       {/* Affichage des erreurs */}
       {validationErrors.length > 0 && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -167,7 +207,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </ul>
         </div>
       )}
-      
+
       {/* Affichage des avertissements */}
       {warnings.length > 0 && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
@@ -178,7 +218,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </ul>
         </div>
       )}
-      
+
       {/* Question pour les articles pouvant être couchés */}
       {showTiltQuestion && (
         <div className="mb-4">
@@ -196,7 +236,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </p>
         </div>
       )}
-      
+
       {/* Sélection du véhicule */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -214,10 +254,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               const capacity = VehicleValidationService.getVehicleCapacity(vehicleType);
               const isRestricted = restrictedVehicles.includes(vehicleType);
               const isRecommended = recommendedVehicle === vehicleType;
-              
+
               return (
-                <option 
-                  key={vehicleType} 
+                <option
+                  key={vehicleType}
                   value={vehicleType}
                   disabled={isRestricted}
                   className={isRestricted ? 'text-gray-400' : isRecommended ? 'font-bold' : ''}
@@ -228,14 +268,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               );
             })}
           </select>
-          
+
           {recommendedVehicle && (
             <p className="text-sm text-green-600 mt-1">
               Véhicule recommandé : {recommendedVehicle} ({VehicleValidationService.getVehicleCapacity(recommendedVehicle).description})
             </p>
           )}
         </div>
-        
+
         {/* Sélection des équipiers */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -251,13 +291,13 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             <option value="2">2 équipiers (+44€)</option>
             <option value="3">3 équipiers ou plus (sur devis)</option>
           </select>
-          
+
           {recommendedCrew > 0 && (
             <p className="text-sm text-green-600 mt-1">
               Recommandation : {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
             </p>
           )}
-          
+
           {crewSize >= 3 && (
             <p className="text-sm text-orange-600 mt-1">
               Plus de 2 équipiers nécessite un devis spécial. Le service commercial vous contactera.
@@ -265,7 +305,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           )}
         </div>
       </div>
-      
+
       {/* Capacités des véhicules (informationnel) */}
       <div className="mt-6 overflow-x-auto">
         <h4 className="text-md font-medium mb-2">Capacités des véhicules disponibles</h4>
@@ -283,9 +323,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             {availableVehicles.map((vehicleType) => {
               const capacity = VehicleValidationService.getVehicleCapacity(vehicleType);
               const isRestricted = restrictedVehicles.includes(vehicleType);
-              
+
               return (
-                <tr 
+                <tr
                   key={vehicleType}
                   className={`${isRestricted ? 'bg-red-50 text-red-700' : ''} ${selectedVehicle === vehicleType ? 'bg-blue-50' : ''}`}
                 >

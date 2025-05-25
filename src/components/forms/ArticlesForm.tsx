@@ -164,8 +164,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
     const [deliveryInfo, setDeliveryInfo] = useState({
-        floor: data.clent?.adresse?.etage || "0",
-        hasElevator: data.clent?.adresse?.ascenseur || false,
+        floor: data.client?.adresse?.etage || "0",
+        hasElevator: data.client?.adresse?.ascenseur || false,
         hasStairs: false,
         stairCount: 0,
         parkingDistance: 0,
@@ -225,7 +225,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             hasStairs: false,
             stairCount: 0,
             parkingDistance: 0,
-            needsAssembly: false
+            needsAssembly: false,
+            canBeTilted: false
         };
 
         if (data.livraison?.details) {
@@ -239,6 +240,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     if (livDetails.stairCount !== undefined) newDeliveryInfo.stairCount = livDetails.stairCount;
                     if (livDetails.parkingDistance !== undefined) newDeliveryInfo.parkingDistance = livDetails.parkingDistance;
                     if (livDetails.needsAssembly !== undefined) newDeliveryInfo.needsAssembly = livDetails.needsAssembly;
+                    if (livDetails.canBeTilted !== undefined) newDeliveryInfo.canBeTilted = livDetails.canBeTilted;
                 }
             } catch (e) {
                 // Ignorer les erreurs de parsing JSON
@@ -298,26 +300,36 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     // Gérer les changements de dimensions des articles
     const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[]) => {
-        console.log("Dimensions modifiées:", dimensions);
-        setArticleDimensions(dimensions);
+        // Éviter les mises à jour inutiles en comparant le contenu
+        const currentDimensionsString = JSON.stringify(articleDimensions);
+        const newDimensionsString = JSON.stringify(dimensions);
 
-        // Mise à jour du formulaire
-        onChange({
-            target: {
-                name: 'articles.dimensions',
-                value: dimensions
-            }
-        });
+        if (currentDimensionsString !== newDimensionsString) {
+            console.log("Dimensions modifiées:", dimensions);
+            setArticleDimensions(dimensions);
 
-        // Mise à jour du nombre d'articles
-        const totalQuantity = dimensions.reduce((sum, article) => sum + article.quantite, 0);
-        onChange({
-            target: {
-                name: 'articles.nombre',
-                value: totalQuantity
+            // Mise à jour du formulaire
+            onChange({
+                target: {
+                    name: 'articles.dimensions',
+                    value: dimensions
+                }
+            });
+
+            // Mise à jour du nombre d'articles seulement si nécessaire
+            const newTotalQuantity = dimensions.reduce((sum, article) => sum + article.quantite, 0);
+            const currentQuantity = data.articles?.nombre || 0;
+
+            if (newTotalQuantity !== currentQuantity) {
+                onChange({
+                    target: {
+                        name: 'articles.nombre',
+                        value: newTotalQuantity
+                    }
+                });
             }
-        });
-    }, [onChange]);
+        }
+    }, [onChange, articleDimensions, data.articles?.nombre]);
 
     // Gérer la sélection du véhicule
     const handleVehicleSelect = (vehicleType: "" | VehicleType) => {

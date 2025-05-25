@@ -38,27 +38,31 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
     const [dataService] = useState(() => new DataService(
         import.meta.env.VITE_AIRTABLE_TOKEN,
-        isOfflineForced
+        true
     ));
 
     // L'application est considérée online seulement si le réseau est disponible ET le mode offline n'est pas forcé
     const isOnline = isNetworkOnline && !isOfflineForced;
 
-    useEffect(() => {
-        // Mettre à jour le dataService avec le nouvel état forcé
-        dataService.setForcedOfflineMode(isOfflineForced);
-        localStorage.setItem('forceOfflineMode', String(isOfflineForced));
+    // useEffect(() => {
+    //     // Mettre à jour le dataService avec le nouvel état forcé
+    //     dataService.setForcedOfflineMode(isOfflineForced);
+    //     localStorage.setItem('forceOfflineMode', String(isOfflineForced));
 
-        // Notifier du changement de mode
-        if (isOfflineForced) {
-            import('../services/dev-data.service').then(module => {
-                module.initDevData();
-            });
-            console.log("Mode hors ligne forcé activé - aucun appel API ne sera effectué - données de démo chargées");
-        } else {
-            console.log("Mode normal - appels API activés si le réseau est disponible");
-        }
-    }, [isOfflineForced, dataService]);
+    //     // Notifier du changement de mode
+    //     if (isOfflineForced) {
+    //         import('../services/dev-data.service').then(module => {
+    //             module.initDevData();
+    //         });
+    //         console.log("Mode hors ligne forcé activé - aucun appel API ne sera effectué - données de démo chargées");
+    //     } else {
+    //         console.log("Mode normal - appels API activés si le réseau est disponible");
+    //     }
+    // }, [isOfflineForced, dataService]);
+    useEffect(() => {
+    // Le mode hors ligne est déjà défini dans le constructeur
+    console.log('Mode hors ligne forcé activé - aucun appel API ne sera effectué - données de démo chargées');
+  }, []); 
 
     useEffect(() => {
         // Gérer les événements de connexion

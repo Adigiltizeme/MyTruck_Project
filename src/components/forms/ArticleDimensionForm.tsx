@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Plus, Minus, Info, AlertTriangle } from 'lucide-react';
 
 export interface ArticleDimension {
@@ -25,57 +25,52 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
-    const [isInitialRender, setIsInitialRender] = useState(true);
-    const [shouldNotifyParent, setShouldNotifyParent] = useState(false);
 
     // Utiliser une référence pour suivre si les dimensions initiales ont déjà été chargées
-    const initialArticlesLoaded = useRef(false);
+    const initializedRef = useRef(false);
+    const lastNotifiedArticlesRef = useRef<ArticleDimension[]>([]);
 
-    // Initialisation des articles lors du premier montage
+    // Initialisation des articles - une seule fois ou quand les props changent significativement
     useEffect(() => {
-        // Uniquement si nous n'avons pas encore chargé les dimensions initiales
-        // ou si les dimensions initiales ont changé significativement
-        if (!initialArticlesLoaded.current ||
-            (initialArticles.length > 0 && JSON.stringify(initialArticles) !== JSON.stringify(articles))) {
-            console.log("Chargement des dimensions initiales:", initialArticles);
+        if (initialArticles.length > 0) {
+            // Comparer avec la précédente valeur pour éviter les mises à jour inutiles
+            const currentString = JSON.stringify(initialArticles);
+            const previousString = JSON.stringify(articles);
 
-            if (initialArticles.length > 0) {
-                // Créer une copie profonde pour éviter les références partagées
-                const articlesCopy = JSON.parse(JSON.stringify(initialArticles));
-                setArticles(articlesCopy);
-            } else {
-                // Si aucun article initial, créer un article par défaut
-                setArticles([{
-                    id: `art-${Date.now()}`,
-                    nom: '',
-                    longueur: undefined,
-                    largeur: undefined,
-                    hauteur: undefined,
-                    poids: undefined,
-                    quantite: 1
-                }]);
+            if (currentString !== previousString) {
+                console.log("Initialisation des dimensions avec props:", initialArticles);
+                setArticles([...initialArticles]);
+                initializedRef.current = true;
             }
-
-            initialArticlesLoaded.current = true;
+        } else if (!initializedRef.current) {
+            // Créer un article par défaut seulement si aucune donnée initiale et pas encore initialisé
+            console.log("Création d'un article par défaut");
+            setArticles([{
+                id: `art-${Date.now()}`,
+                nom: '',
+                longueur: undefined,
+                largeur: undefined,
+                hauteur: undefined,
+                poids: undefined,
+                quantite: 1
+            }]);
+            initializedRef.current = true;
         }
-        // Marquer que l'initialisation est terminée
-        setIsInitialRender(false);
     }, [initialArticles]);
 
-    // Mise à jour des erreurs de validation
+    // Validation des erreurs (uniquement quand les articles changent)
     useEffect(() => {
-        if (isInitialRender) return;
+        if (!initializedRef.current) return;
 
         const errors: Record<string, string[]> = {};
 
-        articles.forEach((article, index) => {
+        articles.forEach((article) => {
             const articleErrors: string[] = [];
 
-            if (!article.nom) {
+            if (!article.nom.trim()) {
                 articleErrors.push('Le nom de l\'article est requis');
             }
 
-            // Vérifier que les dimensions sont positives si elles sont spécifiées
             if (article.longueur !== undefined && article.longueur <= 0) {
                 articleErrors.push('La longueur doit être supérieure à 0');
             }
@@ -102,22 +97,31 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         });
 
         setValidationErrors(errors);
-    }, [articles, isInitialRender]);
+    }, [articles]);
 
-    // Notifier le parent des changements uniquement lorsque les articles changent
-    // et que ce n'est pas l'initialisation
+    // Notification du parent - seulement quand nécessaire
     useEffect(() => {
-        if (isInitialRender) return;
+        if (!initializedRef.current) return;
 
-        // Utiliser un setTimeout pour éviter la boucle infinie
-        const timer = setTimeout(() => {
-            onChange(articles);
-        }, 0);
+        // Comparer avec la dernière valeur notifiée
+        const currentString = JSON.stringify(articles);
+        const lastNotifiedString = JSON.stringify(lastNotifiedArticlesRef.current);
 
-        return () => clearTimeout(timer);
-    }, [articles, onChange, isInitialRender]);
+        if (currentString !== lastNotifiedString) {
+            console.log("Notification du parent pour changement de dimensions");
+            lastNotifiedArticlesRef.current = [...articles];
 
-    const addArticle = () => {
+            // Utiliser un timeout pour éviter les appels synchrones
+            const timer = setTimeout(() => {
+                onChange(articles);
+            }, 0);
+
+            return () => clearTimeout(timer);
+        }
+    }, [articles, onChange]);
+
+    // Le reste des fonctions reste identique...
+    const addArticle = useCallback(() => {
         if (readOnly) return;
 
         const newArticle: ArticleDimension = {
@@ -131,13 +135,12 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         };
 
         setArticles(prevArticles => [...prevArticles, newArticle]);
-    };
+    }, [readOnly]);
 
-    const removeArticle = (id: string) => {
+    const removeArticle = useCallback((id: string) => {
         if (readOnly) return;
 
         if (articles.length <= 1) {
-            // Garder au moins un article, mais le réinitialiser
             setArticles([{
                 id: `art-${Date.now()}`,
                 nom: '',
@@ -150,9 +153,9 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         } else {
             setArticles(prevArticles => prevArticles.filter(article => article.id !== id));
         }
-    };
+    }, [readOnly, articles.length]);
 
-    const handleChange = (id: string, field: keyof ArticleDimension, value: any) => {
+    const handleChange = useCallback((id: string, field: keyof ArticleDimension, value: any) => {
         if (readOnly) return;
 
         setArticles(prevArticles => prevArticles.map(article => {
@@ -164,9 +167,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             }
             return article;
         }));
-    };
-
-    const isFormValid = Object.keys(validationErrors).length === 0;
+    }, [readOnly]);
 
     return (
         <div className="space-y-4">

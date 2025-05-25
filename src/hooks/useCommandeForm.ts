@@ -91,20 +91,23 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     // Simplifier la vérification pour faire confiance à draftStorage
     useEffect(() => {
         if (hasDraft && draftData && !draftProposed) {
-            console.log("Brouillon disponible:", draftData);
+            console.log("Traitement UNIQUE du brouillon disponible:", draftData);
             console.log('Dimensions dans le brouillon:', draftData.articles?.dimensions);
 
             // S'assurer que les dimensions existent
             if (draftData.articles && !draftData.articles.dimensions) {
                 draftData.articles.dimensions = [];
             }
-            
+
             const hasContent = !deepEqual(draftData, initialFormState.data);
 
             if (hasContent) {
                 // Vérifier si la date de livraison est dans le passé
                 const livraisonDate = draftData.dates?.livraison ? new Date(draftData.dates.livraison) : null;
                 const isPastDate = livraisonDate && livraisonDate < new Date();
+
+                // Marquer immédiatement comme proposé pour éviter les doubles alertes
+                setDraftProposed(true);
 
                 if (isPastDate) {
                     const dateFormatted = livraisonDate?.toLocaleDateString();
@@ -174,31 +177,39 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
             if (hasChanges) {
                 const saveTimeout = setTimeout(() => {
-                    // S'assurer que les données du magasin actuel sont incluses avant de sauvegarder
-                    if (user?.role === 'magasin' && user.storeId) {
-                        const dataWithStoreAndDimensions = {
-                            ...state.data,
-                            magasin: {
-                                ...(state.data.magasin || {}),
-                                id: user.storeId,
-                                name: user.storeName || '',
-                                address: user.storeAddress || '',
-                                phone: user.storePhone || '',
-                                status: user.storeStatus || 'active'
-                            },
-                            articles: {
-                                ...(state.data.articles || {}),
-                                dimensions: state.data.articles?.dimensions || [],
-                                nombre: state.data.articles?.nombre || 0
-                            }
-                        };
+                    // Créer une copie des données actuelles
+                    const dataToSave = {
+                        ...state.data,
+                        articles: {
+                            ...(state.data.articles || {}),
+                            dimensions: state.data.articles?.dimensions || [],
+                            nombre: state.data.articles?.nombre || 0
+                        },
+                        livraison: {
+                            ...(state.data.livraison || {}),
+                            equipiers: state.data.livraison?.equipiers || 0,
+                            vehicule: state.data.livraison?.vehicule || '',
+                            creneau: state.data.livraison?.creneau ?? '', // Ensure creneau is always a string
+                            reserve: typeof state.data.livraison?.reserve === 'boolean' ? state.data.livraison.reserve : false
+                        }
+                    };
 
-                        saveDraft(dataWithStoreAndDimensions);
-                        console.log("Brouillon sauvegardé avec magasin:", user.storeId);
-                    } else {
-                        saveDraft(state.data);
+                    // S'assurer que les données du magasin actuel sont incluses
+                    if (user?.role === 'magasin' && user.storeId) {
+                        dataToSave.magasin = {
+                            ...(dataToSave.magasin || {}),
+                            id: user.storeId,
+                            name: user.storeName || '',
+                            address: user.storeAddress || '',
+                            phone: user.storePhone || '',
+                            status: user.storeStatus || 'active'
+                        };
                     }
-                }, 2000);
+
+                    console.log("Sauvegarde automatique du brouillon avec dimensions:", dataToSave.articles.dimensions?.length || 0);
+                    saveDraft(dataToSave);
+                }, 2000); // Augmenter le délai pour éviter les sauvegardes trop fréquentes
+
                 return () => clearTimeout(saveTimeout);
             }
         }

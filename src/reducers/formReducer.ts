@@ -95,6 +95,28 @@ export function formReducer(state: FormState, action: FormAction): FormState {
             // s'assurer que les dimensions sont correctement restaurées
             let restoredData = action.payload.data;
 
+            // S'assurer que toutes les données de livraison sont préservées
+            if (restoredData.livraison) {
+                // Préserver les détails de livraison (incluant canBeTilted)
+                if (restoredData.livraison.details) {
+                    try {
+                        const details = typeof restoredData.livraison.details === 'string'
+                            ? JSON.parse(restoredData.livraison.details)
+                            : restoredData.livraison.details;
+
+                        restoredData = {
+                            ...restoredData,
+                            livraison: {
+                                ...restoredData.livraison,
+                                details: details
+                            }
+                        };
+                    } catch (e) {
+                        console.warn("Erreur parsing détails livraison:", e);
+                    }
+                }
+            }
+
             // Si les dimensions ne sont pas définies dans les données restaurées, les initialiser
             if (restoredData.articles && !restoredData.articles.dimensions) {
                 restoredData = {
@@ -106,10 +128,25 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                 };
             }
 
+            // S'assurer que toutes les données de livraison sont restaurées
+            if (restoredData.livraison) {
+                // Restaurer les détails de livraison (incluant canBeTilted)
+                if (!restoredData.livraison.details && restoredData.livraison.canBeTilted !== undefined) {
+                    restoredData.livraison.details = JSON.stringify({
+                        canBeTilted: restoredData.livraison.canBeTilted
+                    });
+                }
+            }
+
+            console.log("Données restaurées avec dimensions:", restoredData.articles?.dimensions?.length || 0);
+            console.log("Véhicule restauré:", restoredData.livraison?.vehicule);
+            console.log("Détails livraison restaurés:", restoredData.livraison?.details);
+
             return {
                 ...state,
                 data: restoredData,
-                isDirty: action.payload.isDirty
+                isDirty: action.payload.isDirty,
+                showErrors: false
             };
         case 'SET_ERRORS':
             return {
