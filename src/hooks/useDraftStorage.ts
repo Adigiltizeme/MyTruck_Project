@@ -186,11 +186,17 @@ export const useDraftStorage = () => {
     }, [user?.storeId, loadDraftForStore]);
 
     const saveDraft = useCallback(async (data: Partial<CommandeMetier>) => {
+        console.log("💾 [DRAFT-STORAGE] saveDraft appelé:", {
+            vehicule: data.livraison?.vehicule,
+            magasinId: user?.storeId,
+            dataKeys: Object.keys(data)
+        });
+
         if (user?.role !== 'magasin' || !user.storeId) {
             return { success: false, error: new Error("Contexte magasin invalide") };
         }
 
-        // CORRECTION 2: Préserver le véhicule sélectionné
+        // Préserver le véhicule sélectionné
         const dataWithVehicle = {
             ...data,
             livraison: {
@@ -198,7 +204,7 @@ export const useDraftStorage = () => {
                 vehicule: data.livraison?.vehicule || '',
                 equipiers: data.livraison?.equipiers || 0,
                 creneau: data.livraison?.creneau || '',
-                // CORRECTION 3: Préserver les détails de livraison (incluant canBeTilted)
+                // Préserver les détails de livraison (incluant canBeTilted)
                 details: data.livraison?.details || '{}',
                 reserve: typeof data.livraison?.reserve === 'boolean' ? data.livraison.reserve : false
             }
@@ -208,6 +214,11 @@ export const useDraftStorage = () => {
         console.log(`[DRAFT] Sauvegarde avec détails: ${dataWithVehicle.livraison.details}`);
 
         const result = await draftService.saveDraft(dataWithVehicle, user.storeId);
+
+        console.log("💾 [DRAFT-STORAGE] Résultat sauvegarde:", {
+            success: result.success,
+            vehiculeSauvegarde: dataWithVehicle.livraison?.vehicule
+        });
 
         if (result.success) {
             setDraftData(dataWithVehicle);

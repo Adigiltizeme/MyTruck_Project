@@ -266,6 +266,16 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
 
+        // Log spécial pour les véhicules
+        if (name === 'livraison.vehicule') {
+            console.log("🎛️ [COMMANDE-FORM] handleInputChange véhicule:", {
+                name,
+                value,
+                type: typeof value,
+                stateData: state.data.livraison?.vehicule
+            });
+        }
+
         console.log(`Mise à jour de ${name} avec la valeur:`, value);
 
         // Si les dimensions des articles sont mises à jour
@@ -333,7 +343,14 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 value
             }
         });
-    }, []);
+
+        // Log après dispatch pour les véhicules
+        if (name === 'livraison.vehicule') {
+            setTimeout(() => {
+                console.log("🎛️ [COMMANDE-FORM] État après dispatch:", state.data.livraison?.vehicule);
+            }, 100);
+        }
+    }, [state.data, dispatch]);
 
     // Gestion de l'adresse avec autocomplétion
     const handleAddressSearch = async (query: string) => {

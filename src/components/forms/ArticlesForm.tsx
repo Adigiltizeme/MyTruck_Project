@@ -339,9 +339,47 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         }
     }, [onChange, articleDimensions, data.articles?.nombre]);
 
+    useEffect(() => {
+        console.log("📄 [ARTICLES-FORM] Rendu avec données:", {
+            'data.livraison?.vehicule': data.livraison?.vehicule,
+            'data.livraison?.equipiers': data.livraison?.equipiers,
+            'deliveryInfo': deliveryInfo,
+            'articleDimensions.length': articleDimensions.length,
+            'isEditing': isEditing
+        });
+    }, [data.livraison?.vehicule, data.livraison?.equipiers, deliveryInfo, isEditing]);
+
+    // S'assurer que la valeur n'est jamais undefined
+    const getVehicleForSelector = (): VehicleType | undefined => {
+        const vehicle = data.livraison?.vehicule;
+
+        // Vérifier que c'est un VehicleType valide
+        const validVehicles: VehicleType[] = ['1M3', '6M3', '10M3', '20M3'];
+
+        if (vehicle && validVehicles.includes(vehicle as VehicleType)) {
+            console.log("📄 [ARTICLES-FORM] Véhicule valide pour selector:", vehicle);
+            return vehicle as VehicleType;
+        }
+
+        console.log("📄 [ARTICLES-FORM] Véhicule invalide ou vide:", vehicle);
+        return undefined;
+    };
+
+    const getCrewForSelector = (): number => {
+        const crew = data.livraison?.equipiers;
+        const validCrew = typeof crew === 'number' ? crew : 0;
+
+        console.log("📄 [ARTICLES-FORM] Équipiers pour selector:", validCrew);
+        return validCrew;
+    };
+
     // Gérer la sélection du véhicule
     const handleVehicleSelect = (vehicleType: "" | VehicleType) => {
-        console.log(`[ARTICLES] Sélection véhicule reçue: ${vehicleType}`);
+        console.log("📄 [ARTICLES-FORM] handleVehicleSelect:", {
+            vehicleType,
+            avant: data.livraison?.vehicule,
+            typeof: typeof vehicleType
+        });
 
         if (vehicleType === "") {
             // Aucun véhicule sélectionné
@@ -360,6 +398,11 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 }
             });
         }
+
+        // Vérifier après un délai que la valeur a bien changé
+        setTimeout(() => {
+            console.log("🚗 [ARTICLES-FORM] Valeur après onChange:", data.livraison?.vehicule);
+        }, 100);
     };
 
     // Gérer la sélection des équipiers
@@ -480,18 +523,23 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         onVehicleSelect={handleVehicleSelect}
                         onCrewSelect={handleCrewSelect}
                         onDeliveryDetailsChange={handleDeliveryDetailsChange}
-                        initialVehicle={data.livraison?.vehicule as VehicleType}
-                        initialCrew={data.livraison?.equipiers}
+                        initialVehicle={getVehicleForSelector()}
+                        initialCrew={getCrewForSelector()}
                         deliveryInfo={deliveryInfo}
                     />
 
                     {/* Debug en mode développement */}
                     {process.env.NODE_ENV === 'development' && (
-                        <div className="mt-2 p-2 bg-gray-100 text-xs">
-                            <strong>Debug ArticlesForm:</strong><br />
-                            Véhicule sauvegardé: {data.livraison?.vehicule || 'aucun'}<br />
-                            Équipiers: {data.livraison?.equipiers || 0}<br />
-                            Détails: {data.livraison?.details || 'aucun'}
+                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                            <strong>📄 Debug ArticlesForm:</strong><br />
+                            Données brutes: <code>{JSON.stringify({
+                                vehicule: data.livraison?.vehicule,
+                                equipiers: data.livraison?.equipiers
+                            })}</code><br />
+                            Props passées: <code>{JSON.stringify({
+                                initialVehicle: getVehicleForSelector(),
+                                initialCrew: getCrewForSelector()
+                            })}</code>
                         </div>
                     )}
                 </div>

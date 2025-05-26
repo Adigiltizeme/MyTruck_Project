@@ -53,6 +53,16 @@ export function formReducer(state: FormState, action: FormAction): FormState {
         case 'UPDATE_DATA':
             if (!action.payload.name) return state;
 
+            // Log détaillé pour les véhicules
+            if (action.payload.name === 'livraison.vehicule') {
+                console.log("⚙️ [FORM-REDUCER] UPDATE_DATA véhicule:", {
+                    fieldName: action.payload.name,
+                    newValue: action.payload.value,
+                    oldValue: state.data.livraison?.vehicule,
+                    actionPayload: action.payload
+                });
+            }
+
             const fieldPath = action.payload.name.split('.');
             const newData = { ...state.data };
             let current = newData;
