@@ -363,7 +363,7 @@ export class DraftStorageService {
         try {
             const dbConfig: DatabaseConfig = {
                 name: 'MyTruckDrafts',
-                version: 2,
+                version: 3,
                 stores: {
                     drafts: '++id,timestamp,status,storeId',
                     photos: '++id,draftId',
@@ -372,9 +372,28 @@ export class DraftStorageService {
             };
 
             this.db = new Dexie(dbConfig.name);
-            this.db.version(dbConfig.version).stores(dbConfig.stores);
+
+            // Version actuelle avec isolation par magasin
+            this.db.version(3).stores(dbConfig.stores).upgrade(async tx => {
+                console.log("[MIGRATION] Nettoyage des brouillons lors de la migration vers v3");
+                // Nettoyer tous les anciens brouillons lors de la migration
+                await tx.table('drafts').clear();
+            });
 
             // Migration des anciennes données si nécessaire
+            this.db.version(2).stores({
+                drafts: '++id,timestamp,status',
+                photos: '++id,draftId',
+                metadata: 'key'
+            });
+
+            // Versions précédentes pour compatibilité
+            this.db.version(2).stores({
+                drafts: '++id,timestamp,status,storeId',
+                photos: '++id,draftId',
+                metadata: 'key'
+            });
+
             this.db.version(1).stores({
                 drafts: '++id,timestamp,status',
                 photos: '++id,draftId',
@@ -393,6 +412,18 @@ export class DraftStorageService {
     async saveDraft(data: Partial<CommandeMetier>, storeId?: string): Promise<DraftStorageResult> {
         try {
             const currentStoreId = storeId || this.getCurrentStoreId();
+
+            // ========== VALIDATION DE SÉCURITÉ STRICTE ==========
+            if (!currentStoreId || currentStoreId === 'unknown_store') {
+                console.error("[SÉCURITÉ] Tentative de sauvegarde sans storeId valide");
+                return { success: false, error: new Error("StoreId invalide") };
+            }
+
+            // SÉCURITÉ: Vérifier que les données correspondent au bon magasin
+            if (data.magasin?.id && data.magasin.id !== currentStoreId) {
+                console.error(`[SÉCURITÉ] VIOLATION: Tentative de sauvegarder des données du magasin ${data.magasin.id} pour ${currentStoreId}`);
+                return { success: false, error: new Error("Violation de sécurité magasin") };
+            }
 
             // IMPORTANT: S'assurer que l'ID du magasin dans les données correspond au storeId externe
             // ET que les dimensions des articles sont préservées
@@ -436,7 +467,7 @@ export class DraftStorageService {
                 .equals(currentStoreId)
                 .first();
 
-            console.log(`Sauvegarde complète du brouillon pour le magasin ${currentStoreId}`);
+            console.log(` [SÉCURITÉ] Sauvegarde complète du brouillon pour le magasin ${currentStoreId}`);
             console.log(`- Dimensions: ${dataWithCompleteInfo.articles.dimensions?.length || 0}`);
             console.log(`- Véhicule: ${dataWithCompleteInfo.livraison?.vehicule || 'non défini'}`);
             console.log(`- Détails livraison: ${dataWithCompleteInfo.livraison?.details || 'non défini'}`);
@@ -453,12 +484,20 @@ export class DraftStorageService {
             let id: number;
 
             if (existingDraft) {
+                // DOUBLE VÉRIFICATION avant mise à jour
+                if (existingDraft.storeId !== currentStoreId) {
+                    console.error(`[SÉCURITÉ] VIOLATION: Tentative de mise à jour du brouillon ${existingDraft.storeId} pour ${currentStoreId}`);
+                    return { success: false, error: new Error("Violation de sécurité lors de la mise à jour") };
+                }
+
                 // Mettre à jour le brouillon existant
                 id = existingDraft.id;
                 await this.db.table('drafts').update(id, draftData);
+                console.log(`[SÉCURITÉ] Brouillon mis à jour pour ${currentStoreId}, ID: ${id}`);
             } else {
                 // Créer un nouveau brouillon
                 id = await this.db.table('drafts').add(draftData) as number;
+                console.log(`[SÉCURITÉ] Nouveau brouillon créé pour ${currentStoreId}, ID: ${id}`);
             }
 
             return {
@@ -466,6 +505,7 @@ export class DraftStorageService {
                 data: { ...draftData, id: id as number }
             };
         } catch (error) {
+            console.error("[SÉCURITÉ] Erreur lors de la sauvegarde:", error);
             return {
                 success: false,
                 error: error as Error,
@@ -581,83 +621,220 @@ export class DraftStorageService {
     //     }
     // }
     async loadDraft(storeId: string): Promise<DraftStorageResult> {
-    try {
-        console.log(`[SÉCURITÉ] Chargement du brouillon pour le magasin: ${storeId}`);
-
-        const draft = await this.db.table('drafts')
-            .where('storeId')
-            .equals(storeId) // STRICTEMENT égal au storeId demandé
-            .first();
-
-        if (draft) {
-            // DOUBLE VÉRIFICATION de sécurité
-            if (draft.storeId !== storeId) {
-                console.error(`[SÉCURITÉ] VIOLATION CRITIQUE: Brouillon ${draft.storeId} retourné pour ${storeId}`);
-                return {
-                    success: false,
-                    error: new Error("Violation de sécurité dans le chargement")
-                };
-            }
-
-            // TRIPLE VÉRIFICATION sur les données
-            if (draft.data?.magasin?.id && draft.data.magasin.id !== storeId) {
-                console.error(`[SÉCURITÉ] VIOLATION CRITIQUE: Données magasin ${draft.data.magasin.id} pour ${storeId}`);
-                return {
-                    success: false,
-                    error: new Error("Violation de sécurité dans les données")
-                };
-            }
-
-            console.log(`[SÉCURITÉ] Brouillon chargé pour le magasin ${storeId} avec magasin.id synchronisé`);
-            
-            return {
-                success: true,
-                data: draft
-            };
-        } else {
-            console.log(`[SÉCURITÉ] Aucun brouillon trouvé pour le magasin ${storeId}`);
-            return {
-                success: true,
-                data: undefined
-            };
-        }
-    } catch (error) {
-        console.error(`[SÉCURITÉ] Erreur lors du chargement du brouillon pour ${storeId}:`, error);
-        return {
-            success: false,
-            error: error as Error
-        };
-    }
-}
-
-    async clearDraft(storeId?: string): Promise<DraftStorageResult> {
         try {
-            const currentStoreId = storeId || this.getCurrentStoreId();
-            console.log(`Suppression du brouillon pour le magasin: ${currentStoreId}`);
+            // ========== VALIDATION DE SÉCURITÉ STRICTE ==========
+            if (!storeId || storeId === 'unknown_store') {
+                console.error("[SÉCURITÉ] Tentative de chargement sans storeId valide");
+                return { success: false, error: new Error("StoreId invalide") };
+            }
 
-            // Trouver et supprimer le brouillon spécifique à ce magasin
+            console.log(`[SÉCURITÉ] Chargement du brouillon pour le magasin: ${storeId}`);
+
             const draft = await this.db.table('drafts')
                 .where('storeId')
-                .equals(currentStoreId)
+                .equals(storeId) // STRICTEMENT égal au storeId demandé
                 .first();
 
             if (draft) {
-                await this.db.table('drafts').delete(draft.id);
-                console.log(`Brouillon supprimé pour le magasin ${currentStoreId}`);
+                // DOUBLE VÉRIFICATION de sécurité
+                if (draft.storeId !== storeId) {
+                    console.error(`[SÉCURITÉ] VIOLATION CRITIQUE: Brouillon ${draft.storeId} retourné pour ${storeId}`);
+                    return {
+                        success: false,
+                        error: new Error("Violation de sécurité dans le chargement")
+                    };
+                }
+
+                // TRIPLE VÉRIFICATION sur les données
+                if (draft.data?.magasin?.id && draft.data.magasin.id !== storeId) {
+                    console.error(`[SÉCURITÉ] VIOLATION CRITIQUE: Données magasin ${draft.data.magasin.id} pour ${storeId}`);
+                    return {
+                        success: false,
+                        error: new Error("Violation de sécurité dans les données")
+                    };
+                }
+
+                // Vérifier et corriger la date de livraison si elle est dans le passé
+                const livraisonDate = draft.data?.dates?.livraison ?
+                    new Date(draft.data.dates.livraison) : null;
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (livraisonDate && livraisonDate < today) {
+                    console.log(`[CORRECTION] Date de livraison dans le passé détectée: ${livraisonDate.toLocaleDateString()}`);
+
+                    // Calculer une nouvelle date (lendemain)
+                    const tomorrow = new Date();
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+
+                    // Mettre à jour la date dans le brouillon
+                    if (draft.data && draft.data.dates) {
+                        draft.data.dates.livraison = tomorrow.toISOString().split('T')[0];
+
+                        // Sauvegarder la correction
+                        await this.db.table('drafts').update(draft.id, draft);
+                        console.log(`[CORRECTION] Date de livraison mise à jour au ${tomorrow.toLocaleDateString()}`);
+                    }
+                }
+
+                console.log(`[SÉCURITÉ] Brouillon chargé pour le magasin ${storeId} avec magasin.id synchronisé`);
+
+                return {
+                    success: true,
+                    data: draft
+                };
             } else {
-                console.log(`Aucun brouillon à supprimer pour le magasin ${currentStoreId}`);
+                console.log(`[SÉCURITÉ] Aucun brouillon trouvé pour le magasin ${storeId}`);
+                return {
+                    success: true,
+                    data: undefined
+                };
+            }
+        } catch (error) {
+            console.error(`[SÉCURITÉ] Erreur lors du chargement du brouillon pour ${storeId}:`, error);
+            return {
+                success: false,
+                error: error as Error
+            };
+        }
+    }
+
+    async clearDraft(storeId?: string): Promise<DraftStorageResult> {
+        try {
+            if (storeId) {
+                // ========== SUPPRESSION SÉCURISÉE PAR MAGASIN ==========
+                console.log(`[SÉCURITÉ] Suppression du brouillon pour le magasin: ${storeId}`);
+
+                // Trouver et supprimer le brouillon spécifique à ce magasin
+                const draft = await this.db.table('drafts')
+                    .where('storeId')
+                    .equals(storeId)
+                    .first();
+
+                if (draft) {
+                    // DOUBLE VÉRIFICATION avant suppression
+                    if (draft.storeId !== storeId) {
+                        console.error(`[SÉCURITÉ] VIOLATION: Tentative de suppression du brouillon ${draft.storeId} pour ${storeId}`);
+                        return { success: false, error: new Error("Violation de sécurité lors de la suppression") };
+                    }
+
+                    await this.db.table('drafts').delete(draft.id);
+                    console.log(`[SÉCURITÉ] Brouillon supprimé pour le magasin ${storeId}, ID: ${draft.id}`);
+                } else {
+                    console.log(`[SÉCURITÉ] Aucun brouillon à supprimer pour le magasin ${storeId}`);
+                }
+            } else {
+                // ========== SUPPRESSION GLOBALE (NETTOYAGE FORCÉ) ==========
+                console.log("[NETTOYAGE FORCÉ] Suppression de tous les brouillons");
+                const allDrafts = await this.db.table('drafts').toArray();
+
+                console.log(`[NETTOYAGE FORCÉ] ${allDrafts.length} brouillons trouvés pour suppression`);
+
+                await this.db.table('drafts').clear();
+                console.log("[NETTOYAGE FORCÉ] Tous les brouillons supprimés");
             }
 
             return {
                 success: true,
-                message: 'Brouillon supprimé avec succès'
+                message: 'Brouillon(s) supprimé(s) avec succès'
             };
         } catch (error) {
-            console.error('Erreur clearDraft:', error);
+            console.error('[ERREUR] Erreur clearDraft:', error);
             return {
                 success: false,
                 error: error as Error,
                 message: error instanceof Error ? error.message : 'Erreur inconnue'
+            };
+        }
+    }
+
+    // ========== FONCTION DE NETTOYAGE ET MAINTENANCE ==========
+    async cleanupOrphanedDrafts(): Promise<DraftStorageResult> {
+        try {
+            console.log("[MAINTENANCE] Début du nettoyage des brouillons orphelins");
+
+            const allDrafts = await this.db.table('drafts').toArray();
+            let cleanedCount = 0;
+
+            for (const draft of allDrafts) {
+                // Supprimer les brouillons sans storeId valide
+                if (!draft.storeId || draft.storeId === 'unknown_store') {
+                    await this.db.table('drafts').delete(draft.id);
+                    cleanedCount++;
+                    console.log(`[MAINTENANCE] Brouillon orphelin supprimé, ID: ${draft.id}`);
+                }
+
+                // Supprimer les brouillons avec des données incohérentes
+                if (draft.data?.magasin?.id && draft.data.magasin.id !== draft.storeId) {
+                    await this.db.table('drafts').delete(draft.id);
+                    cleanedCount++;
+                    console.log(`[MAINTENANCE] Brouillon incohérent supprimé, ID: ${draft.id}`);
+                }
+
+                // Supprimer les brouillons trop anciens (plus de 30 jours)
+                const isOld = (Date.now() - draft.timestamp) > (30 * 24 * 60 * 60 * 1000);
+                if (isOld) {
+                    await this.db.table('drafts').delete(draft.id);
+                    cleanedCount++;
+                    console.log(`[MAINTENANCE] Brouillon ancien supprimé, ID: ${draft.id}`);
+                }
+            }
+
+            console.log(`[MAINTENANCE] Nettoyage terminé, ${cleanedCount} brouillons supprimés`);
+
+            return {
+                success: true,
+                message: `${cleanedCount} brouillons nettoyés`
+            };
+        } catch (error) {
+            console.error("[MAINTENANCE] Erreur lors du nettoyage:", error);
+            return {
+                success: false,
+                error: error as Error
+            };
+        }
+    }
+
+    // ========== FONCTION DE DIAGNOSTIC ==========
+    async getDiagnosticInfo(): Promise<{
+        totalDrafts: number;
+        draftsByStore: Record<string, number>;
+        orphanedDrafts: number;
+        inconsistentDrafts: number;
+    }> {
+        try {
+            const allDrafts = await this.db.table('drafts').toArray();
+
+            const diagnosticInfo = {
+                totalDrafts: allDrafts.length,
+                draftsByStore: {} as Record<string, number>,
+                orphanedDrafts: 0,
+                inconsistentDrafts: 0
+            };
+
+            for (const draft of allDrafts) {
+                // Compter par magasin
+                if (draft.storeId) {
+                    diagnosticInfo.draftsByStore[draft.storeId] =
+                        (diagnosticInfo.draftsByStore[draft.storeId] || 0) + 1;
+                } else {
+                    diagnosticInfo.orphanedDrafts++;
+                }
+
+                // Détecter les incohérences
+                if (draft.data?.magasin?.id && draft.data.magasin.id !== draft.storeId) {
+                    diagnosticInfo.inconsistentDrafts++;
+                }
+            }
+
+            return diagnosticInfo;
+        } catch (error) {
+            console.error("[DIAGNOSTIC] Erreur:", error);
+            return {
+                totalDrafts: 0,
+                draftsByStore: {},
+                orphanedDrafts: 0,
+                inconsistentDrafts: 0
             };
         }
     }
@@ -684,9 +861,10 @@ export class DraftStorageService {
                 }
             }
 
+            console.warn("[SÉCURITÉ] Aucun storeId valide trouvé");
             return 'unknown_store'; // Valeur par défaut si aucun magasin n'est identifié
         } catch (error) {
-            console.error('Erreur lors de la récupération du storeId:', error);
+            console.error(' [SÉCURITÉ] Erreur lors de la récupération du storeId:', error);
             return 'unknown_store';
         }
     }
