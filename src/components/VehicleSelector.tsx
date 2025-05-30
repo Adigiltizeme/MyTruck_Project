@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { VehicleType, VehicleValidationService } from '../services/vehicle-validation.service';
-import { VEHICULES, VehiculeType } from '../components/constants/options';
 
 interface ArticleDimensions {
   longueur?: number;
@@ -37,12 +36,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   initialCrew,
   deliveryInfo = {},
 }) => {
-  console.log("🚛 [VEHICLE-SELECTOR] Props reçues:", {
-    initialVehicle,
-    initialCrew,
-    articles: articles?.length || 0,
-    deliveryInfo
-  });
   const [selectedVehicleShort, setSelectedVehicleShort] = useState<VehicleType | null>(null); // Format court
   const [selectedVehicleLong, setSelectedVehicleLong] = useState<string>('');
   const [crewSize, setCrewSize] = useState<number>(initialCrew || 0);
@@ -53,15 +46,53 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [recommendedCrew, setRecommendedCrew] = useState<number>(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [hasDimensionsData, setHasDimensionsData] = useState(false);
+
+  const availableVehicles = useMemo(() =>
+    VehicleValidationService.getAvailableVehicleTypes(),
+    []
+  );
+
+  const VEHICULES = useMemo(() => ({
+    "1M3 (Utilitaire 150kg, 100x100x100cm)": "1M3",
+    "6M3 (Camionnette 300kg, 260x160x125cm)": "6M3",
+    "10M3 (Camionnette 800kg, 310x178x190cm)": "10M3",
+    "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
+  }), []);
 
   // Calcul des recommandations et restrictions lors des changements d'articles ou des options de livraison
   useEffect(() => {
-    if (!articles || articles.length === 0) return;
+    // Vérifier s'il y a des données significatives
+    const hasSignificantDimensions = articles && articles.length > 0 &&
+      articles.some(article =>
+        article.longueur || article.largeur || article.hauteur || article.poids
+      );
 
-    // Utiliser le format court pour les validations
+    setHasDimensionsData(hasSignificantDimensions);
+
+    if (!hasSignificantDimensions) {
+      setValidationErrors([]);
+      setWarnings([]);
+      setRestrictedVehicles([]);
+      setRecommendedVehicle(null);
+      setRecommendedCrew(0);
+      setShowTiltQuestion(false);
+      return;
+    }
+
+    // Logique de validation (identique à avant mais sans boucle)
+    const hasLongItems = articles.some(article => {
+      const maxDimension = Math.max(
+        article.longueur || 0,
+        article.largeur || 0,
+        article.hauteur || 0
+      );
+      return maxDimension > 100;
+    });
+
+    setShowTiltQuestion(hasLongItems);
+
     const restricted: VehicleType[] = [];
-    const availableVehicles = VehicleValidationService.getAvailableVehicleTypes();
-
     availableVehicles.forEach(vehicleType => {
       const canFitAll = articles.every(article => {
         return VehicleValidationService.canFitInVehicle(article, vehicleType, canBeTilted);
@@ -74,55 +105,113 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     setRestrictedVehicles(restricted);
 
-    // Recommandation
     const recommended = VehicleValidationService.recommendVehicle(articles, canBeTilted);
     setRecommendedVehicle(recommended);
 
-    // Si le véhicule sélectionné est restreint
+    const crew = VehicleValidationService.getRecommendedCrewSize(articles);
+    setRecommendedCrew(crew);
+
+    // Validation et avertissements
+    const newValidationErrors: string[] = [];
+    const newWarnings: string[] = [];
+
     if (selectedVehicleShort && restricted.includes(selectedVehicleShort)) {
-      setSelectedVehicleShort(null);
-      setSelectedVehicleLong('');
-      onVehicleSelect('');
+      newValidationErrors.push(
+        `⚠️ Le véhicule sélectionné (${selectedVehicleShort}) ne peut pas transporter tous les articles selon leurs dimensions.`
+      );
     }
 
-  }, [articles, canBeTilted, deliveryInfo, selectedVehicleShort]);
+    if (!recommended) {
+      newValidationErrors.push(
+        '❌ Aucun de nos véhicules ne peut transporter ces articles. Veuillez vérifier les dimensions ou contacter le service client.'
+      );
+    }
+
+    // Avertissements équipiers
+    const hasHeavyItems = articles.some(article => (article.poids || 0) > 30);
+    const totalItemCount = articles.length;
+
+    const needsAdditionalCrew = VehicleValidationService.needsAdditionalCrew({
+      hasElevator: deliveryInfo.hasElevator || false,
+      hasStairs: deliveryInfo.hasStairs || false,
+      stairCount: deliveryInfo.stairCount,
+      floor: deliveryInfo.floor || 0,
+      heavyItems: hasHeavyItems,
+      totalItemCount,
+      parkingDistance: deliveryInfo.parkingDistance,
+      needsAssembly: deliveryInfo.needsAssembly
+    });
+
+    if (needsAdditionalCrew && crew < 1) {
+      newWarnings.push('📦 Les conditions de livraison suggèrent l\'ajout d\'un équipier.');
+    }
+
+    if (hasHeavyItems) {
+      newWarnings.push('💪 Certains articles sont lourds (>30kg). Un équipier supplémentaire est recommandé.');
+    }
+
+    if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && crew < 1) {
+      newWarnings.push('🚶 Livraison avec escaliers sans ascenseur. Un équipier est recommandé.');
+    }
+
+    setValidationErrors(newValidationErrors);
+    setWarnings(newWarnings);
+
+  }, [
+    // Dépendances stables uniquement
+    JSON.stringify(articles), // Utiliser JSON.stringify pour comparaison stable
+    canBeTilted,
+    selectedVehicleShort,
+    availableVehicles,
+    // Supprimer deliveryInfo direct pour éviter la boucle
+    deliveryInfo.hasElevator,
+    deliveryInfo.hasStairs,
+    deliveryInfo.stairCount,
+    deliveryInfo.floor,
+    deliveryInfo.parkingDistance,
+    deliveryInfo.needsAssembly
+  ]);
+
+
+  // Fonction de conversion améliorée
+  const getDisplayFormat = useCallback((shortFormat: VehicleType | null): string => {
+    if (!shortFormat) return '';
+
+    const longFormat = Object.entries(VEHICULES).find(([long, short]) =>
+      short === shortFormat
+    )?.[0];
+
+    return longFormat || '';
+  }, [VEHICULES]);
+
+
+  const getShortFormat = useCallback((longFormat: string): VehicleType | null => {
+    const shortFormat = VEHICULES[longFormat as keyof typeof VEHICULES];
+    return (shortFormat as VehicleType) || null;
+  }, [VEHICULES]);
 
   // Restaurer les valeurs initiales du véhicule et des équipiers
   useEffect(() => {
-    console.log("🔄 [VEHICLE] useEffect restauration déclenché:", {
-      initialVehicle,
-      currentShort: selectedVehicleShort,
-      currentLong: selectedVehicleLong
-    });
+    // Log seulement lors de vrais changements
+    console.log("🔄 [VEHICLE] Restauration:", { initialVehicle, initialCrew });
 
-    // Restaurer le véhicule même si c'est la même valeur
-    // (car l'état interne peut avoir été réinitialisé)
-    if (initialVehicle) {
+    if (initialVehicle && initialVehicle !== selectedVehicleShort) {
       const longFormat = getDisplayFormat(initialVehicle);
-
-      console.log(`🔄 [VEHICLE] Restauration forcée: ${initialVehicle} → ${longFormat}`);
-
-      // Mettre à jour MÊME si c'est la même valeur
       setSelectedVehicleShort(initialVehicle);
       setSelectedVehicleLong(longFormat);
-
-      console.log("✅ [VEHICLE] États mis à jour");
-    } else {
-      // Si pas de véhicule initial, réinitialiser l'état
-      console.log("🔄 [VEHICLE] Réinitialisation - pas de véhicule initial");
+    } else if (!initialVehicle && selectedVehicleShort) {
+      // Réinitialiser si pas de véhicule initial
       setSelectedVehicleShort(null);
       setSelectedVehicleLong('');
     }
 
-    // Restaurer les équipiers même si undefined
     const newCrewSize = initialCrew ?? 0;
     if (newCrewSize !== crewSize) {
-      console.log(`🔄 [VEHICLE] Restauration équipiers: ${crewSize} → ${newCrewSize}`);
       setCrewSize(newCrewSize);
     }
 
-    // Restaurer canBeTilted de manière plus robuste
-    if (deliveryInfo) {
+    // Restaurer canBeTilted
+    if (deliveryInfo && typeof deliveryInfo === 'object') {
       let canBeTiltedValue = false;
 
       try {
@@ -133,62 +222,55 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           canBeTiltedValue = deliveryInfo.canBeTilted;
         }
 
-        console.log(`🔄 [VEHICLE] Restauration canBeTilted: ${canBeTilted} → ${canBeTiltedValue}`);
-        setCanBeTilted(canBeTiltedValue);
+        if (canBeTiltedValue !== canBeTilted) {
+          setCanBeTilted(canBeTiltedValue);
+        }
       } catch (e) {
-        console.warn("⚠️ [VEHICLE] Erreur parsing deliveryInfo:", e);
-        setCanBeTilted(false);
+        // Ignorer les erreurs de parsing
+        console.error("Erreur lors de la restauration de canBeTilted:", e);
       }
     }
 
   }, [
     initialVehicle,
     initialCrew,
-    JSON.stringify(deliveryInfo)
+    // Ne pas inclure selectedVehicleShort dans les dépendances
+    // pour éviter la boucle
+    getDisplayFormat
+    // Pas de deliveryInfo directement car c'est un objet qui change
   ]);
 
-  // CORRECTION 4: Fonction de conversion améliorée
-  const getDisplayFormat = (shortFormat: VehicleType | null): string => {
-    if (!shortFormat) return '';
+  // Pour deliveryInfo avec comparaison JSON
+  useEffect(() => {
+    const deliveryInfoStr = JSON.stringify(deliveryInfo);
 
-    console.log(`🔍 [VEHICLE] Recherche format long pour: ${shortFormat}`);
+    try {
+      let canBeTiltedValue = false;
 
-    const longFormat = Object.entries(VEHICULES).find(([long, short]) =>
-      short === shortFormat
-    )?.[0];
+      if (deliveryInfo && typeof deliveryInfo.details === 'string' && deliveryInfo.details) {
+        const details = JSON.parse(deliveryInfo.details);
+        canBeTiltedValue = Boolean(details.canBeTilted);
+      } else if (deliveryInfo && typeof deliveryInfo.canBeTilted === 'boolean') {
+        canBeTiltedValue = deliveryInfo.canBeTilted;
+      }
 
-    console.log(`🔍 [VEHICLE] Conversion: ${shortFormat} → ${longFormat}`);
-    return longFormat || '';
-  };
+      if (canBeTiltedValue !== canBeTilted) {
+        setCanBeTilted(canBeTiltedValue);
+      }
+    } catch (e) {
+      // Ignorer
+      console.error("Erreur lors de la restauration de canBeTilted:", e);
+    }
+  }, [JSON.stringify(deliveryInfo)]); // Utiliser JSON.stringify pour comparaison stable
 
-  const getShortFormat = (longFormat: string): VehicleType | null => {
-
-    const shortFormat = VEHICULES[longFormat as keyof typeof VEHICULES];
-    console.log(`🔍 [VEHICLE] Conversion inverse: ${longFormat} → ${shortFormat}`);
-    return (shortFormat as VehicleType) || null;
-  };
-
-  const handleVehicleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const longFormat = event.target.value; // Format long sélectionné
-    const shortFormat = getShortFormat(longFormat); // Conversion en format court
-
-    console.log("🚛 [VEHICLE-SELECTOR] Changement de véhicule:", {
-      longFormat,
-      shortFormat,
-      onVehicleSelectType: typeof onVehicleSelect
-    });
+  const handleVehicleChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
+    const longFormat = event.target.value;
+    const shortFormat = getShortFormat(longFormat);
 
     setSelectedVehicleLong(longFormat);
     setSelectedVehicleShort(shortFormat);
-
-    // Notifier le parent avec le format court (VehicleType)
     onVehicleSelect(shortFormat || '');
-
-    // Vérifier que la fonction parent a bien été appelée
-    setTimeout(() => {
-      console.log("🚛 [VEHICLE-SELECTOR] Notification parent terminée");
-    }, 100);
-  };
+  }, [getShortFormat, onVehicleSelect]);
 
   useEffect(() => {
     console.log("📊 [VEHICLE] État actuel:", {
@@ -199,62 +281,50 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     });
   }, [selectedVehicleShort, selectedVehicleLong, crewSize, canBeTilted]);
 
-  const handleCrewChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleCrewChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = parseInt(event.target.value);
-    console.log(`[VEHICLE] Changement équipiers: ${crewSize} → ${value}`);
     setCrewSize(value);
     onCrewSelect(value);
-  };
+  }, [onCrewSelect]);
 
-  const handleTiltChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleTiltChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.checked;
-    console.log(`[VEHICLE] Changement canBeTilted: ${canBeTilted} → ${newValue}`);
     setCanBeTilted(newValue);
-
-    // Notifier le parent si la fonction existe
     if (onDeliveryDetailsChange) {
-      const updatedDetails = {
-        ...deliveryInfo,
-        canBeTilted: newValue
-      };
-      onDeliveryDetailsChange(updatedDetails);
+      onDeliveryDetailsChange({ ...deliveryInfo, canBeTilted: newValue });
     }
-  };
+  }, [onDeliveryDetailsChange, deliveryInfo]);
 
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Sélection du véhicule et des équipiers</h3>
 
       {/* Affichage des erreurs */}
-      {validationErrors.length > 0 && (
+      {hasDimensionsData && validationErrors.length > 0 && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <ul className="list-disc pl-5">
+          <ul className="list-none space-y-1">
             {validationErrors.map((error, index) => (
-              <li key={index}>{error}</li>
+              <li key={index} className="flex items-start">
+                <span className="mr-2">•</span>
+                <span>{error}</span>
+              </li>
             ))}
           </ul>
         </div>
       )}
 
       {/* Affichage des avertissements */}
-      {warnings.length > 0 && (
+      {hasDimensionsData && warnings.length > 0 && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-          <ul className="list-disc pl-5">
+          <ul className="list-none space-y-1">
             {warnings.map((warning, index) => (
-              <li key={index}>{warning}</li>
+              <li key={index} className="flex items-start">
+                <span className="mr-2">💡</span>
+                <span>{warning}</span>
+              </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {/* CORRECTION: Debug visible en mode développement */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
-          <strong>🔧 Debug VehicleSelector:</strong><br />
-          initialVehicle: <code>{initialVehicle || 'null'}</code><br />
-          selectedShort: <code>{selectedVehicleShort || 'null'}</code><br />
-          selectedLong: <code>{selectedVehicleLong || 'vide'}</code><br />
-          initialCrew: <code>{initialCrew}</code> | crewSize: <code>{crewSize}</code>
         </div>
       )}
 
@@ -265,18 +335,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             <input
               type="checkbox"
               checked={canBeTilted}
-              onChange={(e) => {
-                const newValue = e.target.checked;
-                console.log(`🔄 [VEHICLE] Changement canBeTilted: ${canBeTilted} → ${newValue}`);
-                setCanBeTilted(newValue);
-                if (onDeliveryDetailsChange) {
-                  onDeliveryDetailsChange({ ...deliveryInfo, canBeTilted: newValue });
-                }
-              }}
+              onChange={handleTiltChange}
               className="form-checkbox h-5 w-5 text-red-600"
             />
             <span>Les articles peuvent-ils être couchés/inclinés pour le transport ?</span>
           </label>
+          <p className="text-sm text-gray-500 mt-1">
+            (Cela permet d'utiliser un véhicule plus petit si la longueur de certains articles dépasse la hauteur du véhicule)
+          </p>
         </div>
       )}
 
@@ -288,41 +354,42 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </label>
           <select
             value={selectedVehicleLong}
-            onChange={(e) => {
-              const longFormat = e.target.value;
-              const shortFormat = getShortFormat(longFormat);
-
-              console.log(`🔄 [VEHICLE] Nouvelle sélection: ${longFormat} → ${shortFormat}`);
-
-              setSelectedVehicleLong(longFormat);
-              setSelectedVehicleShort(shortFormat);
-              onVehicleSelect(shortFormat || '');
-            }}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            onChange={handleVehicleChange}
+            className={`w-full border rounded-md px-3 py-2 ${hasDimensionsData && selectedVehicleShort && restrictedVehicles.includes(selectedVehicleShort)
+              ? 'border-red-500 bg-red-50'
+              : 'border-gray-300'
+              }`}
             required
           >
             <option value="">Sélectionner un véhicule</option>
             {Object.entries(VEHICULES).map(([longFormat, shortFormat]) => {
-              const isRestricted = restrictedVehicles.includes(shortFormat as VehicleType);
-              const isRecommended = recommendedVehicle === shortFormat;
+              const isRestricted = hasDimensionsData && restrictedVehicles.includes(shortFormat as VehicleType);
+              const isRecommended = hasDimensionsData && recommendedVehicle === shortFormat;
 
               return (
                 <option
                   key={longFormat}
                   value={longFormat}
                   disabled={isRestricted}
-                  className={isRestricted ? 'text-gray-400' : isRecommended ? 'font-bold' : ''}
+                  className={
+                    isRestricted
+                      ? 'text-red-500 bg-red-50'
+                      : isRecommended
+                        ? 'font-bold text-green-700 bg-green-50'
+                        : ''
+                  }
                 >
                   {longFormat}
-                  {isRecommended ? ' (Recommandé)' : ''}
-                  {isRestricted ? ' (inadéquat)' : ''}
+                  {isRecommended ? ' ✅ (Recommandé)' : ''}
+                  {isRestricted ? ' ❌ (Incompatible)' : ''}
                 </option>
               );
             })}
           </select>
 
-          {recommendedVehicle && (
-            <p className="text-sm text-green-600 mt-1">
+          {hasDimensionsData && recommendedVehicle && (
+            <p className="text-sm text-green-600 mt-1 flex items-center">
+              <span className="mr-1">✅</span>
               Véhicule recommandé : {getDisplayFormat(recommendedVehicle)}
             </p>
           )}
@@ -342,12 +409,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           </label>
           <select
             value={crewSize}
-            onChange={(e) => {
-              const value = parseInt(e.target.value);
-              console.log(`🔄 [VEHICLE] Nouveaux équipiers: ${crewSize} → ${value}`);
-              setCrewSize(value);
-              onCrewSelect(value);
-            }}
+            onChange={handleCrewChange}
             className="w-full border border-gray-300 rounded-md px-3 py-2"
           >
             <option value="0">Aucun équipier</option>
@@ -356,14 +418,16 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
             <option value="3">3 équipiers ou plus (sur devis)</option>
           </select>
 
-          {recommendedCrew > 0 && (
-            <p className="text-sm text-green-600 mt-1">
+          {hasDimensionsData && recommendedCrew > 0 && (
+            <p className="text-sm text-green-600 mt-1 flex items-center">
+              <span className="mr-1">💪</span>
               Recommandation : {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
             </p>
           )}
 
           {crewSize >= 3 && (
-            <p className="text-sm text-orange-600 mt-1">
+            <p className="text-sm text-orange-600 mt-1 flex items-center">
+              <span className="mr-1">📞</span>
               Plus de 2 équipiers nécessite un devis spécial. Le service commercial vous contactera.
             </p>
           )}
@@ -371,40 +435,62 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       </div>
 
       {/* Tableau des capacités avec format court */}
-      <div className="mt-6 overflow-x-auto">
-        <h4 className="text-md font-medium mb-2">Capacités des véhicules disponibles</h4>
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Véhicule</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Longueur (cm)</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Largeur (cm)</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hauteur (cm)</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poids max (kg)</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {VehicleValidationService.getAvailableVehicleTypes().map((vehicleType) => {
-              const capacity = VehicleValidationService.getVehicleCapacity(vehicleType);
-              const isRestricted = restrictedVehicles.includes(vehicleType);
-              const isSelected = selectedVehicleShort === vehicleType;
+      {hasDimensionsData && (
+        <div className="mt-6">
+          <details className="border border-gray-200 rounded-lg">
+            <summary className="cursor-pointer p-3 bg-gray-50 font-medium">
+              📋 Voir les capacités des véhicules
+            </summary>
+            <div className="p-4 overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Véhicule</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Longueur (cm)</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Largeur (cm)</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hauteur (cm)</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Poids max (kg)</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {VehicleValidationService.getAvailableVehicleTypes().map((vehicleType) => {
+                    const capacity = VehicleValidationService.getVehicleCapacity(vehicleType);
+                    const isRestricted = restrictedVehicles.includes(vehicleType);
+                    const isRecommended = recommendedVehicle === vehicleType;
+                    const isSelected = selectedVehicleShort === vehicleType;
 
-              return (
-                <tr
-                  key={vehicleType}
-                  className={`${isRestricted ? 'bg-red-50 text-red-700' : ''} ${isSelected ? 'bg-blue-50' : ''}`}
-                >
-                  <td className="px-4 py-2 whitespace-nowrap font-medium">{vehicleType}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{capacity.length}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{capacity.width}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{capacity.height}</td>
-                  <td className="px-4 py-2 whitespace-nowrap">{capacity.weight}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                    return (
+                      <tr
+                        key={vehicleType}
+                        className={`
+                          ${isSelected ? 'bg-blue-50 border-l-4 border-blue-500' : ''}
+                          ${isRestricted ? 'bg-red-50' : ''}
+                          ${isRecommended ? 'bg-green-50' : ''}
+                        `}
+                      >
+                        <td className="px-4 py-2 whitespace-nowrap font-medium">
+                          {vehicleType}
+                          {isSelected ? ' 🔹' : ''}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap">{capacity.length}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{capacity.width}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{capacity.height}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">{capacity.weight}</td>
+                        <td className="px-4 py-2 whitespace-nowrap">
+                          {isRecommended && <span className="text-green-600">✅ Recommandé</span>}
+                          {isRestricted && <span className="text-red-600">❌ Incompatible</span>}
+                          {!isRecommended && !isRestricted && <span className="text-gray-500">✓ Compatible</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+      )}
     </div>
   );
 };

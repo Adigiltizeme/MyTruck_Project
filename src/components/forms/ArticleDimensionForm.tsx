@@ -108,11 +108,14 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         const lastNotifiedString = JSON.stringify(lastNotifiedArticlesRef.current);
 
         if (currentString !== lastNotifiedString) {
-            console.log("Notification du parent pour changement de dimensions");
+            console.log("📦 [DIMENSIONS] Notification du parent pour changement de dimensions");
             lastNotifiedArticlesRef.current = [...articles];
 
-            // Utiliser un timeout pour éviter les appels synchrones
+            // CORRECTION CRITIQUE: Utiliser un timeout pour éviter les appels synchrones
+            // et s'assurer que l'appel se fait APRÈS le rendu complet
             const timer = setTimeout(() => {
+                // IMPORTANT: onChange ici ne doit affecter QUE les dimensions
+                // Il ne doit PAS déclencher handleVehicleSelect
                 onChange(articles);
             }, 0);
 

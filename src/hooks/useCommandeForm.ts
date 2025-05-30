@@ -15,7 +15,7 @@ import { handleStorageError } from '../utils/error-handler';
 
 export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>) => {
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-    const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed } = useDraftStorage();
+    const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed, forceClearAllDrafts } = useDraftStorage();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
@@ -344,6 +344,27 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
             }
         });
 
+        // dispatch pour les véhicules
+        // if (name === 'livraison.vehicule') {
+        //     dispatch({
+        //         type: 'UPDATE_DATA',
+        //         payload: {
+        //             data: {
+        //                 ...state.data,
+        //                 livraison: {
+        //                     ...state.data.livraison,
+        //                     vehicule: value,
+        //                     equipiers: state.data.livraison?.equipiers || 0, // Assurer que les équipiers sont toujours définis
+        //                     creneau: state.data.livraison?.creneau || '', // Assurer que le créneau est toujours défini
+        //                     reserve: typeof state.data.livraison?.reserve === 'boolean' ? state.data.livraison.reserve : false
+        //                 }
+        //             },
+        //             name,
+        //             value
+        //         }
+        //     });
+        // }
+
         // Log après dispatch pour les véhicules
         if (name === 'livraison.vehicule') {
             setTimeout(() => {
@@ -450,15 +471,45 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                         await onSubmit(state.data as CommandeMetier);
                     }
 
+                    console.log('[SOUMISSION] Début du nettoyage post-soumission');
+
                     // S'assurer que le brouillon est bien supprimé après soumission
                     try {
-                        await clearDraft();
-                    } catch (clearError) {
-                        console.error('Erreur lors de la suppression du brouillon:', clearError);
-                    }
+                        // 1. Supprimer le brouillon AVANT le reset
+                        console.log('[SOUMISSION] Suppression du brouillon...');
+                        const clearResult = await clearDraft();
+                        if (clearResult.success) {
+                            console.log('[SOUMISSION] Brouillon supprimé avec succès');
+                        } else {
+                            console.error('[SOUMISSION] Échec de suppression du brouillon:', clearResult.error);
+                            // Tentative de nettoyage forcé si disponible
+                            if (typeof forceClearAllDrafts === 'function') {
+                                console.log('[SOUMISSION] Tentative de nettoyage forcé...');
+                                await forceClearAllDrafts();
+                            }
+                        }
 
-                    // Reset seulement après confirmation de la suppression du brouillon
-                    dispatch({ type: 'RESET' });
+                        // 2. Reset de l'état du formulaire
+                        console.log('[SOUMISSION] Reset de l\'état du formulaire...');
+                        dispatch({ type: 'RESET' });
+
+                        // 3. Vérification finale - s'assurer qu'aucun brouillon n'est présent
+                        setTimeout(async () => {
+                            try {
+                                const recheckResult = await clearDraft();
+                                if (!recheckResult.success) {
+                                    console.warn('[SOUMISSION] Brouillon encore présent après nettoyage');
+                                }
+                            } catch (recheckError) {
+                                console.error('[SOUMISSION] Erreur lors de la vérification finale:', recheckError);
+                            }
+                        }, 1000);
+
+                    } catch (clearError) {
+                        console.error('[SOUMISSION] Erreur lors du nettoyage:', clearError);
+                        // Même en cas d'erreur de nettoyage, on continue avec le reset
+                        dispatch({ type: 'RESET' });
+                    }
                 } else {
                     dispatch({ type: 'SET_ERRORS', payload: errors });
                 }
@@ -481,7 +532,34 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 isSubmittingRef.current = false;
             }, 1000);
         }
-    }, [state.step, state.data, validateStep, onSubmit, clearDraft, user, isSubmitting]);
+    }, [state.step, state.data, validateStep, onSubmit, clearDraft, user, isSubmitting, forceClearAllDrafts]);
+
+    const forceCleanup = useCallback(async () => {
+        console.log('[NETTOYAGE FORCÉ] Démarrage du nettoyage complet...');
+
+        try {
+            // 1. Supprimer tous les brouillons
+            if (typeof forceClearAllDrafts === 'function') {
+                await forceClearAllDrafts();
+            } else {
+                await clearDraft();
+            }
+
+            // 2. Reset complet de l'état
+            dispatch({ type: 'RESET' });
+
+            // 3. Réinitialiser les états locaux
+            setIsSubmitting(false);
+            isSubmittingRef.current = false;
+            setErrors({});
+
+            console.log('[NETTOYAGE FORCÉ] Terminé avec succès');
+            return { success: true };
+        } catch (error) {
+            console.error('[NETTOYAGE FORCÉ] Erreur:', error);
+            return { success: false, error };
+        }
+    }, [clearDraft, forceClearAllDrafts]);
 
     const handleSubmitModification = async () => {
         try {

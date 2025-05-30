@@ -148,7 +148,7 @@
 //     );
 // };
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CloudinaryService } from "../../services/cloudinary.service";
 import { ArticlesFormProps } from "../../types/form.types";
 import PhotoUploader from "../PhotoUploader";
@@ -163,14 +163,55 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
-    const [deliveryInfo, setDeliveryInfo] = useState({
-        floor: data.client?.adresse?.etage || "0",
-        hasElevator: data.client?.adresse?.ascenseur || false,
-        hasStairs: false,
-        stairCount: 0,
-        parkingDistance: 0,
-        needsAssembly: false
-    });
+    const deliveryInfo = useMemo(() => {
+        const baseInfo = {
+            floor: data.client?.adresse?.etage || "0",
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            hasStairs: false,
+            stairCount: 0,
+            parkingDistance: 0,
+            needsAssembly: false,
+            canBeTilted: false
+        };
+
+        if (data.livraison?.details) {
+            try {
+                const livDetails = typeof data.livraison.details === 'string'
+                    ? JSON.parse(data.livraison.details)
+                    : data.livraison.details;
+
+                if (livDetails) {
+                    return {
+                        ...baseInfo,
+                        hasStairs: livDetails.hasStairs ?? baseInfo.hasStairs,
+                        stairCount: livDetails.stairCount ?? baseInfo.stairCount,
+                        parkingDistance: livDetails.parkingDistance ?? baseInfo.parkingDistance,
+                        needsAssembly: livDetails.needsAssembly ?? baseInfo.needsAssembly,
+                        canBeTilted: livDetails.canBeTilted ?? baseInfo.canBeTilted
+                    };
+                }
+            } catch (e) {
+                console.warn("Impossible de parser les détails de livraison", e);
+            }
+        }
+
+        return baseInfo;
+    }, [
+        data.client?.adresse?.etage,
+        data.client?.adresse?.ascenseur,
+        data.livraison?.details
+    ]);
+
+    // ========== ÉTAT POUR CONTRÔLER L'AFFICHAGE DES VALIDATIONS ==========
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+    const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
+
+    const [localDeliveryInfo, setLocalDeliveryInfo] = useState(deliveryInfo);
+
+    useEffect(() => {
+        setLocalDeliveryInfo(deliveryInfo);
+    }, [deliveryInfo]);
 
     // Initialiser les photos existantes
     useEffect(() => {
@@ -256,7 +297,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             }
         }
 
-        setDeliveryInfo(newDeliveryInfo);
+        setLocalDeliveryInfo(newDeliveryInfo);
     }, [data.client?.adresse, data.livraison?.details]);
 
     const totalPhotos = photos.length;
@@ -308,15 +349,17 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     // Gérer les changements de dimensions des articles
     const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[]) => {
-        // Éviter les mises à jour inutiles en comparant le contenu
+        if (!hasUserInteracted && dimensions.length > 0) {
+            setHasUserInteracted(true);
+        }
+
         const currentDimensionsString = JSON.stringify(articleDimensions);
         const newDimensionsString = JSON.stringify(dimensions);
 
         if (currentDimensionsString !== newDimensionsString) {
-            console.log("Dimensions modifiées:", dimensions);
+            console.log("📄 [ARTICLES-FORM] Dimensions modifiées:", dimensions.length);
             setArticleDimensions(dimensions);
 
-            // Mise à jour du formulaire
             onChange({
                 target: {
                     name: 'articles.dimensions',
@@ -324,7 +367,6 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 }
             });
 
-            // Mise à jour du nombre d'articles seulement si nécessaire
             const newTotalQuantity = dimensions.reduce((sum, article) => sum + article.quantite, 0);
             const currentQuantity = data.articles?.nombre || 0;
 
@@ -337,7 +379,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 });
             }
         }
-    }, [onChange, articleDimensions, data.articles?.nombre]);
+    }, [onChange, articleDimensions, data.articles?.nombre, hasUserInteracted]);
 
     useEffect(() => {
         console.log("📄 [ARTICLES-FORM] Rendu avec données:", {
@@ -350,47 +392,52 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     }, [data.livraison?.vehicule, data.livraison?.equipiers, deliveryInfo, isEditing]);
 
     // S'assurer que la valeur n'est jamais undefined
-    const getVehicleForSelector = (): VehicleType | undefined => {
+    const getVehicleForSelector = useCallback((): VehicleType | undefined => {
         const vehicle = data.livraison?.vehicule;
-
-        // Vérifier que c'est un VehicleType valide
         const validVehicles: VehicleType[] = ['1M3', '6M3', '10M3', '20M3'];
 
         if (vehicle && validVehicles.includes(vehicle as VehicleType)) {
-            console.log("📄 [ARTICLES-FORM] Véhicule valide pour selector:", vehicle);
             return vehicle as VehicleType;
         }
-
         console.log("📄 [ARTICLES-FORM] Véhicule invalide ou vide:", vehicle);
         return undefined;
-    };
+    }, [data.livraison?.vehicule]);
 
-    const getCrewForSelector = (): number => {
+    const getCrewForSelector = useCallback((): number => {
         const crew = data.livraison?.equipiers;
-        const validCrew = typeof crew === 'number' ? crew : 0;
-
-        console.log("📄 [ARTICLES-FORM] Équipiers pour selector:", validCrew);
-        return validCrew;
-    };
+        return typeof crew === 'number' ? crew : 0;
+    }, [data.livraison?.equipiers]);
 
     // Gérer la sélection du véhicule
-    const handleVehicleSelect = (vehicleType: "" | VehicleType) => {
-        console.log("📄 [ARTICLES-FORM] handleVehicleSelect:", {
-            vehicleType,
-            avant: data.livraison?.vehicule,
-            typeof: typeof vehicleType
-        });
+    // const handleVehicleSelect = useCallback((vehicleType: "" | VehicleType) => {
+    //     console.log("📄 [ARTICLES-FORM] handleVehicleSelect:", vehicleType);
 
+    //     onChange({
+    //         target: {
+    //             name: 'livraison.vehicule',
+    //             value: vehicleType
+    //         }
+    //     });
+    // }, [onChange]);
+
+    // const handleCrewSelect = useCallback((crewSize: number) => {
+    //     onChange({
+    //         target: {
+    //             name: 'livraison.equipiers',
+    //             value: crewSize
+    //         }
+    //     });
+    // }, [onChange]);
+
+    const handleVehicleSelect = (vehicleType: "" | VehicleType) => {
         if (vehicleType === "") {
-            // Aucun véhicule sélectionné
             onChange({
                 target: {
                     name: 'livraison.vehicule',
-                    value: ''
+                    value: null
                 }
             });
         } else {
-            console.log(`[ARTICLES] Sauvegarde véhicule format court: ${vehicleType}`);
             onChange({
                 target: {
                     name: 'livraison.vehicule',
@@ -398,11 +445,6 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 }
             });
         }
-
-        // Vérifier après un délai que la valeur a bien changé
-        setTimeout(() => {
-            console.log("🚗 [ARTICLES-FORM] Valeur après onChange:", data.livraison?.vehicule);
-        }, 100);
     };
 
     // Gérer la sélection des équipiers
@@ -418,7 +460,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     // Gérer les changements d'informations de livraison supplémentaires
     const handleDeliveryInfoChange = (field: string, value: any) => {
         const updatedInfo = { ...deliveryInfo, [field]: value };
-        setDeliveryInfo(updatedInfo);
+        setLocalDeliveryInfo(updatedInfo);
 
         // Mise à jour du formulaire
         onChange({
@@ -429,17 +471,50 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         });
     };
 
-    const handleDeliveryDetailsChange = (details: any) => {
-        setDeliveryInfo(details);
+    const handleDeliveryDetailsChange = useCallback((details: any) => {
+        console.log("📄 [ARTICLES-FORM] Détails de livraison changés:", details);
 
-        // Mise à jour du formulaire avec tous les détails
+        setLocalDeliveryInfo(details);
+
         onChange({
             target: {
                 name: 'livraison.details',
                 value: JSON.stringify(details)
             }
         });
+    }, [onChange]);
+
+    const shouldShowValidationWarning = () => {
+        // Ne pas afficher d'avertissement si :
+        // 1. L'utilisateur n'a pas encore interagi avec le formulaire
+        // 2. On est en mode édition
+        // 3. Aucune tentative de validation n'a été faite
+        if (!hasUserInteracted || isEditing || !hasAttemptedValidation) {
+            return false;
+        }
+
+        // Afficher seulement si l'utilisateur a commencé à saisir des dimensions
+        // mais qu'elles sont incomplètes
+        return articleDimensions.some(
+            article => article.nom && // L'utilisateur a commencé à saisir
+                (!article.longueur && !article.largeur && !article.hauteur && !article.poids)
+        );
     };
+
+    // Détecter les tentatives de navigation vers les étapes suivantes
+    useEffect(() => {
+        // Écouter les événements de validation du formulaire global
+        const handleFormValidation = (event: CustomEvent) => {
+            if (event.detail.step === 2) { // Étape articles
+                setHasAttemptedValidation(true);
+            }
+        };
+
+        window.addEventListener('form-validation-attempt', handleFormValidation as EventListener);
+        return () => {
+            window.removeEventListener('form-validation-attempt', handleFormValidation as EventListener);
+        };
+    }, []);
 
     return (
         <div className="space-y-6 mb-6">
@@ -454,6 +529,39 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 />
             </div>
 
+            {/* ========== AVERTISSEMENT CONTEXTUEL (AMÉLIORATION) ========== */}
+            {shouldShowValidationWarning() && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">
+                    <div className="flex-shrink-0 mr-3">
+                        <svg className="w-5 h-5 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="font-medium">Dimensions incomplètes</p>
+                        <p className="text-sm mt-1">
+                            Vous avez commencé à saisir des articles mais certaines dimensions sont manquantes.
+                            Ces informations sont importantes pour choisir le bon véhicule de livraison.
+                        </p>
+                        <div className="mt-2">
+                            <button
+                                type="button"
+                                className="text-sm underline hover:no-underline"
+                                onClick={() => {
+                                    // Faire défiler vers le formulaire de dimensions
+                                    const dimensionsForm = document.querySelector('[data-testid="dimensions-form"]');
+                                    if (dimensionsForm) {
+                                        dimensionsForm.scrollIntoView({ behavior: 'smooth' });
+                                    }
+                                }}
+                            >
+                                Compléter les dimensions →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Questions supplémentaires pour la livraison */}
             {!isEditing && (
                 <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -465,7 +573,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                                 <input
                                     type="checkbox"
                                     checked={deliveryInfo.hasStairs}
-                                    onChange={(e) => handleDeliveryInfoChange('hasStairs', e.target.checked)}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        handleDeliveryInfoChange('hasStairs', e.target.checked)
+                                    }}
                                     className="mr-2 h-4 w-4"
                                 />
                                 Y a-t-il des marches ou escaliers avant l'ascenseur ?
@@ -479,7 +590,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                                     <input
                                         type="number"
                                         value={deliveryInfo.stairCount}
-                                        onChange={(e) => handleDeliveryInfoChange('stairCount', parseInt(e.target.value))}
+                                        onChange={(e) => {
+                                            setHasUserInteracted(true);
+                                            handleDeliveryInfoChange('stairCount', parseInt(e.target.value))
+                                        }}
                                         className="w-full border border-gray-300 rounded-md px-3 py-2"
                                         min="0"
                                     />
@@ -494,7 +608,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                             <input
                                 type="number"
                                 value={deliveryInfo.parkingDistance}
-                                onChange={(e) => handleDeliveryInfoChange('parkingDistance', parseInt(e.target.value))}
+                                onChange={(e) => {
+                                    setHasUserInteracted(true);
+                                    handleDeliveryInfoChange('parkingDistance', parseInt(e.target.value))
+                                }}
                                 className="w-full border border-gray-300 rounded-md px-3 py-2"
                                 min="0"
                             />
@@ -505,7 +622,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                                 <input
                                     type="checkbox"
                                     checked={deliveryInfo.needsAssembly}
-                                    onChange={(e) => handleDeliveryInfoChange('needsAssembly', e.target.checked)}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        handleDeliveryInfoChange('needsAssembly', e.target.checked)
+                                    }}
                                     className="mr-2 h-4 w-4"
                                 />
                                 Nécessite un montage ou une installation ?
@@ -525,21 +645,13 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         onDeliveryDetailsChange={handleDeliveryDetailsChange}
                         initialVehicle={getVehicleForSelector()}
                         initialCrew={getCrewForSelector()}
-                        deliveryInfo={deliveryInfo}
+                        deliveryInfo={localDeliveryInfo}
                     />
 
                     {/* Debug en mode développement */}
                     {process.env.NODE_ENV === 'development' && (
-                        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
-                            <strong>📄 Debug ArticlesForm:</strong><br />
-                            Données brutes: <code>{JSON.stringify({
-                                vehicule: data.livraison?.vehicule,
-                                equipiers: data.livraison?.equipiers
-                            })}</code><br />
-                            Props passées: <code>{JSON.stringify({
-                                initialVehicle: getVehicleForSelector(),
-                                initialCrew: getCrewForSelector()
-                            })}</code>
+                        <div className="mt-2 p-2 bg-blue-50 text-xs">
+                            Véhicule: {getVehicleForSelector()} | Équipiers: {getCrewForSelector()}
                         </div>
                     )}
                 </div>
@@ -553,7 +665,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     type="number"
                     value={String(data.articles?.nombre || '')}
                     min={0}
-                    onChange={onChange}
+                    onChange={(e) => {
+                        setHasUserInteracted(true);
+                        onChange(e);
+                    }}
                     error={errors.articles?.nombre}
                     required
                     readOnly={articleDimensions.length > 0}
@@ -570,9 +685,13 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     <textarea
                         name="articles.details"
                         value={data.articles?.details || ''}
-                        onChange={(e) => onChange(e as any)}
+                        onChange={(e) => {
+                            setHasUserInteracted(true);
+                            onChange(e as any);
+                        }}
                         className="mt-1 block w-full rounded-md border border-gray-300"
                         rows={4}
+                        placeholder="Décrivez vos articles (type, particularités, etc.)"
                     />
                 </div>
 
