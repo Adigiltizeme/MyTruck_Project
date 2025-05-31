@@ -441,8 +441,9 @@ import { VehicleType, VehicleValidationService } from "../../services/vehicle-va
 import { AlertTriangle, Info } from "lucide-react";
 
 export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false }) => {
+    const [selectedVehicleLong, setSelectedVehicleLong] = useState('');
+    const [selectedVehicleShort, setSelectedVehicleShort] = useState(data.livraison?.vehicule || '');
     const [calculatingTarif, setCalculatingTarif] = useState(false);
-    const [selectedVehicle, setSelectedVehicle] = useState(data.livraison?.vehicule || '');
     const [tarifDetails, setTarifDetails] = useState<{
         montantHT: number | 'devis';
         detail: {
@@ -453,6 +454,20 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     } | null>(null);
     const [vehicleRestrictions, setVehicleRestrictions] = useState<string[]>([]);
     const [showVehicleHelpModal, setShowVehicleHelpModal] = useState(false);
+    const [restrictedVehicles, setRestrictedVehicles] = useState<VehicleType[]>([]);
+    const [recommendedVehicle, setRecommendedVehicle] = useState<VehicleType | null>(null);
+    const [recommendedCrew, setRecommendedCrew] = useState<number>(0);
+    const [validationErrors, setValidationErrors] = useState<string[]>([]);
+    const [warnings, setWarnings] = useState<string[]>([]);
+    const [hasDimensionsData, setHasDimensionsData] = useState(false);
+    const [deliveryInfo, setDeliveryInfo] = useState({
+        hasElevator: false,
+        hasStairs: false,
+        stairCount: 0,
+        parkingDistance: 0,
+        needsAssembly: false,
+        canBeTilted: false
+    });
 
     // Référence pour suivre si nous avons déjà tenté de récupérer l'adresse
     const adressMagasinRecuperee = useRef(false);
@@ -463,6 +478,116 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
     // IMPORTANT: Stocker l'adresse du magasin dans un état local pour éviter qu'elle ne soit écrasée
     const [storeAddress, setStoreAddress] = useState<string>('');
+
+    useEffect(() => {
+        // Récupérer les dimensions des articles
+        const articleDimensions = data.articles?.dimensions || [];
+        const hasValidDimensions = articleDimensions.length > 0 &&
+            articleDimensions.some(article =>
+                article.nom && article.nom.trim() !== '' &&
+                (article.longueur || article.largeur || article.hauteur || article.poids)
+            );
+
+        setHasDimensionsData(hasValidDimensions);
+
+        if (!hasValidDimensions) {
+            // Pas de données de dimensions, pas de validation
+            setRestrictedVehicles([]);
+            setRecommendedVehicle(null);
+            setRecommendedCrew(0);
+            setValidationErrors([]);
+            setWarnings([]);
+            return;
+        }
+
+        // Récupérer les informations de livraison
+        let currentDeliveryInfo = { ...deliveryInfo };
+        if (data.livraison?.details) {
+            try {
+                const livDetails = typeof data.livraison.details === 'string'
+                    ? JSON.parse(data.livraison.details)
+                    : data.livraison.details;
+
+                if (livDetails) {
+                    currentDeliveryInfo = {
+                        hasElevator: data.client?.adresse?.ascenseur || false,
+                        hasStairs: livDetails.hasStairs || false,
+                        stairCount: livDetails.stairCount || 0,
+                        parkingDistance: livDetails.parkingDistance || 0,
+                        needsAssembly: livDetails.needsAssembly || false,
+                        canBeTilted: livDetails.canBeTilted || false
+                    };
+                    setDeliveryInfo(currentDeliveryInfo);
+                }
+            } catch (e) {
+                console.warn("Impossible de parser les détails de livraison", e);
+            }
+        }
+
+        // Valider les véhicules
+        const availableVehicles = VehicleValidationService.getAvailableVehicleTypes();
+        const restricted: VehicleType[] = [];
+
+        availableVehicles.forEach(vehicleType => {
+            const canFitAll = articleDimensions.every(article => {
+                return VehicleValidationService.canFitInVehicle(article, vehicleType, currentDeliveryInfo.canBeTilted);
+            });
+
+            if (!canFitAll) {
+                restricted.push(vehicleType);
+            }
+        });
+
+        setRestrictedVehicles(restricted);
+
+        // Recommander un véhicule
+        const recommended = VehicleValidationService.recommendVehicle(articleDimensions, currentDeliveryInfo.canBeTilted);
+        setRecommendedVehicle(recommended);
+
+        // Calculer les équipiers recommandés
+        const crew = VehicleValidationService.getRecommendedCrewSize(articleDimensions);
+        setRecommendedCrew(crew);
+
+        // Vérifier si des équipiers supplémentaires sont nécessaires
+        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) > 30);
+        const totalItemCount = articleDimensions.length;
+        const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
+
+        const needsAdditionalCrew = VehicleValidationService.needsAdditionalCrew({
+            hasElevator: currentDeliveryInfo.hasElevator,
+            hasStairs: currentDeliveryInfo.hasStairs,
+            stairCount: currentDeliveryInfo.stairCount,
+            floor: floor,
+            heavyItems: hasHeavyItems,
+            totalItemCount,
+            parkingDistance: currentDeliveryInfo.parkingDistance,
+            needsAssembly: currentDeliveryInfo.needsAssembly
+        });
+
+        // Générer des avertissements
+        const newWarnings: string[] = [];
+        if (needsAdditionalCrew && crew < 1) {
+            newWarnings.push('Les conditions de livraison suggèrent l\'ajout d\'un équipier.');
+        }
+        if (hasHeavyItems) {
+            newWarnings.push('Certains articles sont lourds (>30kg). Un équipier supplémentaire est recommandé.');
+        }
+        if (currentDeliveryInfo.hasStairs && !currentDeliveryInfo.hasElevator && crew < 1) {
+            newWarnings.push('Livraison avec escaliers sans ascenseur. Un équipier est recommandé.');
+        }
+        setWarnings(newWarnings);
+
+        // Validation des erreurs
+        const errors: string[] = [];
+        if (selectedVehicleShort && restricted.includes(selectedVehicleShort as VehicleType)) {
+            errors.push(`Le véhicule sélectionné (${selectedVehicleShort}) ne peut pas transporter tous les articles.`);
+        }
+        if (!recommended) {
+            errors.push('Aucun de nos véhicules ne peut transporter ces articles. Veuillez contacter le service client.');
+        }
+        setValidationErrors(errors);
+
+    }, [data.articles?.dimensions, data.livraison?.details, data.client?.adresse, selectedVehicleShort]);
 
     // Synchroniser l'état local avec les données entrantes
     useEffect(() => {
@@ -612,10 +737,11 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             )?.[0];
 
             if (longFormat) {
-                setSelectedVehicle(longFormat);
+                setSelectedVehicleLong(longFormat);
+                setSelectedVehicleShort(data.livraison.vehicule);
             }
         }
-    }, []); // Uniquement à l'initialisation
+    }, [data.livraison?.vehicule]); // Uniquement à l'initialisation
 
     useEffect(() => {
         const handleStoreChange = (event: Event) => {
@@ -724,10 +850,12 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
     const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const longFormat = e.target.value;
-        setSelectedVehicle(longFormat);
+        setSelectedVehicleLong(longFormat);
 
         // Convertir en format court pour la BDD
         const shortFormat = VEHICULES[longFormat];
+        setSelectedVehicleShort(shortFormat);
+
         onChange({
             target: {
                 name: 'livraison.vehicule',
@@ -736,10 +864,34 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         });
     };
 
+    const isCrewSizeRestricted = (crewSize: number): boolean => {
+        if (!hasDimensionsData) return false;
+
+        // Vérifier si le nombre d'équipiers est compatible avec les articles
+        const articleDimensions = data.articles?.dimensions || [];
+        const totalWeight = articleDimensions.reduce((sum, article) => sum + (article.poids || 0), 0);
+
+        // Si le poids total nécessite plus d'équipiers que sélectionné
+        if (totalWeight >= 300 && crewSize < 3) {
+            return false; // Pas restreint, mais pas optimal
+        }
+
+        // Pas de restriction, tous les nombres sont valides
+        return false;
+    };
+
+    const getCrewSizeStatus = (crewSize: number): 'recommended' | 'compatible' | 'restricted' => {
+        if (!hasDimensionsData) return 'compatible';
+
+        if (crewSize === recommendedCrew) return 'recommended';
+        if (isCrewSizeRestricted(crewSize)) return 'restricted';
+        return 'compatible';
+    };
+
     // Vérifier si le véhicule sélectionné est restreint
     const isVehicleRestricted = () => {
-        if (!data.livraison?.vehicule) return false;
-        return vehicleRestrictions.includes(data.livraison.vehicule);
+        if (!hasDimensionsData || !selectedVehicleShort) return false;
+        return restrictedVehicles.includes(selectedVehicleShort as VehicleType);
     };
 
     return (
@@ -757,6 +909,35 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                             en raison de leurs dimensions. Veuillez sélectionner un véhicule plus grand ou vérifier si
                             les articles peuvent être couchés dans la section précédente.
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* ========== AVERTISSEMENTS DE VALIDATION ========== */}
+            {hasDimensionsData && validationErrors.length > 0 && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-start">
+                    <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                        <p className="font-medium">Problème de compatibilité</p>
+                        <ul className="list-disc pl-5 mt-1">
+                            {validationErrors.map((error, index) => (
+                                <li key={index} className="text-sm">{error}</li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            )}
+
+            {hasDimensionsData && warnings.length > 0 && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">
+                    <Info className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                        <p className="font-medium">Recommandations</p>
+                        <ul className="list-disc pl-5 mt-1">
+                            {warnings.map((warning, index) => (
+                                <li key={index} className="text-sm">{warning}</li>
+                            ))}
+                        </ul>
                     </div>
                 </div>
             )}
@@ -793,38 +974,49 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         ))}
                     </select>
                 </div>
+
+                {/* ========== SÉLECTION DE VÉHICULE AVEC VALIDATION ========== */}
                 <div className="space-y-1">
-                    <div className="flex items-center">
-                        <label className="block text-sm font-bold text-gray-700 mr-2">
-                            Type de véhicule <span className="text-red-500">*</span>
-                        </label>
-                        <button
-                            type="button"
-                            onClick={() => setShowVehicleHelpModal(true)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Aide sur les véhicules"
-                        >
-                            <Info className="w-4 h-4" />
-                        </button>
-                    </div>
+                    <label className="block text-sm font-bold text-gray-700">
+                        Type de véhicule <span className="text-red-500">*</span>
+                        {hasDimensionsData && recommendedVehicle && (
+                            <span className="ml-2 text-sm font-normal text-green-600">
+                                ✅ Recommandé: {recommendedVehicle}
+                            </span>
+                        )}
+                    </label>
                     <select
-                        name="livraison.vehicule"
-                        value={selectedVehicle}
+                        value={selectedVehicleLong}
                         onChange={handleVehicleChange}
-                        className={`mt-1 block w-full rounded-md border ${errors.livraison?.vehicule || isVehicleRestricted() ? 'border-red-500' : 'border-gray-300'}`}
+                        className={`mt-1 block w-full rounded-md px-3 py-2 ${hasDimensionsData && selectedVehicleShort && restrictedVehicles.includes(selectedVehicleShort as VehicleType)
+                            ? 'border-red-500 bg-red-50'
+                            : errors.livraison?.vehicule
+                                ? 'border-red-500'
+                                : 'border-gray-300'
+                            }`}
                         required
                     >
                         <option value="">Sélectionner un véhicule</option>
                         {Object.entries(VEHICULES).map(([longFormat, shortFormat]) => {
-                            const isRestricted = vehicleRestrictions.includes(shortFormat);
+                            const isRestricted = hasDimensionsData && restrictedVehicles.includes(shortFormat as VehicleType);
+                            const isRecommended = hasDimensionsData && recommendedVehicle === shortFormat;
+
                             return (
                                 <option
                                     key={longFormat}
                                     value={longFormat}
-                                    className={isRestricted ? 'text-red-500 font-italic' : ''}
+                                    disabled={isRestricted}
+                                    className={
+                                        isRestricted
+                                            ? 'text-red-500 bg-red-50'
+                                            : isRecommended
+                                                ? 'font-bold text-green-700 bg-green-50'
+                                                : ''
+                                    }
                                 >
                                     {longFormat}
-                                    {isRestricted ? ' (inadéquat)' : ''}
+                                    {isRecommended ? ' ✅ (Recommandé)' : ''}
+                                    {isRestricted ? ' ❌ (Incompatible)' : ''}
                                 </option>
                             );
                         })}
@@ -834,26 +1026,71 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                             {errors.livraison.vehicule}
                         </p>
                     )}
+                    {isVehicleRestricted() && (
+                        <p className="text-red-500 text-sm mt-1">
+                            ⚠️ Ce véhicule ne peut pas transporter tous vos articles selon leurs dimensions.
+                        </p>
+                    )}
                 </div>
+
+                {/* ========== SÉLECTION D'ÉQUIPIERS AVEC VALIDATION ========== */}
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">
                         Option équipier de manutention
+                        {hasDimensionsData && recommendedCrew > 0 && (
+                            <span className="ml-2 text-sm font-normal text-green-600">
+                                ✅ Recommandé: {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
+                            </span>
+                        )}
                     </label>
                     <span className="ml-1 text-sm text-gray-500" title={ERROR_MESSAGES.equipiers.contact}>
                         {ERROR_MESSAGES.equipiers.info}
                     </span>
-                    <div className="relative">
-                        <input
-                            type="number"
-                            name="livraison.equipiers"
-                            min="0"
-                            max="3"
-                            value={data.livraison?.equipiers || 0}
-                            onChange={onChange}
-                            className={`mt-1 block w-full rounded-md border ${errors.livraison?.equipiers ? 'border-red-500' : 'border-gray-300'}`}
-                        />
-                    </div>
+                    <select
+                        name="livraison.equipiers"
+                        value={data.livraison?.equipiers || 0}
+                        onChange={onChange}
+                        className={`mt-1 block w-full rounded-md border ${errors.livraison?.equipiers ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                    >
+                        {[0, 1, 2, 3].map(crewSize => {
+                            const status = getCrewSizeStatus(crewSize);
+                            const isRecommended = status === 'recommended';
+                            const isRestricted = status === 'restricted';
+
+                            return (
+                                <option
+                                    key={crewSize}
+                                    value={crewSize}
+                                    disabled={isRestricted}
+                                    className={
+                                        isRestricted
+                                            ? 'text-red-500 bg-red-50'
+                                            : isRecommended
+                                                ? 'font-bold text-green-700 bg-green-50'
+                                                : ''
+                                    }
+                                >
+                                    {crewSize === 0
+                                        ? 'Aucun équipier'
+                                        : crewSize === 3
+                                            ? '3 équipiers ou plus (sur devis)'
+                                            : `${crewSize} équipier${crewSize > 1 ? 's' : ''} (+${crewSize * 22}€)`
+                                    }
+                                    {isRecommended ? ' ✅ (Recommandé)' : ''}
+                                    {isRestricted ? ' ❌ (Insuffisant)' : ''}
+                                </option>
+                            );
+                        })}
+                    </select>
+
+                    {(data.livraison?.equipiers || 0) >= 3 && (
+                        <p className="text-sm text-orange-600 mt-1">
+                            Plus de 2 équipiers nécessite un devis spécial. Le service commercial vous contactera.
+                        </p>
+                    )}
                 </div>
+
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">
                         Autres remarques
@@ -869,6 +1106,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 </div>
             </div>
 
+            {/* ========== AFFICHAGE DU TARIF ========== */}
             {calculatingTarif ? (
                 <div className="mt-4 p-4 border rounded-lg">
                     <p className="text-gray-600">Calcul du tarif en cours...</p>

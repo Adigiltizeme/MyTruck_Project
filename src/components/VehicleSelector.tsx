@@ -47,6 +47,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [hasDimensionsData, setHasDimensionsData] = useState(false);
+  const [restrictedCrewSizes, setRestrictedCrewSizes] = useState<number[]>([]);
+  const [crewWarnings, setCrewWarnings] = useState<string[]>([]);
 
   const availableVehicles = useMemo(() =>
     VehicleValidationService.getAvailableVehicleTypes(),
@@ -127,10 +129,38 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       );
     }
 
-    // Avertissements équipiers
-    const hasHeavyItems = articles.some(article => (article.poids || 0) > 30);
+    // ========== VALIDATION DES ÉQUIPIERS ==========
+    // Calculer les critères pour les équipiers supplémentaires
+    const hasHeavyItems = articles.some(article => (article.poids || 0) >= 30);
     const totalItemCount = articles.length;
+    const totalWeight = articles.reduce((sum, article) => sum + (article.poids || 0), 0);
 
+    // Déterminer les restrictions d'équipiers
+    const restrictedCrew: number[] = [];
+    const crewWarn: string[] = [];
+
+    // Analyser chaque option d'équipiers (0, 1, 2, 3+)
+    for (let crew = 0; crew <= 3; crew++) {
+      // Vérifier si ce nombre d'équipiers est insuffisant
+      if (totalWeight >= 300 && crew < 3) {
+        if (crew < 2) {
+          restrictedCrew.push(crew);
+        } else {
+          crewWarn.push(`${crew} équipier${crew > 1 ? 's' : ''} pourrait être insuffisant pour ce poids total (${totalWeight.toFixed(1)}kg)`);
+        }
+      }
+      
+      // Vérifier les conditions de livraison
+      if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && crew === 0) {
+        restrictedCrew.push(crew);
+      }
+    }
+
+    setRestrictedCrewSizes([...new Set(restrictedCrew)]); // Éliminer les doublons
+    setCrewWarnings([...new Set(crewWarn)]); // Éliminer les doublons
+
+    // Avertissements équipiers
+    // Vérifier si des équipiers supplémentaires sont nécessaires en fonction des critères de livraison
     const needsAdditionalCrew = VehicleValidationService.needsAdditionalCrew({
       hasElevator: deliveryInfo.hasElevator || false,
       hasStairs: deliveryInfo.hasStairs || false,
@@ -150,7 +180,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       newWarnings.push('💪 Certains articles sont lourds (>30kg). Un équipier supplémentaire est recommandé.');
     }
 
-    if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && crew < 1) {
+    if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && hasHeavyItems && crew < 1) {
       newWarnings.push('🚶 Livraison avec escaliers sans ascenseur. Un équipier est recommandé.');
     }
 
@@ -296,6 +326,35 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [onDeliveryDetailsChange, deliveryInfo]);
 
+  // ========== FONCTIONS DE VALIDATION DES ÉQUIPIERS ==========
+  const isCrewSizeRestricted = (crew: number): boolean => {
+    return restrictedCrewSizes.includes(crew);
+  };
+
+  const getCrewSizeStatus = (crew: number): 'recommended' | 'compatible' | 'restricted' => {
+    if (isCrewSizeRestricted(crew)) return 'restricted';
+    if (crew === recommendedCrew) return 'recommended';
+    return 'compatible';
+  };
+
+  const getCrewOptionLabel = (crew: number): string => {
+    const baseLabel = crew === 0
+      ? 'Aucun équipier'
+      : crew === 3
+        ? '3 équipiers ou plus (sur devis)'
+        : `${crew} équipier${crew > 1 ? 's' : ''} (+${crew * 22}€)`;
+
+    const status = getCrewSizeStatus(crew);
+
+    if (status === 'recommended') {
+      return `${baseLabel} ✅ (Recommandé)`;
+    } else if (status === 'restricted') {
+      return `${baseLabel} ❌ (Insuffisant)`;
+    }
+
+    return baseLabel;
+  };
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-medium">Sélection du véhicule et des équipiers</h3>
@@ -315,7 +374,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       )}
 
       {/* Affichage des avertissements */}
-      {hasDimensionsData && warnings.length > 0 && (
+      {(hasDimensionsData && warnings.length > 0 || crewWarnings.length > 0) && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
           <ul className="list-none space-y-1">
             {warnings.map((warning, index) => (
@@ -323,6 +382,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 <span className="mr-2">💡</span>
                 <span>{warning}</span>
               </li>
+            ))}
+            {crewWarnings.map((warning, index) => (
+              <li key={`crew-warning-${index}`}>{warning}</li>
             ))}
           </ul>
         </div>
@@ -402,7 +464,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           )}
         </div>
 
-        {/* Sélection des équipiers */}
+        {/* ========== SÉLECTION DES ÉQUIPIERS AVEC VALIDATION ========== */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Équipiers supplémentaires
@@ -410,25 +472,48 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           <select
             value={crewSize}
             onChange={handleCrewChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2"
+            className={`w-full border rounded-md px-3 py-2 ${isCrewSizeRestricted(crewSize) ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
           >
-            <option value="0">Aucun équipier</option>
-            <option value="1">1 équipier (+22€)</option>
-            <option value="2">2 équipiers (+44€)</option>
-            <option value="3">3 équipiers ou plus (sur devis)</option>
+            {[0, 1, 2, 3].map(crew => {
+              const status = getCrewSizeStatus(crew);
+              const isRestricted = status === 'restricted';
+              const isRecommended = status === 'recommended';
+
+              return (
+                <option
+                  key={crew}
+                  value={crew}
+                  disabled={isRestricted}
+                  className={
+                    isRestricted
+                      ? 'text-red-500 bg-red-50'
+                      : isRecommended
+                        ? 'font-bold text-green-700 bg-green-50'
+                        : ''
+                  }
+                >
+                  {getCrewOptionLabel(crew)}
+                </option>
+              );
+            })}
           </select>
 
-          {hasDimensionsData && recommendedCrew > 0 && (
-            <p className="text-sm text-green-600 mt-1 flex items-center">
-              <span className="mr-1">💪</span>
-              Recommandation : {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
+          {recommendedCrew > 0 && (
+            <p className="text-sm text-green-600 mt-1">
+              Recommandation : ✅ {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
             </p>
           )}
 
           {crewSize >= 3 && (
-            <p className="text-sm text-orange-600 mt-1 flex items-center">
-              <span className="mr-1">📞</span>
+            <p className="text-sm text-orange-600 mt-1">
               Plus de 2 équipiers nécessite un devis spécial. Le service commercial vous contactera.
+            </p>
+          )}
+
+          {isCrewSizeRestricted(crewSize) && (
+            <p className="text-sm text-red-600 mt-1">
+              ⚠️ Ce nombre d'équipiers est insuffisant selon les critères de vos articles et de livraison.
             </p>
           )}
         </div>

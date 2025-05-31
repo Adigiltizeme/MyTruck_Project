@@ -25,10 +25,21 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+    const [hasUserStartedTyping, setHasUserStartedTyping] = useState(false);
+    const [hasAttemptedSubmission, setHasAttemptedSubmission] = useState(false);
+    const [interactionTracker, setInteractionTracker] = useState<Set<string>>(new Set());
 
     // Utiliser une référence pour suivre si les dimensions initiales ont déjà été chargées
     const initializedRef = useRef(false);
     const lastNotifiedArticlesRef = useRef<ArticleDimension[]>([]);
+
+    const detectUserInteraction = useCallback((articleId: string, fieldValue: any) => {
+        if (fieldValue && fieldValue.toString().trim() !== '') {
+            setHasUserStartedTyping(true);
+            setInteractionTracker(prev => new Set([...prev, articleId]));
+        }
+    }, []);
+
 
     // Initialisation des articles - une seule fois ou quand les props changent significativement
     useEffect(() => {
@@ -41,6 +52,14 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 console.log("Initialisation des dimensions avec props:", initialArticles);
                 setArticles([...initialArticles]);
                 initializedRef.current = true;
+
+                // Si on a des articles initiaux avec du contenu, marquer comme interagis
+                const hasContentInInitialArticles = initialArticles.some(article =>
+                    article.nom && article.nom.trim() !== ''
+                );
+                if (hasContentInInitialArticles) {
+                    setHasUserStartedTyping(true);
+                }
             }
         } else if (!initializedRef.current) {
             // Créer un article par défaut seulement si aucune donnée initiale et pas encore initialisé
@@ -62,31 +81,43 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     useEffect(() => {
         if (!initializedRef.current) return;
 
+        // ⚠️ IMPORTANT : Ne pas valider tant que l'utilisateur n'a pas commencé à taper
+        if (!hasUserStartedTyping && !hasAttemptedSubmission) {
+            setValidationErrors({});
+            return;
+        }
+
         const errors: Record<string, string[]> = {};
 
         articles.forEach((article) => {
             const articleErrors: string[] = [];
 
-            if (!article.nom.trim()) {
-                articleErrors.push('Le nom de l\'article est requis');
+            // Seulement valider les articles sur lesquels l'utilisateur a travaillé
+            const userWorkedOnThisArticle = interactionTracker.has(article.id) ||
+                (article.nom && article.nom.trim() !== '');
+            if (userWorkedOnThisArticle) {
+                if (!article.nom.trim()) {
+                    articleErrors.push('Le nom de l\'article est requis');
+                }
+
+                if (article.longueur !== undefined && article.longueur <= 0) {
+                    articleErrors.push('La longueur doit être supérieure à 0');
+                }
+
+                if (article.largeur !== undefined && article.largeur <= 0) {
+                    articleErrors.push('La largeur doit être supérieure à 0');
+                }
+
+                if (article.hauteur !== undefined && article.hauteur <= 0) {
+                    articleErrors.push('La hauteur doit être supérieure à 0');
+                }
+
+                if (article.poids !== undefined && article.poids <= 0) {
+                    articleErrors.push('Le poids doit être supérieur à 0');
+                }
             }
 
-            if (article.longueur !== undefined && article.longueur <= 0) {
-                articleErrors.push('La longueur doit être supérieure à 0');
-            }
-
-            if (article.largeur !== undefined && article.largeur <= 0) {
-                articleErrors.push('La largeur doit être supérieure à 0');
-            }
-
-            if (article.hauteur !== undefined && article.hauteur <= 0) {
-                articleErrors.push('La hauteur doit être supérieure à 0');
-            }
-
-            if (article.poids !== undefined && article.poids <= 0) {
-                articleErrors.push('Le poids doit être supérieur à 0');
-            }
-
+            // Toujours valider la quantité si elle est définie
             if (article.quantite <= 0) {
                 articleErrors.push('La quantité doit être supérieure à 0');
             }
@@ -97,7 +128,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         });
 
         setValidationErrors(errors);
-    }, [articles]);
+    }, [articles, hasUserStartedTyping, interactionTracker, hasAttemptedSubmission]);
 
     // Notification du parent - seulement quand nécessaire
     useEffect(() => {
@@ -144,7 +175,8 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         if (readOnly) return;
 
         if (articles.length <= 1) {
-            setArticles([{
+            // Réinitialiser à un article vide et remettre les flags d'interaction à zéro
+            const newArticle = {
                 id: `art-${Date.now()}`,
                 nom: '',
                 longueur: undefined,
@@ -152,14 +184,27 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 hauteur: undefined,
                 poids: undefined,
                 quantite: 1
-            }]);
+            };
+            setArticles([newArticle]);
+            setHasUserStartedTyping(false);
+            setHasAttemptedSubmission(false);
+            setInteractionTracker(new Set());
         } else {
             setArticles(prevArticles => prevArticles.filter(article => article.id !== id));
+            // Retirer de l'interaction tracker
+            setInteractionTracker(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(id);
+                return newSet;
+            });
         }
     }, [readOnly, articles.length]);
 
     const handleChange = useCallback((id: string, field: keyof ArticleDimension, value: any) => {
         if (readOnly) return;
+
+        // ========== DÉTECTER L'INTERACTION UTILISATEUR ==========
+        detectUserInteraction(id, value);
 
         setArticles(prevArticles => prevArticles.map(article => {
             if (article.id === id) {
@@ -170,7 +215,23 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             }
             return article;
         }));
-    }, [readOnly]);
+    }, [readOnly, detectUserInteraction]);
+
+    const shouldShowIncompleteWarning = () => {
+        // Ne jamais afficher l'avertissement si l'utilisateur n'a pas commencé à taper
+        if (!hasUserStartedTyping) {
+            return false;
+        }
+
+        // Afficher seulement si l'utilisateur a commencé à saisir des articles
+        // mais que certaines informations importantes manquent
+        return articles.some(article => {
+            const hasStartedThisArticle = article.nom && article.nom.trim() !== '';
+            const missingImportantDimensions = !article.longueur && !article.largeur && !article.hauteur && !article.poids;
+
+            return hasStartedThisArticle && missingImportantDimensions;
+        });
+    };
 
     return (
         <div className="space-y-4">
@@ -201,27 +262,30 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             </div>
 
             {/* Avertissement si des dimensions manquent */}
-            {articles.some(
-                article => !article.longueur && !article.largeur && !article.hauteur && !article.poids
-            ) && (
-                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">
-                        <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-                        <div>
-                            <p className="font-medium">Données incomplètes</p>
-                            <p className="text-sm">
-                                Les dimensions des articles sont importantes pour déterminer le véhicule adapté.
-                                Sans ces informations, nous ne pourrons pas garantir que les articles rentreront dans le véhicule sélectionné.
-                            </p>
-                        </div>
+            {shouldShowIncompleteWarning() && (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">
+                    <AlertTriangle className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                        <p className="font-medium">Dimensions incomplètes</p>
+                        <p className="text-sm">
+                            Vous avez commencé à saisir des articles mais certaines dimensions sont manquantes.
+                            Ces informations sont importantes pour déterminer le véhicule adapté.
+                        </p>
+                        <p className="text-sm mt-1">
+                            <strong>Astuce :</strong> Si vous ne connaissez pas les dimensions exactes,
+                            vous pouvez continuer et les ajouter plus tard, mais cela peut affecter le choix du véhicule.
+                        </p>
                     </div>
-                )}
+                </div>
+            )}
 
             {/* Liste des articles */}
             <div className="space-y-4">
                 {articles.map((article, index) => (
                     <div
                         key={article.id}
-                        className={`border rounded-lg p-4 ${validationErrors[article.id] ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}
+                        className={`border rounded-lg p-4 ${validationErrors[article.id] ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                            }`}
                     >
                         <div className="flex justify-between items-center mb-3">
                             <h4 className="font-medium">Article {index + 1}</h4>
@@ -239,7 +303,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                         </div>
 
                         {/* Erreurs de validation */}
-                        {validationErrors[article.id] && (
+                        {validationErrors[article.id] && hasUserStartedTyping && (
                             <div className="mb-3 text-red-600 text-sm">
                                 <ul className="list-disc pl-5">
                                     {validationErrors[article.id].map((error, idx) => (
@@ -259,7 +323,10 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                     type="text"
                                     value={article.nom}
                                     onChange={(e) => handleChange(article.id, 'nom', e.target.value)}
-                                    className={`w-full border ${!article.nom ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2`}
+                                    className={`w-full border ${!article.nom && hasUserStartedTyping && validationErrors[article.id]
+                                        ? 'border-red-300'
+                                        : 'border-gray-300'
+                                        } rounded-md px-3 py-2`}
                                     placeholder="Ex: Palmier Kentia"
                                     disabled={readOnly}
                                     required

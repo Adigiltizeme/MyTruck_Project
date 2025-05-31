@@ -163,6 +163,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
+    
     const deliveryInfo = useMemo(() => {
         const baseInfo = {
             floor: data.client?.adresse?.etage || "0",
@@ -495,9 +496,9 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
         // Afficher seulement si l'utilisateur a commencé à saisir des dimensions
         // mais qu'elles sont incomplètes
-        return articleDimensions.some(
-            article => article.nom && // L'utilisateur a commencé à saisir
-                (!article.longueur && !article.largeur && !article.hauteur && !article.poids)
+        return hasUserInteracted && articleDimensions.some(
+            article => article.nom && article.nom.trim() !== '' && // L'utilisateur a commencé à saisir
+                !article.longueur && !article.largeur && !article.hauteur && !article.poids
         );
     };
 
@@ -636,26 +637,27 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             )}
 
             {/* Sélection du véhicule et des équipiers */}
-            {!isEditing && (
-                <div className="bg-white rounded-lg shadow p-4 mb-6">
-                    <VehicleSelector
-                        articles={articleDimensions}
-                        onVehicleSelect={handleVehicleSelect}
-                        onCrewSelect={handleCrewSelect}
-                        onDeliveryDetailsChange={handleDeliveryDetailsChange}
-                        initialVehicle={getVehicleForSelector()}
-                        initialCrew={getCrewForSelector()}
-                        deliveryInfo={localDeliveryInfo}
-                    />
+            {!isEditing && hasUserInteracted && articleDimensions.length > 0 &&
+                articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+                    <div className="bg-white rounded-lg shadow p-4 mb-6">
+                        <VehicleSelector
+                            articles={articleDimensions}
+                            onVehicleSelect={handleVehicleSelect}
+                            onCrewSelect={handleCrewSelect}
+                            onDeliveryDetailsChange={handleDeliveryDetailsChange}
+                            initialVehicle={getVehicleForSelector()}
+                            initialCrew={getCrewForSelector()}
+                            deliveryInfo={localDeliveryInfo}
+                        />
 
-                    {/* Debug en mode développement */}
-                    {process.env.NODE_ENV === 'development' && (
-                        <div className="mt-2 p-2 bg-blue-50 text-xs">
-                            Véhicule: {getVehicleForSelector()} | Équipiers: {getCrewForSelector()}
-                        </div>
-                    )}
-                </div>
-            )}
+                        {/* Debug en mode développement */}
+                        {process.env.NODE_ENV === 'development' && (
+                            <div className="mt-2 p-2 bg-blue-50 text-xs">
+                                Véhicule: {getVehicleForSelector()} | Équipiers: {getCrewForSelector()}
+                            </div>
+                        )}
+                    </div>
+                )}
 
             {/* Nombre d'articles */}
             <div className="grid grid-cols-1 gap-4">
