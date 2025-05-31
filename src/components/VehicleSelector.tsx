@@ -455,13 +455,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               Véhicule recommandé : {getDisplayFormat(recommendedVehicle)}
             </p>
           )}
-
-          {/* Debug en mode développement */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="text-xs text-gray-500 mt-1">
-              Debug: Short={selectedVehicleShort}, Long={selectedVehicleLong}
-            </div>
-          )}
         </div>
 
         {/* ========== SÉLECTION DES ÉQUIPIERS AVEC VALIDATION ========== */}

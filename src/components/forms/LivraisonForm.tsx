@@ -848,6 +848,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
     const creneauxDisponibles = CRENEAUX_LIVRAISON.filter(creneau => !isCreneauPasse(creneau));
 
+    // ========== GESTION DU VÉHICULE AVEC VALIDATION ==========
     const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const longFormat = e.target.value;
         setSelectedVehicleLong(longFormat);
@@ -864,19 +865,37 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         });
     };
 
+    // ========== VALIDATION DES ÉQUIPIERS ==========
     const isCrewSizeRestricted = (crewSize: number): boolean => {
         if (!hasDimensionsData) return false;
 
-        // Vérifier si le nombre d'équipiers est compatible avec les articles
         const articleDimensions = data.articles?.dimensions || [];
         const totalWeight = articleDimensions.reduce((sum, article) => sum + (article.poids || 0), 0);
+        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) > 30);
 
-        // Si le poids total nécessite plus d'équipiers que sélectionné
-        if (totalWeight >= 300 && crewSize < 3) {
-            return false; // Pas restreint, mais pas optimal
+        // Cas où 0 équipier est insuffisant
+        if (crewSize === 0) {
+            // Articles très lourds (>30kg individuellement)
+            if (hasHeavyItems) return true;
+
+            // Poids total important (>100kg)
+            if (totalWeight > 100) return true;
+
+            // Conditions de livraison difficiles
+            if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator) return true;
+            if (deliveryInfo.parkingDistance && deliveryInfo.parkingDistance > 50) return true;
+            if (deliveryInfo.needsAssembly) return true;
+
+            // Étage élevé sans ascenseur
+            const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
+            if (floor > 2 && !deliveryInfo.hasElevator) return true;
         }
 
-        // Pas de restriction, tous les nombres sont valides
+        // Cas où 1-2 équipiers sont insuffisants pour très gros poids
+        if (totalWeight > 300 && crewSize < 3) {
+            return crewSize < 2; // 0-1 équipier restreint, 2 équipiers en warning
+        }
+
         return false;
     };
 
@@ -988,7 +1007,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     <select
                         value={selectedVehicleLong}
                         onChange={handleVehicleChange}
-                        className={`mt-1 block w-full rounded-md px-3 py-2 ${hasDimensionsData && selectedVehicleShort && restrictedVehicles.includes(selectedVehicleShort as VehicleType)
+                        className={`mt-1 block w-full rounded-md border px-3 py-2 ${hasDimensionsData && selectedVehicleShort && restrictedVehicles.includes(selectedVehicleShort as VehicleType)
                             ? 'border-red-500 bg-red-50'
                             : errors.livraison?.vehicule
                                 ? 'border-red-500'
@@ -1050,7 +1069,11 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         name="livraison.equipiers"
                         value={data.livraison?.equipiers || 0}
                         onChange={onChange}
-                        className={`mt-1 block w-full rounded-md border ${errors.livraison?.equipiers ? 'border-red-500' : 'border-gray-300'
+                        className={`mt-1 block w-full rounded-md border ${hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0)
+                            ? 'border-red-500 bg-red-50'
+                            : errors.livraison?.equipiers
+                                ? 'border-red-500'
+                                : 'border-gray-300'
                             }`}
                     >
                         {[0, 1, 2, 3].map(crewSize => {
@@ -1087,6 +1110,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     {(data.livraison?.equipiers || 0) >= 3 && (
                         <p className="text-sm text-orange-600 mt-1">
                             Plus de 2 équipiers nécessite un devis spécial. Le service commercial vous contactera.
+                        </p>
+                    )}
+
+                    {/* Message d'erreur si choix insuffisant */}
+                    {hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0) && (
+                        <p className="text-sm text-red-600 mt-1">
+                            ⚠️ Ce nombre d'équipiers est insuffisant selon les critères de vos articles et de livraison.
                         </p>
                     )}
                 </div>

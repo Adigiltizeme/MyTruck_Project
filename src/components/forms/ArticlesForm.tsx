@@ -649,13 +649,6 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                             initialCrew={getCrewForSelector()}
                             deliveryInfo={localDeliveryInfo}
                         />
-
-                        {/* Debug en mode développement */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <div className="mt-2 p-2 bg-blue-50 text-xs">
-                                Véhicule: {getVehicleForSelector()} | Équipiers: {getCrewForSelector()}
-                            </div>
-                        )}
                     </div>
                 )}
 
