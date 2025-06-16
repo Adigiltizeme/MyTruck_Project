@@ -27,6 +27,7 @@ import Cessions from './pages/Deliveries/Cessions';
 import DocumentsPage from './pages/documents/documents';
 import { DbRepair } from './utils/db-repair';
 import { useAuth } from './contexts/AuthContext';
+import { MigrationControl } from './components/MigrationControl';
 
 const App = () => {
 
@@ -152,12 +153,16 @@ const App = () => {
         if (isOnline) {
           // Exécuter en différé pour ne pas ralentir le chargement initial
           setTimeout(() => {
-            dataService.migrateAllCommandeImages()
-              .catch(err => {
-                if (!handleStorageError(err)) {
-                  console.error('Erreur lors de la migration des images:', err);
-                }
-              });
+            if (typeof dataService.migrateAllCommandeImages === 'function') {
+              dataService.migrateAllCommandeImages()
+                .catch(err => {
+                  if (!handleStorageError(err)) {
+                    console.error('Erreur lors de la migration des images:', err);
+                  }
+                });
+            } else {
+              console.warn('La méthode migrateAllCommandeImages est absente du dataService.');
+            }
           }, 5000);
         }
       } catch (error) {
@@ -202,6 +207,7 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Deliveries />
+                  <MigrationControl />
                 </ProtectedRoute>
               }
             />

@@ -158,12 +158,13 @@ import ArticleDimensionsForm, { ArticleDimension } from "./ArticleDimensionForm"
 import VehicleSelector from "../VehicleSelector";
 import { VehicleType } from "../../services/vehicle-validation.service";
 import { CommandeMetier } from "../../types/business.types";
+import { ru } from "date-fns/locale";
 
 export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange, isEditing = true }) => {
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
-    
+
     const deliveryInfo = useMemo(() => {
         const baseInfo = {
             floor: data.client?.adresse?.etage || "0",
@@ -172,7 +173,9 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             stairCount: 0,
             parkingDistance: 0,
             needsAssembly: false,
-            canBeTilted: false
+            canBeTilted: false,
+            rueInaccessible: false,
+            paletteComplete: false,
         };
 
         if (data.livraison?.details) {
@@ -276,7 +279,9 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             stairCount: 0,
             parkingDistance: 0,
             needsAssembly: false,
-            canBeTilted: false
+            canBeTilted: false,
+            rueInaccessible: false,
+            paletteComplete: false
         };
 
         if (data.livraison?.details) {
@@ -566,58 +571,120 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             {/* Questions supplémentaires pour la livraison */}
             {!isEditing && (
                 <div className="bg-white rounded-lg shadow p-4 mb-6">
-                    <h4 className="text-lg font-medium mb-3">Informations supplémentaires de livraison</h4>
+                    <h4 className="text-lg font-medium mb-3">Conditions spéciales de livraison</h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Ces informations nous aident à déterminer le nombre d'équipiers nécessaires et à calculer un tarif précis.
+                    </p>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
+                        {/* Rue inaccessible */}
+                        <div className="col-span-2">
                             <label className="flex items-center text-sm mb-1">
+                                <input
+                                    type="checkbox"
+                                    checked={deliveryInfo.rueInaccessible || false}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        handleDeliveryInfoChange('rueInaccessible', e.target.checked);
+                                    }}
+                                    className="mr-2 h-4 w-4"
+                                />
+                                <span className="font-medium">Rue inaccessible pour véhicule 4 roues</span>
+                            </label>
+                            <p className="text-xs text-gray-500 ml-6">
+                                Le véhicule ne peut pas accéder directement devant l'adresse (rue piétonne, passage étroit, etc.)
+                            </p>
+                        </div>
+
+                        {/* Palette complète */}
+                        <div className="col-span-2">
+                            <label className="flex items-center text-sm mb-1">
+                                <input
+                                    type="checkbox"
+                                    checked={deliveryInfo.paletteComplete || false}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        handleDeliveryInfoChange('paletteComplete', e.target.checked);
+                                    }}
+                                    className="mr-2 h-4 w-4"
+                                />
+                                <span className="font-medium">Palette complète à dépalettiser et décharger</span>
+                            </label>
+                            <p className="text-xs text-gray-500 ml-6">
+                                Nécessite déchargement complet d'une palette et manutention article par article
+                            </p>
+                        </div>
+
+                        {/* Distance de portage */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Distance de portage (mètres)
+                            </label>
+                            <input
+                                type="number"
+                                value={deliveryInfo.parkingDistance || 0}
+                                onChange={(e) => {
+                                    setHasUserInteracted(true);
+                                    handleDeliveryInfoChange('parkingDistance', parseInt(e.target.value) || 0);
+                                }}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                min="0"
+                                placeholder="0"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Distance entre le stationnement du véhicule et l'entrée du bâtiment
+                            </p>
+                            {deliveryInfo.parkingDistance > 50 && (
+                                <p className="text-xs text-orange-600 mt-1">
+                                    ⚠️ Distance importante - équipiers supplémentaires recommandés
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Escaliers */}
+                        <div>
+                            <label className="flex items-center text-sm mb-2">
                                 <input
                                     type="checkbox"
                                     checked={deliveryInfo.hasStairs}
                                     onChange={(e) => {
                                         setHasUserInteracted(true);
-                                        handleDeliveryInfoChange('hasStairs', e.target.checked)
+                                        handleDeliveryInfoChange('hasStairs', e.target.checked);
                                     }}
                                     className="mr-2 h-4 w-4"
                                 />
-                                Y a-t-il des marches ou escaliers avant l'ascenseur ?
+                                Y a-t-il des marches ou escaliers ?
                             </label>
 
                             {deliveryInfo.hasStairs && (
-                                <div className="ml-6 mt-2">
+                                <div className="ml-6">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Nombre de marches
+                                        Nombre total de marches
                                     </label>
                                     <input
                                         type="number"
-                                        value={deliveryInfo.stairCount}
+                                        value={deliveryInfo.stairCount || 0}
                                         onChange={(e) => {
                                             setHasUserInteracted(true);
-                                            handleDeliveryInfoChange('stairCount', parseInt(e.target.value))
+                                            handleDeliveryInfoChange('stairCount', parseInt(e.target.value) || 0);
                                         }}
                                         className="w-full border border-gray-300 rounded-md px-3 py-2"
                                         min="0"
+                                        placeholder="0"
                                     />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Incluant tous les escaliers jusqu'au point de livraison
+                                    </p>
+                                    {deliveryInfo.stairCount > 20 && (
+                                        <p className="text-xs text-orange-600 mt-1">
+                                            ⚠️ Nombreuses marches - 2+ équipiers recommandés
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Distance de stationnement à l'entrée (mètres)
-                            </label>
-                            <input
-                                type="number"
-                                value={deliveryInfo.parkingDistance}
-                                onChange={(e) => {
-                                    setHasUserInteracted(true);
-                                    handleDeliveryInfoChange('parkingDistance', parseInt(e.target.value))
-                                }}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                min="0"
-                            />
-                        </div>
-
+                        {/* Montage nécessaire */}
                         <div>
                             <label className="flex items-center text-sm mb-1">
                                 <input
@@ -625,14 +692,65 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                                     checked={deliveryInfo.needsAssembly}
                                     onChange={(e) => {
                                         setHasUserInteracted(true);
-                                        handleDeliveryInfoChange('needsAssembly', e.target.checked)
+                                        handleDeliveryInfoChange('needsAssembly', e.target.checked);
                                     }}
                                     className="mr-2 h-4 w-4"
                                 />
-                                Nécessite un montage ou une installation ?
+                                <span className="font-medium">Montage ou installation nécessaire</span>
                             </label>
+                            <p className="text-xs text-gray-500 ml-6">
+                                Assemblage de meubles, installation d'arbres, plantes, d'équipements, etc.
+                            </p>
                         </div>
+
+                        {/* Articles pouvant être couchés */}
+                        {/* <div>
+                            <label className="flex items-center text-sm mb-1">
+                                <input
+                                    type="checkbox"
+                                    checked={deliveryInfo.canBeTilted || false}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        handleDeliveryInfoChange('canBeTilted', e.target.checked);
+                                    }}
+                                    className="mr-2 h-4 w-4"
+                                />
+                                <span className="font-medium">Les articles peuvent être couchés/inclinés</span>
+                            </label>
+                            <p className="text-xs text-gray-500 ml-6">
+                                Permet d'optimiser le choix du véhicule pour les articles longs
+                            </p>
+                        </div> */}
                     </div>
+
+                    {/* Résumé automatique des conditions détectées */}
+                    {hasUserInteracted && (
+                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                            <h5 className="text-sm font-medium text-blue-800 mb-2">Conditions de livraison détectées :</h5>
+                            <ul className="text-xs text-blue-700 space-y-1">
+                                {deliveryInfo.rueInaccessible && (
+                                    <li>• Rue inaccessible - portage nécessaire</li>
+                                )}
+                                {deliveryInfo.paletteComplete && (
+                                    <li>• Palette complète à dépalettiser</li>
+                                )}
+                                {deliveryInfo.parkingDistance > 50 && (
+                                    <li>• Distance de portage importante ({deliveryInfo.parkingDistance}m)</li>
+                                )}
+                                {deliveryInfo.hasStairs && deliveryInfo.stairCount > 10 && (
+                                    <li>• Nombreuses marches ({deliveryInfo.stairCount})</li>
+                                )}
+                                {deliveryInfo.needsAssembly && (
+                                    <li>• Montage ou installation requis</li>
+                                )}
+                                {(!deliveryInfo.rueInaccessible && !deliveryInfo.paletteComplete &&
+                                    deliveryInfo.parkingDistance <= 50 && deliveryInfo.stairCount <= 10 &&
+                                    !deliveryInfo.needsAssembly) && (
+                                        <li>• Conditions de livraison standard</li>
+                                    )}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             )}
 

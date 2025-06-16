@@ -466,14 +466,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         stairCount: 0,
         parkingDistance: 0,
         needsAssembly: false,
-        canBeTilted: false
+        canBeTilted: false,
+        rueInaccessible: false,
+        paletteComplete: false
     });
 
     // Référence pour suivre si nous avons déjà tenté de récupérer l'adresse
     const adressMagasinRecuperee = useRef(false);
-
     const { user } = useAuth();
-
     const navigate = useNavigate();
 
     // IMPORTANT: Stocker l'adresse du magasin dans un état local pour éviter qu'elle ne soit écrasée
@@ -515,7 +515,9 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         stairCount: livDetails.stairCount || 0,
                         parkingDistance: livDetails.parkingDistance || 0,
                         needsAssembly: livDetails.needsAssembly || false,
-                        canBeTilted: livDetails.canBeTilted || false
+                        canBeTilted: livDetails.canBeTilted || false,
+                        rueInaccessible: livDetails.rueInaccessible || false,
+                        paletteComplete: livDetails.paletteComplete || false
                     };
                     setDeliveryInfo(currentDeliveryInfo);
                 }
@@ -549,7 +551,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         setRecommendedCrew(crew);
 
         // Vérifier si des équipiers supplémentaires sont nécessaires
-        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) > 30);
+        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) >= 30);
         const totalItemCount = articleDimensions.length;
         const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
 
@@ -866,44 +868,177 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     };
 
     // ========== VALIDATION DES ÉQUIPIERS ==========
-    const isCrewSizeRestricted = (crewSize: number): boolean => {
-        if (!hasDimensionsData) return false;
+    // ========== VALIDATION COMPLÈTE DES ÉQUIPIERS SELON CRITÈRES MYTRUCK ==========
+    const validateCrewSize = (crewSize: number): { isRestricted: boolean, reasons: string[] } => {
+        const reasons: string[] = [];
+
+        if (!hasDimensionsData) {
+            return { isRestricted: false, reasons: [] };
+        }
 
         const articleDimensions = data.articles?.dimensions || [];
-        const totalWeight = articleDimensions.reduce((sum, article) => sum + (article.poids || 0), 0);
-        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) > 30);
-
-        // Cas où 0 équipier est insuffisant
-        if (crewSize === 0) {
-            // Articles très lourds (>30kg individuellement)
-            if (hasHeavyItems) return true;
-
-            // Poids total important (>100kg)
-            if (totalWeight > 100) return true;
-
-            // Conditions de livraison difficiles
-            if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator) return true;
-            if (deliveryInfo.parkingDistance && deliveryInfo.parkingDistance > 50) return true;
-            if (deliveryInfo.needsAssembly) return true;
-
-            // Étage élevé sans ascenseur
-            const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
-            if (floor > 2 && !deliveryInfo.hasElevator) return true;
+        if (articleDimensions.length === 0) {
+            return { isRestricted: false, reasons: [] };
         }
 
-        // Cas où 1-2 équipiers sont insuffisants pour très gros poids
-        if (totalWeight > 300 && crewSize < 3) {
-            return crewSize < 2; // 0-1 équipier restreint, 2 équipiers en warning
+        // 1. Vérifier si au moins un article pèse 30kg ou plus individuellement
+        const hasHeavyIndividualItems = articleDimensions.some(article => (article.poids || 0) >= 30);
+        if (hasHeavyIndividualItems && crewSize === 0) {
+            const heavyItems = articleDimensions.filter(article => (article.poids || 0) >= 30);
+            reasons.push(`Articles lourds individuellement : ${heavyItems.map(item => `${item.nom} (${item.poids}kg)`).join(', ')}`);
         }
 
-        return false;
+        // 2. Calculer le poids total
+        const totalWeight = articleDimensions.reduce((sum, article) =>
+            sum + ((article.poids || 0) * (article.quantite || 1)), 0
+        );
+
+        // 3. Vérifier les conditions de poids selon la présence d'ascenseur
+        const hasElevator = data.client?.adresse?.ascenseur || deliveryInfo?.hasElevator || false;
+
+        if (hasElevator) {
+            // Avec ascenseur : 300kg ou plus nécessite équipiers
+            if (totalWeight >= 300 && crewSize === 0) {
+                reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg avec ascenseur (≥300kg requis)`);
+            }
+        } else {
+            // Sans ascenseur : 200kg ou plus nécessite équipiers
+            if (totalWeight >= 200 && crewSize === 0) {
+                reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg sans ascenseur (≥200kg requis)`);
+            }
+        }
+
+        // 4. Vérifier le nombre de produits (plus de 20)
+        const totalItems = articleDimensions.reduce((sum, article) =>
+            sum + (article.quantite || 1), 0
+        );
+        if (totalItems > 20 && crewSize === 0) {
+            reasons.push(`Plus de 20 produits (${totalItems} articles au total)`);
+        }
+
+        // 5. Vérifier l'accessibilité de la rue
+        if (deliveryInfo?.rueInaccessible && crewSize === 0) {
+            reasons.push("Rue inaccessible pour véhicule 4 roues - portage nécessaire");
+        }
+
+        // 6. Vérifier s'il s'agit d'une palette complète
+        if (deliveryInfo?.paletteComplete && crewSize === 0) {
+            reasons.push("Palette complète à dépalettiser et décharger");
+        }
+
+        // 7. Conditions additionnelles existantes
+        const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
+        if (floor > 2 && !hasElevator && crewSize === 0) {
+            reasons.push(`Livraison au ${floor}ème étage sans ascenseur`);
+        }
+
+        if (deliveryInfo?.hasStairs && deliveryInfo?.stairCount > 10 && crewSize === 0) {
+            reasons.push(`Nombreuses marches (${deliveryInfo.stairCount} marches)`);
+        }
+
+        if (deliveryInfo?.parkingDistance > 50 && crewSize === 0) {
+            reasons.push(`Distance de portage importante (${deliveryInfo.parkingDistance}m)`);
+        }
+
+        if (deliveryInfo?.needsAssembly && crewSize === 0) {
+            reasons.push("Montage ou installation nécessaire");
+        }
+
+        // Critères pour 2+ équipiers
+        if (crewSize < 2) {
+            if (totalWeight >= 500) {
+                reasons.push(`Très grosse charge (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
+            }
+            if (totalWeight >= 400 && !hasElevator) {
+                reasons.push(`Grosse charge sans ascenseur (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
+            }
+            if (totalItems > 50) {
+                reasons.push(`Très nombreux articles (${totalItems}) - 2+ équipiers recommandés`);
+            }
+        }
+
+        // Critères pour 3+ équipiers
+        if (crewSize < 3) {
+            if (totalWeight >= 800) {
+                reasons.push(`Charge exceptionnelle (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
+            }
+            if (totalWeight >= 600 && !hasElevator) {
+                reasons.push(`Charge très lourde sans ascenseur (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
+            }
+        }
+
+        return {
+            isRestricted: reasons.length > 0,
+            reasons: reasons
+        };
+    };
+
+    const isCrewSizeRestricted = (crewSize: number): boolean => {
+        const validation = validateCrewSize(crewSize);
+        return validation.isRestricted;
+    };
+
+    const getCrewValidationReasons = (crewSize: number): string[] => {
+        const validation = validateCrewSize(crewSize);
+        return validation.reasons;
+    };
+
+    const calculateRecommendedCrewSize = (): number => {
+        if (!hasDimensionsData) return 0;
+
+        const articleDimensions = data.articles?.dimensions || [];
+        if (articleDimensions.length === 0) return 0;
+
+        const totalWeight = articleDimensions.reduce((sum, article) =>
+            sum + ((article.poids || 0) * (article.quantite || 1)), 0
+        );
+        const totalItems = articleDimensions.reduce((sum, article) =>
+            sum + (article.quantite || 1), 0
+        );
+        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) >= 30);
+        const hasElevator = data.client?.adresse?.ascenseur || deliveryInfo?.hasElevator || false;
+        const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
+
+        let recommendedCrew = 0;
+
+        // Critères pour 1 équipier minimum
+        if (hasHeavyItems ||
+            (hasElevator && totalWeight >= 300) ||
+            (!hasElevator && totalWeight >= 200) ||
+            totalItems > 20 ||
+            deliveryInfo?.rueInaccessible ||
+            deliveryInfo?.paletteComplete ||
+            (floor > 2 && !hasElevator) ||
+            deliveryInfo?.needsAssembly) {
+            recommendedCrew = 1;
+        }
+
+        // Critères pour 2 équipiers
+        if (totalWeight >= 500 ||
+            (totalWeight >= 400 && !hasElevator) ||
+            totalItems > 50 ||
+            (hasHeavyItems && floor > 3) ||
+            deliveryInfo?.stairCount > 20) {
+            recommendedCrew = 2;
+        }
+
+        // Critères pour 3+ équipiers
+        if (totalWeight >= 800 ||
+            totalItems > 100 ||
+            (totalWeight >= 600 && !hasElevator)) {
+            recommendedCrew = 3;
+        }
+
+        return recommendedCrew;
     };
 
     const getCrewSizeStatus = (crewSize: number): 'recommended' | 'compatible' | 'restricted' => {
         if (!hasDimensionsData) return 'compatible';
 
-        if (crewSize === recommendedCrew) return 'recommended';
+        const recommended = calculateRecommendedCrewSize();
+
         if (isCrewSizeRestricted(crewSize)) return 'restricted';
+        if (crewSize === recommended) return 'recommended';
         return 'compatible';
     };
 
@@ -1115,9 +1250,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
                     {/* Message d'erreur si choix insuffisant */}
                     {hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0) && (
-                        <p className="text-sm text-red-600 mt-1">
-                            ⚠️ Ce nombre d'équipiers est insuffisant selon les critères de vos articles et de livraison.
-                        </p>
+                        <div className="text-sm text-red-600 mt-1">
+                            <p className="font-medium">⚠️ Ce nombre d'équipiers est insuffisant :</p>
+                            <ul className="list-disc pl-5 mt-1">
+                                {getCrewValidationReasons(data.livraison?.equipiers || 0).map((reason, index) => (
+                                    <li key={index}>{reason}</li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                 </div>
 
@@ -1132,6 +1272,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         onChange={(e) => onChange(e as any)}
                         className={`mt-1 block w-full rounded-md border 'border-gray-300'}`}
                         rows={4}
+                        placeholder="Informations complémentaires sur la livraison..."
                     />
                 </div>
             </div>

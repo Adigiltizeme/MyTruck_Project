@@ -6,6 +6,7 @@ interface ArticleDimensions {
   largeur?: number;
   hauteur?: number;
   poids?: number;
+  quantite?: number;
 }
 
 interface VehicleSelectorProps {
@@ -24,6 +25,8 @@ interface VehicleSelectorProps {
     needsAssembly?: boolean;
     details?: string;
     canBeTilted?: boolean;
+    rueInaccessible?: boolean;
+    paletteComplete?: boolean;
   };
 }
 
@@ -62,6 +65,151 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
   }), []);
 
+  const validateCrewSize = useCallback((crewSize: number): { isRestricted: boolean, reasons: string[] } => {
+    const reasons: string[] = [];
+
+    if (!articles || articles.length === 0) {
+      return { isRestricted: false, reasons: [] };
+    }
+
+    // 1. Vérifier si au moins un article pèse 30kg ou plus individuellement
+    const hasHeavyIndividualItems = articles.some(article => (article.poids || 0) >= 30);
+    if (hasHeavyIndividualItems && crewSize === 0) {
+      const heavyItems = articles.filter(article => (article.poids || 0) >= 30);
+      reasons.push(`Articles lourds individuellement détectés`);
+    }
+
+    // 2. Calculer le poids total en tenant compte des quantités
+    const totalWeight = articles.reduce((sum, article) =>
+      sum + ((article.poids || 0) * (article.quantite || 1)), 0
+    );
+
+    // 3. Vérifier les conditions de poids selon la présence d'ascenseur
+    const hasElevator = deliveryInfo?.hasElevator || false;
+
+    if (hasElevator) {
+      // Avec ascenseur : 300kg ou plus nécessite équipiers
+      if (totalWeight >= 300 && crewSize === 0) {
+        reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg avec ascenseur (≥300kg requis)`);
+      }
+    } else {
+      // Sans ascenseur : 200kg ou plus nécessite équipiers
+      if (totalWeight >= 200 && crewSize === 0) {
+        reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg sans ascenseur (≥200kg requis)`);
+      }
+    }
+
+    // 4. Vérifier le nombre de produits (plus de 20)
+    const totalItems = articles.reduce((sum, article) =>
+      sum + (article.quantite || 1), 0
+    );
+    if (totalItems > 20 && crewSize === 0) {
+      reasons.push(`Plus de 20 produits (${totalItems} articles au total)`);
+    }
+
+    // 5. Vérifier l'accessibilité de la rue
+    if (deliveryInfo?.rueInaccessible && crewSize === 0) {
+      reasons.push("Rue inaccessible pour véhicule 4 roues");
+    }
+
+    // 6. Vérifier s'il s'agit d'une palette complète
+    if (deliveryInfo?.paletteComplete && crewSize === 0) {
+      reasons.push("Palette complète à dépalettiser");
+    }
+
+    // 7. Conditions additionnelles
+    const floor = deliveryInfo?.floor ? parseInt(deliveryInfo.floor.toString()) : 0;
+    if (floor > 2 && !hasElevator && crewSize === 0) {
+      reasons.push(`Livraison au ${floor}ème étage sans ascenseur`);
+    }
+
+    if (deliveryInfo?.hasStairs && (deliveryInfo?.stairCount || 0) > 10 && crewSize === 0) {
+      reasons.push(`Nombreuses marches (${deliveryInfo?.stairCount || 0} marches)`);
+    }
+
+    if ((deliveryInfo?.parkingDistance || 0) > 50 && crewSize === 0) {
+      reasons.push(`Distance de portage importante (${deliveryInfo?.parkingDistance || 0}m)`);
+    }
+
+    if (deliveryInfo?.needsAssembly && crewSize === 0) {
+      reasons.push("Montage ou installation nécessaire");
+    }
+
+    // Critères pour 2+ équipiers
+    if (crewSize < 2) {
+      if (totalWeight >= 500) {
+        reasons.push(`Très grosse charge (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
+      }
+      if (totalWeight >= 400 && !hasElevator) {
+        reasons.push(`Grosse charge sans ascenseur (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
+      }
+      if (totalItems > 50) {
+        reasons.push(`Très nombreux articles (${totalItems}) - 2+ équipiers recommandés`);
+      }
+    }
+
+    // Critères pour 3+ équipiers
+    if (crewSize < 3) {
+      if (totalWeight >= 800) {
+        reasons.push(`Charge exceptionnelle (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
+      }
+      if (totalWeight >= 600 && !hasElevator) {
+        reasons.push(`Charge très lourde sans ascenseur (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
+      }
+    }
+
+    return {
+      isRestricted: reasons.length > 0,
+      reasons: reasons
+    };
+  }, [articles, deliveryInfo]);
+
+  const calculateRecommendedCrewSize = useCallback((): number => {
+    if (!articles || articles.length === 0) return 0;
+
+    const totalWeight = articles.reduce((sum, article) =>
+      sum + ((article.poids || 0) * (article.quantite || 1)), 0
+    );
+    const totalItems = articles.reduce((sum, article) =>
+      sum + (article.quantite || 1), 0
+    );
+    const hasHeavyItems = articles.some(article => (article.poids || 0) >= 30);
+    const hasElevator = deliveryInfo?.hasElevator || false;
+    const floor = deliveryInfo?.floor ? parseInt(deliveryInfo.floor.toString()) : 0;
+
+    let recommendedCrew = 0;
+
+    // Critères pour 1 équipier minimum
+    if (hasHeavyItems ||
+      (hasElevator && totalWeight >= 300) ||
+      (!hasElevator && totalWeight >= 200) ||
+      totalItems > 20 ||
+      deliveryInfo?.rueInaccessible ||
+      deliveryInfo?.paletteComplete ||
+      (floor > 2 && !hasElevator) ||
+      deliveryInfo?.needsAssembly) {
+      recommendedCrew = 1;
+    }
+
+    // Critères pour 2 équipiers
+    if (totalWeight >= 500 ||
+      (totalWeight >= 400 && !hasElevator) ||
+      totalItems > 50 ||
+      (hasHeavyItems && floor > 3) ||
+      (deliveryInfo?.stairCount ?? 0) > 20) {
+      recommendedCrew = 2;
+    }
+
+    // Critères pour 3+ équipiers
+    if (totalWeight >= 800 ||
+      totalItems > 100 ||
+      (totalWeight >= 600 && !hasElevator)) {
+      recommendedCrew = 3;
+    }
+
+    return recommendedCrew;
+  }, [articles, deliveryInfo]);
+
   // Calcul des recommandations et restrictions lors des changements d'articles ou des options de livraison
   useEffect(() => {
     // Vérifier s'il y a des données significatives
@@ -79,10 +227,12 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       setRecommendedVehicle(null);
       setRecommendedCrew(0);
       setShowTiltQuestion(false);
+      setRestrictedCrewSizes([]);
+      setCrewWarnings([]);
       return;
     }
 
-    // Logique de validation (identique à avant mais sans boucle)
+    // Logique de validation véhicules
     const hasLongItems = articles.some(article => {
       const maxDimension = Math.max(
         article.longueur || 0,
@@ -110,10 +260,27 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     const recommended = VehicleValidationService.recommendVehicle(articles, canBeTilted);
     setRecommendedVehicle(recommended);
 
-    const crew = VehicleValidationService.getRecommendedCrewSize(articles);
-    setRecommendedCrew(crew);
+    // ========== NOUVELLE LOGIQUE ÉQUIPIERS ==========
+    const newRecommendedCrew = calculateRecommendedCrewSize();
+    setRecommendedCrew(newRecommendedCrew);
 
-    // Validation et avertissements
+    // Déterminer les restrictions d'équipiers
+    const restrictedCrew: number[] = [];
+    const crewWarn: string[] = [];
+
+    // Analyser chaque option d'équipiers (0, 1, 2, 3+)
+    for (let crew = 0; crew <= 3; crew++) {
+      const validation = validateCrewSize(crew);
+      if (validation.isRestricted) {
+        restrictedCrew.push(crew);
+        crewWarn.push(...validation.reasons);
+      }
+    }
+
+    setRestrictedCrewSizes([...new Set(restrictedCrew)]);
+    setCrewWarnings([...new Set(crewWarn)]);
+
+    // Validation et avertissements véhicules
     const newValidationErrors: string[] = [];
     const newWarnings: string[] = [];
 
@@ -129,79 +296,47 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       );
     }
 
-    // ========== VALIDATION DES ÉQUIPIERS ==========
-    // Calculer les critères pour les équipiers supplémentaires
+    // Avertissements généraux
     const hasHeavyItems = articles.some(article => (article.poids || 0) >= 30);
-    const totalItemCount = articles.length;
-    const totalWeight = articles.reduce((sum, article) => sum + (article.poids || 0), 0);
-
-    // Déterminer les restrictions d'équipiers
-    const restrictedCrew: number[] = [];
-    const crewWarn: string[] = [];
-
-    // Analyser chaque option d'équipiers (0, 1, 2, 3+)
-    for (let crew = 0; crew <= 3; crew++) {
-      // Vérifier si ce nombre d'équipiers est insuffisant
-      if (totalWeight >= 300 && crew < 3) {
-        if (crew < 2) {
-          restrictedCrew.push(crew);
-        } else {
-          crewWarn.push(`${crew} équipier${crew > 1 ? 's' : ''} pourrait être insuffisant pour ce poids total (${totalWeight.toFixed(1)}kg)`);
-        }
-      }
-      
-      // Vérifier les conditions de livraison
-      if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && crew === 0) {
-        restrictedCrew.push(crew);
-      }
-    }
-
-    setRestrictedCrewSizes([...new Set(restrictedCrew)]); // Éliminer les doublons
-    setCrewWarnings([...new Set(crewWarn)]); // Éliminer les doublons
-
-    // Avertissements équipiers
-    // Vérifier si des équipiers supplémentaires sont nécessaires en fonction des critères de livraison
-    const needsAdditionalCrew = VehicleValidationService.needsAdditionalCrew({
-      hasElevator: deliveryInfo.hasElevator || false,
-      hasStairs: deliveryInfo.hasStairs || false,
-      stairCount: deliveryInfo.stairCount,
-      floor: deliveryInfo.floor || 0,
-      heavyItems: hasHeavyItems,
-      totalItemCount,
-      parkingDistance: deliveryInfo.parkingDistance,
-      needsAssembly: deliveryInfo.needsAssembly
-    });
-
-    if (needsAdditionalCrew && crew < 1) {
-      newWarnings.push('📦 Les conditions de livraison suggèrent l\'ajout d\'un équipier.');
-    }
+    const totalWeight = articles.reduce((sum, article) =>
+      sum + ((article.poids || 0) * (article.quantite || 1)), 0
+    );
 
     if (hasHeavyItems) {
-      newWarnings.push('💪 Certains articles sont lourds (>30kg). Un équipier supplémentaire est recommandé.');
+      newWarnings.push('💪 Certains articles sont lourds (≥30kg). Un équipier supplémentaire est recommandé.');
     }
 
-    if (deliveryInfo.hasStairs && !deliveryInfo.hasElevator && hasHeavyItems && crew < 1) {
+    if (deliveryInfo?.hasStairs && !deliveryInfo?.hasElevator && newRecommendedCrew < 1) {
       newWarnings.push('🚶 Livraison avec escaliers sans ascenseur. Un équipier est recommandé.');
+    }
+
+    if (totalWeight >= 300 && deliveryInfo?.hasElevator) {
+      newWarnings.push('📦 Charge importante avec ascenseur. Un équipier est recommandé.');
+    }
+
+    if (totalWeight >= 200 && !deliveryInfo?.hasElevator) {
+      newWarnings.push('📦 Charge importante sans ascenseur. Un équipier est recommandé.');
     }
 
     setValidationErrors(newValidationErrors);
     setWarnings(newWarnings);
 
   }, [
-    // Dépendances stables uniquement
-    JSON.stringify(articles), // Utiliser JSON.stringify pour comparaison stable
+    JSON.stringify(articles),
     canBeTilted,
     selectedVehicleShort,
     availableVehicles,
-    // Supprimer deliveryInfo direct pour éviter la boucle
-    deliveryInfo.hasElevator,
-    deliveryInfo.hasStairs,
-    deliveryInfo.stairCount,
-    deliveryInfo.floor,
-    deliveryInfo.parkingDistance,
-    deliveryInfo.needsAssembly
+    deliveryInfo?.hasElevator,
+    deliveryInfo?.hasStairs,
+    deliveryInfo?.stairCount,
+    deliveryInfo?.floor,
+    deliveryInfo?.parkingDistance,
+    deliveryInfo?.needsAssembly,
+    deliveryInfo?.rueInaccessible,
+    deliveryInfo?.paletteComplete,
+    calculateRecommendedCrewSize,
+    validateCrewSize
   ]);
-
 
   // Fonction de conversion améliorée
   const getDisplayFormat = useCallback((shortFormat: VehicleType | null): string => {
@@ -272,7 +407,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
   // Pour deliveryInfo avec comparaison JSON
   useEffect(() => {
-    const deliveryInfoStr = JSON.stringify(deliveryInfo);
 
     try {
       let canBeTiltedValue = false;
@@ -302,15 +436,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     onVehicleSelect(shortFormat || '');
   }, [getShortFormat, onVehicleSelect]);
 
-  useEffect(() => {
-    console.log("📊 [VEHICLE] État actuel:", {
-      selectedVehicleShort,
-      selectedVehicleLong,
-      crewSize,
-      canBeTilted
-    });
-  }, [selectedVehicleShort, selectedVehicleLong, crewSize, canBeTilted]);
-
   const handleCrewChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const value = parseInt(event.target.value);
     setCrewSize(value);
@@ -326,9 +451,39 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     }
   }, [onDeliveryDetailsChange, deliveryInfo]);
 
-  // ========== FONCTIONS DE VALIDATION DES ÉQUIPIERS ==========
+  // ========== MISE À JOUR DES VALIDATIONS DES ÉQUIPIERS ==========
+  useEffect(() => {
+    if (!articles || articles.length === 0) return;
+
+    // Recalculer les équipiers recommandés avec la nouvelle logique
+    const newRecommendedCrew = calculateRecommendedCrewSize();
+    setRecommendedCrew(newRecommendedCrew);
+
+    // Déterminer les restrictions d'équipiers avec la nouvelle logique
+    const restrictedCrew: number[] = [];
+    const crewWarn: string[] = [];
+
+    // Analyser chaque option d'équipiers (0, 1, 2, 3+)
+    for (let crew = 0; crew <= 3; crew++) {
+      const validation = validateCrewSize(crew);
+      if (validation.isRestricted) {
+        restrictedCrew.push(crew);
+        crewWarn.push(...validation.reasons);
+      }
+    }
+
+    setRestrictedCrewSizes([...new Set(restrictedCrew)]);
+    setCrewWarnings([...new Set(crewWarn)]);
+
+  }, [articles, deliveryInfo]);
+
+  // ========== FONCTIONS DE VALIDATION DES ÉQUIPIERS MISES À JOUR ==========
+  // const isCrewSizeRestricted = (crew: number): boolean => {
+  //   return restrictedCrewSizes.includes(crew);
+  // };
   const isCrewSizeRestricted = (crew: number): boolean => {
-    return restrictedCrewSizes.includes(crew);
+    const validation = validateCrewSize(crew);
+    return validation.isRestricted;
   };
 
   const getCrewSizeStatus = (crew: number): 'recommended' | 'compatible' | 'restricted' => {
@@ -354,6 +509,20 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     return baseLabel;
   };
+
+  const getCrewValidationReasons = (crew: number): string[] => {
+    const validation = validateCrewSize(crew);
+    return validation.reasons;
+  };
+
+  useEffect(() => {
+    console.log("📊 [VEHICLE] État actuel:", {
+      selectedVehicleShort,
+      selectedVehicleLong,
+      crewSize,
+      canBeTilted
+    });
+  }, [selectedVehicleShort, selectedVehicleLong, crewSize, canBeTilted]);
 
   return (
     <div className="space-y-4">
@@ -383,8 +552,11 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
                 <span>{warning}</span>
               </li>
             ))}
-            {crewWarnings.map((warning, index) => (
-              <li key={`crew-warning-${index}`}>{warning}</li>
+            {crewWarnings.slice(0, 3).map((warning, index) => (
+              <li key={`crew-warning-${index}`} className="flex items-start">
+                <span className="mr-2">👥</span>
+                <span>{warning}</span>
+              </li>
             ))}
           </ul>
         </div>
@@ -400,7 +572,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
               onChange={handleTiltChange}
               className="form-checkbox h-5 w-5 text-red-600"
             />
-            <span>Les articles peuvent-ils être couchés/inclinés pour le transport ?</span>
+            <span className='font-medium'>Les articles peuvent-ils être couchés/inclinés pour le transport ?</span>
           </label>
           <p className="text-sm text-gray-500 mt-1">
             (Cela permet d'utiliser un véhicule plus petit si la longueur de certains articles dépasse la hauteur du véhicule)
@@ -461,6 +633,11 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Équipiers supplémentaires
+            {/* {recommendedCrew > 0 && (
+              <span className="ml-2 text-sm font-normal text-green-600">
+                ✅ Recommandé: {recommendedCrew} équipier{recommendedCrew > 1 ? 's' : ''}
+              </span>
+            )} */}
           </label>
           <select
             value={crewSize}
@@ -505,9 +682,14 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
           )}
 
           {isCrewSizeRestricted(crewSize) && (
-            <p className="text-sm text-red-600 mt-1">
-              ⚠️ Ce nombre d'équipiers est insuffisant selon les critères de vos articles et de livraison.
-            </p>
+            <div className="text-sm text-red-600 mt-1">
+              <p className="font-medium">⚠️ Ce nombre d'équipiers est insuffisant :</p>
+              <ul className="list-disc pl-5 mt-1">
+                {getCrewValidationReasons(crewSize).map((reason, index) => (
+                  <li key={index}>{reason}</li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </div>

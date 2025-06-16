@@ -3,7 +3,7 @@ import { UserRole } from '../types/dashboard.types';
 import { SecureStorageService } from '../services/secureStorage';
 import { AuthService, AuthUser, SPECIAL_ACCOUNTS } from '../services/authService';
 import { NotificationService } from '../services/notificationService';
-
+import { authAdapter } from '../services/auth-adapter.service'; // AJOUT
 
 interface AuthContextType {
     user: AuthUser | null;
@@ -17,7 +17,7 @@ interface AuthContextType {
         driverId?: string
     }) => void;
     refreshToken: () => Promise<void>;
-    resetActivityTimer: () => void; // Add resetActivityTimer to the interface
+    resetActivityTimer: () => void;
     updateUserInfo: (userData: { name: string, email: string, phone?: string }) => Promise<void>;
     changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     refreshUserContext: () => Promise<void>;
@@ -26,11 +26,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // MODIFICATION: Utiliser l'adaptateur pour récupérer l'utilisateur
     const [user, setUser] = useState<AuthUser | null>(() => {
-        return AuthService.getCurrentUser() || null;
+        return authAdapter.getCurrentUser() || AuthService.getCurrentUser() || null;
     });
+
     const [loading, setLoading] = useState(true);
-    const [sessionTimeout] = useState(60 * 60 * 1000); // 60 minutes par défaut
+    const [sessionTimeout] = useState(60 * 60 * 1000);
     const userActivityTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastActivityTime = useRef<number>(Date.now());
 
@@ -42,7 +44,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         userActivityTimeout.current = setTimeout(() => {
-            // Vérifier si le délai d'inactivité est dépassé
             if (Date.now() - lastActivityTime.current >= sessionTimeout) {
                 console.log("Session expirée par inactivité");
                 logout();
@@ -51,23 +52,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, sessionTimeout);
     }, [sessionTimeout]);
 
-    // surveiller l'activité utilisateur
     useEffect(() => {
         if (!user) return;
 
-        // Événements qui réinitialisent le timer d'inactivité
         const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-
-        // Configurer les écouteurs d'événements
         const activityHandler = () => resetActivityTimer();
         events.forEach(event => {
             window.addEventListener(event, activityHandler);
         });
 
-        // Initialiser le timer
         resetActivityTimer();
 
-        // Nettoyer les écouteurs d'événements lors du démontage
         return () => {
             events.forEach(event => {
                 window.removeEventListener(event, activityHandler);
@@ -80,32 +75,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [user, resetActivityTimer]);
 
     useEffect(() => {
-        // Vérifier si l'utilisateur est déjà connecté
-        const currentUser = AuthService.getCurrentUser();
-        if (currentUser) {
-            setUser(currentUser);
-        }
-        setLoading(false);
+        // MODIFICATION: Vérifier l'utilisateur avec l'adaptateur d'abord
+        const checkCurrentUser = () => {
+            console.log('🔍 Vérification utilisateur au démarrage...');
+
+            // 1. Essayer avec l'adaptateur (backend + legacy)
+            const adapterUser = authAdapter.getCurrentUser();
+            if (adapterUser) {
+                console.log('✅ Utilisateur trouvé via adaptateur:', adapterUser.email);
+                setUser(adapterUser);
+                setLoading(false);
+                return;
+            }
+
+            // 2. Fallback vers le système existant
+            const currentUser = AuthService.getCurrentUser();
+            if (currentUser) {
+                console.log('✅ Utilisateur trouvé via AuthService:', currentUser.email);
+                setUser(currentUser);
+            } else {
+                console.log('❌ Aucun utilisateur connecté trouvé');
+            }
+
+            setLoading(false);
+        };
+
+        checkCurrentUser();
 
         // Configurer un intervalle pour rafraîchir le token
         const tokenRefreshInterval = setInterval(() => {
             if (user) {
                 refreshToken().catch(err => {
                     console.error('Erreur lors du rafraîchissement du token', err);
-                    // Si le rafraîchissement échoue, déconnexion
                     logout();
                 });
             }
-        }, 30 * 60 * 1000); // 30 minutes
+        }, 30 * 60 * 1000);
 
         return () => clearInterval(tokenRefreshInterval);
-    }, []);
+    }, []); // Dépendances vides pour ne s'exécuter qu'au montage
 
     const refreshToken = async () => {
         if (user) {
-            const refreshedUser = AuthService.refreshToken();
-            if (refreshedUser) {
-                setUser(refreshedUser);
+            try {
+                // MODIFICATION: Essayer d'abord avec l'adaptateur
+                const refreshedUser = authAdapter.refreshToken ?
+                    await authAdapter.refreshToken() :
+                    AuthService.refreshToken();
+
+                if (refreshedUser) {
+                    setUser(refreshedUser);
+                }
+            } catch (error) {
+                console.error('Erreur refresh token:', error);
+                logout();
             }
         }
     };
@@ -114,31 +137,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!user) return;
 
         try {
-            const refreshedUser = await AuthService.refreshUserContext(user.id);
+            // MODIFICATION: Utiliser l'adaptateur pour rafraîchir
+            const refreshedUser = authAdapter.refreshToken ?
+                await authAdapter.refreshToken() :
+                await AuthService.refreshUserContext(user.id);
 
             if (refreshedUser) {
                 setUser(refreshedUser);
             }
 
-            const currentUser = AuthService.getCurrentUser();
+            // Vérifier aussi le stockage direct
+            const currentUser = authAdapter.getCurrentUser() || AuthService.getCurrentUser();
             if (currentUser && currentUser.id === user.id) {
-              setUser(currentUser);
+                setUser(currentUser);
             }
-            
+
         } catch (error) {
             console.error('Erreur lors du rafraîchissement du contexte utilisateur:', error);
         }
     };
 
-    // Fonction pour changer de rôle
     const login = async (email: string, password: string) => {
         try {
             setLoading(true);
-            const authenticatedUser = await AuthService.login(email, password);
+            console.log('🔐 Tentative de connexion avec:', email);
+
+            // MODIFICATION: Utiliser l'adaptateur d'abord
+            let authenticatedUser: AuthUser;
+
+            try {
+                // Essayer avec l'adaptateur (backend API)
+                authenticatedUser = await authAdapter.login(email, password);
+                console.log('✅ Connexion réussie via backend API');
+            } catch (backendError) {
+                console.warn('❌ Échec connexion backend, tentative legacy:', backendError);
+                // Fallback vers le système legacy
+                authenticatedUser = await AuthService.login(email, password);
+                console.log('✅ Connexion réussie via système legacy');
+            }
+
             setUser(authenticatedUser);
             return authenticatedUser;
         } catch (error) {
-            console.error('Erreur de connexion:', error);
+            console.error('❌ Erreur de connexion:', error);
             throw error;
         } finally {
             setLoading(false);
@@ -146,8 +187,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = () => {
+        console.log('🚪 Déconnexion...');
+
+        // MODIFICATION: Nettoyer les deux systèmes
+        authAdapter.logout();
         AuthService.logout();
         setUser(null);
+
         // Rediriger vers la page de connexion
         window.location.href = '/login';
     };
@@ -193,7 +239,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role
         };
 
-        // Ajouter les options supplémentaires selon le rôle
         if (role === 'magasin' && options) {
             updatedUser.storeId = options.storeId || user.storeId;
             updatedUser.storeName = options.storeName || user.storeName;
@@ -202,16 +247,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updatedUser.driverId = options.driverId || user.driverId;
         }
 
-        // Mettre à jour le stockage sécurisé
         if (updatedUser.token) {
             SecureStorageService.setAuthData(updatedUser.token, updatedUser);
         }
 
-        // Mettre à jour l'état
         setUser(updatedUser);
 
-        // Forcer un rafraîchissement du contexte après un court délai
-        // pour permettre à la mise à jour du stockage de se terminer
         setTimeout(() => {
             refreshUserContext();
         }, 100);
@@ -221,7 +262,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!user) return;
 
         try {
-            // Mettre à jour l'utilisateur dans le service d'authentification
             const updatedUser = await AuthService.updateUserInfo(user.id, {
                 ...user,
                 name: userData.name,
@@ -230,7 +270,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
 
             if (updatedUser) {
-                // Mise à jour de l'état local
                 setUser({
                     ...user,
                     name: userData.name,
@@ -238,7 +277,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     storePhone: userData.phone
                 });
 
-                // Mise à jour du localStorage
                 SecureStorageService.updateAuthData({
                     ...user,
                     name: userData.name,
@@ -256,11 +294,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!user) return;
 
         try {
-            // Vérifier si l'utilisateur est un compte spécial
             const isSpecialAccount = SPECIAL_ACCOUNTS.includes(user.email.toLowerCase());
 
             if (!isSpecialAccount) {
-                // Vérifier le mot de passe actuel
                 const isCurrentPasswordValid = await AuthService.verifyPassword(currentPassword, user.passwordHash || '');
 
                 if (!isCurrentPasswordValid) {
@@ -268,26 +304,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
 
-            // Hacher le nouveau mot de passe
             const newPasswordHash = await AuthService.hashPassword(newPassword);
-
-            // Mettre à jour l'utilisateur dans le service d'authentification
             const updatedUser = await AuthService.updateUserPassword(user.id, newPasswordHash);
 
             if (updatedUser) {
-                // Mise à jour de l'état local
                 setUser({
                     ...user,
                     passwordHash: newPasswordHash
                 });
-
-                // Pas besoin de mettre à jour le passwordHash dans le localStorage pour des raisons de sécurité
             }
         } catch (error) {
             console.error('Erreur lors du changement de mot de passe:', error);
             throw error;
         }
     };
+
+    // AJOUT: Fonction de debug pour diagnostiquer les problèmes
+    const debugAuthState = () => {
+        console.log('=== DEBUG AUTH STATE ===');
+        console.log('User dans le contexte:', user);
+        console.log('Loading:', loading);
+        console.log('User via adaptateur:', authAdapter.getCurrentUser());
+        console.log('User via AuthService:', AuthService.getCurrentUser());
+        console.log('LocalStorage authToken:', localStorage.getItem('authToken'));
+        console.log('LocalStorage user:', localStorage.getItem('user'));
+        console.log('========================');
+    };
+
+    // AJOUT: Exposer la fonction de debug en développement
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        (window as any).debugAuthState = debugAuthState;
+    }
 
     return (
         <AuthContext.Provider value={{

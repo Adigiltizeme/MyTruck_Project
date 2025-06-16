@@ -12,6 +12,8 @@ import { handleStorageError } from '../utils/error-handler';
 import { DbMonitor } from '../utils/db-repair';
 import { SafeDbService } from './safe-db.service';
 import { OptimizedImageCache } from './optimized-image-cache.service';
+import { FilterOptions, MetricData } from '../types/metrics';
+import { MetricsCalculator } from './metrics.service';
 
 export class DataService {
     private airtableService: AirtableService;
@@ -1677,6 +1679,102 @@ export class DataService {
         } catch (error) {
             console.error('Erreur lors du nettoyage des transactions échouées:', error);
             return 0;
+        }
+    }
+
+    // async getMetrics(filters: FilterOptions): Promise<MetricData> {
+    //         const [commandes, personnel, magasins] = await Promise.all([
+    //             this.getCommandes(),
+    //             this.getPersonnel(),
+    //             this.getMagasins()
+    //         ]);
+    //         const calculateur = new MetricsCalculator({ dateRange: filters.dateRange });
+
+    //         const filteredCommandes = filters.store
+    //             ? commandes.filter(cmd => cmd.magasin?.name === filters.store)
+    //             : commandes;
+
+    //         const historique = calculateur.calculateHistorique(filteredCommandes);
+    //         const statutsDistribution = calculateur.calculateStatutsDistribution(filteredCommandes);
+
+    //         const chauffeursActifs = new Set(
+    //             filteredCommandes
+    //                 .filter(c => ['EN COURS DE LIVRAISON', 'CONFIRMEE', 'ENLEVEE']
+    //                     .includes(c.statuts.livraison))
+    //                 .flatMap(c => c.chauffeurs || [])
+    //         ).size;
+
+    //         return {
+    //             totalLivraisons: filteredCommandes.length,
+    //             enCours: filteredCommandes.filter(c => c.statuts.livraison === 'EN COURS DE LIVRAISON').length,
+    //             enAttente: filteredCommandes.filter(c => c.statuts.livraison === 'EN ATTENTE').length,
+    //             performance: statutsDistribution.termine,
+    //             chauffeursActifs,
+    //             chiffreAffaires: filteredCommandes.reduce((acc, c) => acc + (typeof c.financier?.tarifHT === 'number' ? c.financier?.tarifHT : 0), 0),
+    //             historique,
+    //             statutsDistribution,
+    //             commandes: filteredCommandes,
+    //             store: magasins.map((m: MagasinMap) => m.name || ''),
+    //             chauffeurs: personnel
+    //                 .filter((p: PersonnelMap) => p.role === 'Chauffeur')
+    //                 .map((c: PersonnelMap) => c.nom),
+    //         };
+    //     }
+
+    // implémenter la méthode getMetrics venant de airtaible.service.ts
+    public async getMetrics(filters: FilterOptions): Promise<MetricData> {
+        try {
+            // Récupérer les données nécessaires
+            const [commandes, personnel, magasins] = await Promise.all([
+                this.getCommandes(),
+                this.getPersonnel(),
+                this.getMagasins()
+            ]);
+
+            // Créer une instance du calculateur de métriques
+            const calculateur = new MetricsCalculator({ dateRange: filters.dateRange });
+
+            // Filtrer les commandes selon le magasin si nécessaire
+            const filteredCommandes = filters.store
+                ? commandes.filter(cmd => cmd.magasin?.name === filters.store)
+                : commandes;
+
+            // Calculer l'historique et la distribution des statuts
+            const historique = calculateur.calculateHistorique(filteredCommandes);
+            const statutsDistribution = calculateur.calculateStatutsDistribution(filteredCommandes);
+
+            // Compter les chauffeurs actifs
+            const chauffeursActifs = new Set(
+                filteredCommandes
+                    .filter(c => ['EN COURS DE LIVRAISON', 'CONFIRMEE', 'ENLEVEE']
+                        .includes(c.statuts.livraison))
+                    .flatMap(c => c.chauffeurs || [])
+            ).size;
+
+            // Retourner les métriques agrégées
+            return {
+                totalLivraisons: filteredCommandes.length,
+                enCours: filteredCommandes.filter(c => c.statuts.livraison === 'EN COURS DE LIVRAISON').length,
+                enAttente: filteredCommandes.filter(c => c.statuts.livraison === 'EN ATTENTE').length,
+                performance: statutsDistribution.termine,
+                chauffeursActifs,
+                chiffreAffaires: filteredCommandes.reduce((acc, c) => acc + (typeof c.financier?.tarifHT === 'number' ? c.financier?.tarifHT : 0), 0),
+                historique,
+                statutsDistribution,
+                commandes: filteredCommandes,
+                store: magasins.map(m => m.name || ''),
+                chauffeurs: personnel
+                    .filter(p => p.role === 'Chauffeur' && typeof p.email === 'string')
+                    .map(p => ({
+                        ...p,
+                        email: p.email as string,
+                        status: (p.status === 'Actif' || p.status === 'Inactif') ? p.status : 'Inactif'
+                    })),
+            };
+        } catch (error) {
+            console.error('Erreur lors de la récupération des métriques:', error);
+            DbMonitor.recordDbOperation(false, 'getMetrics', error instanceof Error ? error.message : String(error));
+            throw error;
         }
     }
 }
