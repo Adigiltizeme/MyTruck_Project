@@ -28,6 +28,7 @@ import DocumentsPage from './pages/documents/documents';
 import { DbRepair } from './utils/db-repair';
 import { useAuth } from './contexts/AuthContext';
 import { MigrationControl } from './components/MigrationControl';
+import TestAuth from './components/TestAuth';
 
 const App = () => {
 
@@ -191,6 +192,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
+            {/* <Route path="/login" element={<TestAuth />} /> */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup-success" element={<SignupSuccess />} />
             <Route path="/" element={<Navigate to="/home" replace />} />

@@ -63,7 +63,7 @@ export const SecureImage: React.FC<SecureImageProps> = ({
                     }
 
                     // Pas de blob en cache, utiliser placeholder
-                    setImgSrc('/public/placeholder-image.jpg');
+                    setImgSrc('/placeholder-image.jpg');
                     setError(true);
                     setLoading(false);
                 } else if (cloudinaryService.isAirtableUrl(src)) {
