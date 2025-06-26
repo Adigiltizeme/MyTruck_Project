@@ -5,6 +5,8 @@ import { DataService } from './data.service';
 import { ApiService } from './api.service';
 import { SafeDbService } from './safe-db.service';
 import { v4 as uuidv4 } from 'uuid';
+import { AuthService } from './authService';
+import { DbMonitor } from '../utils/db-repair';
 
 export enum DataSource {
     AIRTABLE = 'airtable',
@@ -21,26 +23,68 @@ export class DataServiceAdapter {
     constructor(airtableToken: string, dataSource: DataSource = DataSource.AUTO) {
         this.dataService = new DataService(airtableToken);
         this.apiService = new ApiService();
-        this.dataSource = dataSource;
+        this.dataSource = DataSource.BACKEND_API;
+        this.isApiAvailable = false;
 
-        this.initializeDataSource();
+        console.log('🚀 DataServiceAdapter: Backend API par DÉFAUT');
+
+        // Initialisation immédiate et synchrone
+        this.initializeDataSourceImmediate();
+
     }
 
-    private async initializeDataSource() {
-        if (this.dataSource === DataSource.AUTO) {
-            // Vérifier la disponibilité de l'API
-            this.isApiAvailable = await this.apiService.isApiAvailable();
+    private initializeDataSourceImmediate(): void {
+        console.log('⚡ Initialisation IMMÉDIATE - Backend API prioritaire');
 
-            // Préférer l'API si disponible, sinon fallback sur Airtable
-            const preferredSource = localStorage.getItem('preferredDataSource');
+        // 1. TOUJOURS essayer Backend API en premier
+        this.dataSource = DataSource.BACKEND_API;
 
-            if (preferredSource === 'backend_api' && this.isApiAvailable) {
+        // 2. Test asynchone en arrière-plan, mais on commence par Backend
+        this.testBackendAndFallback();
+
+        console.log('✅ Source par défaut: Backend API');
+    }
+
+    private async testBackendAndFallback(): Promise<void> {
+        try {
+            console.log('🧪 Test Backend API en arrière-plan...');
+
+            // Test simple et rapide
+            const response = await fetch('http://localhost:3000/api/v1/health', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(3000) // Timeout 3s
+            });
+
+            if (response.ok) {
+                this.isApiAvailable = true;
                 this.dataSource = DataSource.BACKEND_API;
-                console.log('🚀 Utilisation du backend API');
+                console.log('✅ Backend API confirmé disponible');
             } else {
-                this.dataSource = DataSource.AIRTABLE;
-                console.log('📊 Utilisation d\'Airtable (fallback)');
+                throw new Error(`HTTP ${response.status}`);
             }
+
+        } catch (error) {
+            console.warn('⚠️ Backend API indisponible, fallback vers Airtable:', error);
+
+            // ✅ SEULEMENT en cas d'échec Backend, passer à Airtable
+            this.isApiAvailable = false;
+            this.dataSource = DataSource.AIRTABLE;
+
+            // Afficher un warning visible
+            this.showBackendUnavailableWarning();
+        }
+    }
+
+    private showBackendUnavailableWarning(): void {
+        console.warn('🔴 WARNING: Backend API indisponible - Utilisation Airtable (limité)');
+
+        // Notification utilisateur
+        if (typeof window !== 'undefined') {
+            const event = new CustomEvent('backend-unavailable', {
+                detail: { message: 'Backend API indisponible - Fonctionnalités limitées' }
+            });
+            window.dispatchEvent(event);
         }
     }
 
@@ -75,31 +119,65 @@ export class DataServiceAdapter {
     // =====================================
 
     async getCommandes(): Promise<CommandeMetier[]> {
-        try {
-            if (this.dataSource === DataSource.BACKEND_API) {
-                const response = await this.apiService.getCommandes();
+        console.log(`📦 getCommandes() - Source actuelle: ${this.dataSource}`);
 
-                // Synchroniser avec la base locale pour le mode hors-ligne
+        try {
+            // ✅ PRIORITÉ ABSOLUE au Backend API
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                console.log('🚀 PRIORITÉ: Récupération via Backend API');
+
+                const response = await this.apiService.getCommandes();
                 await this.syncToLocalDb('commandes', response.data);
 
+                console.log(`✅ ${response.data.length} commandes Backend API`);
                 return response.data;
+
             } else {
+                console.log('📊 FALLBACK: Récupération via Airtable');
                 return await this.dataService.getCommandes();
             }
+
         } catch (error) {
-            console.error('Erreur getCommandes, fallback vers données locales:', error);
-            return await SafeDbService.getAll<CommandeMetier>('commandes');
+            console.error('❌ Erreur getCommandes:', error);
+
+            // ✅ En cas d'erreur, utiliser données locales SANS basculer vers Airtable
+            console.log('💾 RÉCUPÉRATION: Données locales (pas de basculement Airtable)');
+            const localCommandes = await SafeDbService.getAll<CommandeMetier>('commandes');
+            console.log(`📱 ${localCommandes.length} commandes locales récupérées`);
+            return localCommandes;
         }
+    }
+
+    // ✅ Vérifier si on doit forcer Backend
+    private shouldForceBackend(): boolean {
+        const authMethod = localStorage.getItem('authMethod');
+        const userSource = localStorage.getItem('userSource');
+        const preferredSource = localStorage.getItem('preferredDataSource');
+
+        const shouldForce = (
+            authMethod === 'backend_api' ||
+            userSource === 'backend' ||
+            preferredSource === 'backend_api'
+        );
+
+        if (shouldForce) {
+            console.log('🔒 FORÇAGE Backend détecté via marqueurs');
+            this.dataSource = DataSource.BACKEND_API;
+        }
+
+        return shouldForce;
     }
 
     async getCommande(id: string): Promise<CommandeMetier | null> {
         try {
-            if (this.dataSource === DataSource.BACKEND_API) {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                console.log(`🚀 Récupération commande ${id} via Backend API`);
                 const commande = await this.apiService.getCommande(id);
 
                 // Mettre à jour la base locale
                 await SafeDbService.put('commandes', commande);
 
+                console.log(`✅ Commande ${id} récupérée via Backend API`);
                 return commande;
             } else {
                 return await this.dataService.getCommande(id);
@@ -214,19 +292,22 @@ export class DataServiceAdapter {
     // =====================================
 
     async getMagasins(): Promise<MagasinInfo[]> {
-        try {
-            if (this.dataSource === DataSource.BACKEND_API) {
-                const magasins = await this.apiService.getMagasins();
+        console.log(`🏪 getMagasins() - Source: ${this.dataSource}`);
 
-                // Synchroniser avec la base locale
+        try {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                console.log('🚀 EXCLUSIF: Magasins via Backend API');
+                const magasins = await this.apiService.getMagasins();
                 await this.syncToLocalDb('magasins', magasins);
 
+                console.log(`✅ ${magasins.length} magasins récupérés via Backend API`);
                 return magasins;
             } else {
+                console.log('📊 EXCLUSIF: Magasins via Airtable');
                 return await this.dataService.getMagasins();
             }
         } catch (error) {
-            console.error('Erreur getMagasins, fallback vers données locales:', error);
+            console.error('❌ Erreur getMagasins:', error);
             return await SafeDbService.getAll<MagasinInfo>('magasins');
         }
     }
@@ -236,19 +317,24 @@ export class DataServiceAdapter {
     // =====================================
 
     async getPersonnel(): Promise<PersonnelInfo[]> {
-        try {
-            if (this.dataSource === DataSource.BACKEND_API) {
-                const personnel = await this.apiService.getPersonnel();
+        console.log(`👥 getPersonnel() - Source: ${this.dataSource}`);
 
-                // Synchroniser avec la base locale
+        try {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                console.log('🚀 EXCLUSIF: Personnel via Backend API');
+                const personnel = await this.apiService.getPersonnel();
                 await this.syncToLocalDb('personnel', personnel);
 
+                console.log(`✅ ${personnel.length} personnels récupérés via Backend API`);
                 return personnel;
             } else {
+                console.log('📊 EXCLUSIF: Personnel via Airtable');
                 return await this.dataService.getPersonnel();
             }
         } catch (error) {
-            console.error('Erreur getPersonnel, fallback vers données locales:', error);
+            console.error('❌ Erreur getPersonnel:', error);
+            // En cas d'erreur, récupérer les données locales
+            console.warn('🔄 Récupération des données locales pour le personnel');
             return await SafeDbService.getAll<PersonnelInfo>('personnel');
         }
     }
@@ -367,7 +453,8 @@ export class DataServiceAdapter {
     // =====================================
 
     async getMetrics(filters: any): Promise<any> {
-        if (this.dataSource === DataSource.BACKEND_API) {
+        if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+            console.log('🚀 Récupération des statistiques via Backend API');
             try {
                 return await this.apiService.getCommandesStats(filters.store);
             } catch (error) {
@@ -594,7 +681,8 @@ export class DataServiceAdapter {
 
     async getFieldOptions(field: string): Promise<string[]> {
         try {
-            if (this.dataSource === DataSource.BACKEND_API) {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                console.log(`🚀 Récupération options de champ ${field} via Backend API`);
                 // Pour l'instant, utiliser les constantes locales
                 // TODO: Implémenter un endpoint pour récupérer les options
                 return await this.dataService.getFieldOptions(field);
@@ -613,17 +701,343 @@ export class DataServiceAdapter {
 
     async getCommandesForCurrentUser(): Promise<CommandeMetier[]> {
         try {
-            if (this.dataSource === DataSource.BACKEND_API) {
-                // L'API gère automatiquement le filtrage par utilisateur
-                const response = await this.apiService.getCommandes();
-                return response.data;
-            } else {
-                return await this.dataService.getCommandesForCurrentUser();
+            console.log('🔍 Récupération commandes pour utilisateur actuel...');
+
+            const user = this.getCurrentUserUnified();
+
+            if (!user) {
+                console.warn('❌ Aucun utilisateur connecté');
+                return [];
             }
+
+            const allCommandes = await this.getCommandes();
+            console.log(`📦 ${allCommandes.length} commandes totales récupérées`);
+
+            const normalizedRole = this.normalizeUserRole(user);
+            console.log(`👤 Utilisateur: ${user.email}, Rôle: ${normalizedRole}`);
+
+            switch (normalizedRole) {
+                case 'admin':
+                    // ✅ CORRECTION: Admin voit TOUTES les commandes
+                    console.log('🔑 Accès ADMIN - Toutes les commandes visibles');
+                    return allCommandes;
+
+                case 'magasin':
+                    const storeId = this.extractStoreId(user);
+                    if (!storeId) {
+                        console.error(`❌ Magasin sans storeId:`, user);
+                        return [];
+                    }
+
+                    const storeCommandes = allCommandes.filter(cmd => {
+                        const cmdStoreId = this.extractCommandeStoreId(cmd);
+                        return cmdStoreId === storeId;
+                    });
+
+                    console.log(`🏪 Magasin ${storeId}: ${storeCommandes.length}/${allCommandes.length} commandes`);
+                    return storeCommandes;
+
+                case 'chauffeur':
+                    const driverId = this.extractDriverId(user);
+                    if (!driverId) {
+                        console.error(`❌ Chauffeur sans driverId:`, user);
+                        return [];
+                    }
+
+                    const driverCommandes = allCommandes.filter(cmd =>
+                        cmd.chauffeurs?.some(chauffeur =>
+                            chauffeur.id === driverId || chauffeur.id === driverId
+                        )
+                    );
+
+                    console.log(`🚛 Chauffeur ${driverId}: ${driverCommandes.length}/${allCommandes.length} commandes`);
+                    return driverCommandes;
+
+                default:
+                    console.error(`❌ Rôle non reconnu: ${user.role}`);
+                    return [];
+            }
+
         } catch (error) {
-            console.error('Erreur getCommandesForCurrentUser:', error);
-            return await this.dataService.getCommandesForCurrentUser();
+            console.error('❌ Erreur filtrage commandes:', error);
+            return [];
         }
+    }
+
+    private getCurrentUserUnified(): any | null {
+        try {
+            // 1. Priorité au contexte React si disponible
+            if (typeof window !== 'undefined' && (window as any).currentAuthUser) {
+                const contextUser = (window as any).currentAuthUser;
+                console.log('✅ Utilisateur via contexte React');
+                return contextUser;
+            }
+
+            // 2. Format Backend (préféré)
+            const backendUser = localStorage.getItem('user');
+            if (backendUser) {
+                try {
+                    const user = JSON.parse(backendUser);
+                    if (user && user.id) {
+                        console.log('✅ Utilisateur Backend format');
+                        return {
+                            id: user.id,
+                            email: user.email,
+                            name: user.nom || user.name,
+                            role: user.role?.toLowerCase() || 'magasin',
+                            storeId: user.magasin?.id,
+                            storeName: user.magasin?.nom,
+                            source: 'backend'
+                        };
+                    }
+                } catch (e) {
+                    console.warn('Format backend invalide');
+                }
+            }
+
+            // 3. Format Legacy
+            const legacyUser = localStorage.getItem('currentUser');
+            if (legacyUser) {
+                try {
+                    const user = JSON.parse(legacyUser);
+                    if (user && user.id) {
+                        console.log('✅ Utilisateur Legacy format');
+                        return {
+                            ...user,
+                            source: 'legacy'
+                        };
+                    }
+                } catch (e) {
+                    console.warn('Format legacy invalide');
+                }
+            }
+
+            // 4. AuthService direct
+            if (typeof AuthService !== 'undefined') {
+                const authUser = AuthService.getCurrentUser();
+                if (authUser) {
+                    console.log('✅ Utilisateur via AuthService');
+                    return {
+                        ...authUser,
+                        source: 'authservice'
+                    };
+                }
+            }
+
+            console.warn('❌ Aucun utilisateur trouvé');
+            return null;
+
+        } catch (error) {
+            console.error('❌ Erreur getCurrentUserUnified:', error);
+            return null;
+        }
+    }
+
+    private normalizeUserRole(user: any): 'admin' | 'magasin' | 'chauffeur' | 'unknown' {
+        if (!user || !user.role) {
+            console.warn('⚠️ Utilisateur sans rôle:', user);
+            return 'unknown';
+        }
+
+        const originalRole = user.role;
+        const role = String(originalRole).toLowerCase().trim();
+
+        // Mappings exhaustifs pour tous les formats possibles
+        const roleMap: Record<string, 'admin' | 'magasin' | 'chauffeur'> = {
+            // Variations Admin (Backend format)
+            'admin': 'admin',
+            'administrateur': 'admin',
+            'direction': 'admin',
+            'direction my truck': 'admin',
+
+            // Variations Magasin (Backend + Legacy)
+            'magasin': 'magasin',
+            'interlocuteur': 'magasin',
+            'interlocuteur magasin': 'magasin',
+            'store': 'magasin',
+            'manager': 'magasin',
+
+            // Variations Chauffeur
+            'chauffeur': 'chauffeur',
+            'driver': 'chauffeur',
+            'livreur': 'chauffeur'
+        };
+
+        // Correspondance exacte
+        if (roleMap[role]) {
+            const normalized = roleMap[role];
+            console.log(`🎭 Rôle normalisé: "${originalRole}" → "${normalized}"`);
+            return normalized;
+        }
+
+        // Correspondance partielle (patterns)
+        if (role.includes('admin') || role.includes('direction')) {
+            console.log(`🎭 Rôle pattern admin: "${originalRole}" → "admin"`);
+            return 'admin';
+        }
+
+        if (role.includes('magasin') || role.includes('interlocuteur') || role.includes('store')) {
+            console.log(`🎭 Rôle pattern magasin: "${originalRole}" → "magasin"`);
+            return 'magasin';
+        }
+
+        if (role.includes('chauffeur') || role.includes('driver') || role.includes('livreur')) {
+            console.log(`🎭 Rôle pattern chauffeur: "${originalRole}" → "chauffeur"`);
+            return 'chauffeur';
+        }
+
+        console.error(`❌ Rôle non reconnu: "${originalRole}" (normalisé: "${role}")`);
+        return 'unknown';
+    }
+
+    private extractStoreId(user: any): string | null {
+        // Essayer toutes les variations possibles
+        const candidates = [
+            user.storeId,           // Legacy format
+            user.store_id,          // Snake case
+            user.magasin?.id,       // Backend nested
+            user.magasin_id,        // Backend flat
+            user.magasinId          // Camel case
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate && typeof candidate === 'string') {
+                console.log(`🏪 Store ID extrait: ${candidate}`);
+                return candidate;
+            }
+        }
+
+        console.error('❌ Aucun store ID trouvé dans:', user);
+        return null;
+    }
+
+    private extractDriverId(user: any): string | null {
+        // Essayer toutes les variations possibles
+        const candidates = [
+            user.driverId,          // Legacy format
+            user.driver_id,         // Snake case
+            user.chauffeur?.id,     // Backend nested
+            user.chauffeur_id,      // Backend flat
+            user.chauffeurId,       // Camel case
+            user.id                 // Fallback: user ID = driver ID
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate && typeof candidate === 'string') {
+                console.log(`🚛 Driver ID extrait: ${candidate}`);
+                return candidate;
+            }
+        }
+
+        console.error('❌ Aucun driver ID trouvé dans:', user);
+        return null;
+    }
+
+    private extractCommandeStoreId(commande: CommandeMetier): string | null {
+        // Essayer toutes les variations dans une commande
+        const candidates = [
+            commande.magasin?.id,      // Structure nested
+            commande.magasin_id,       // Flat
+            commande.magasinId         // Camel case
+        ];
+
+        for (const candidate of candidates) {
+            if (candidate && typeof candidate === 'string') {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Méthode de debug spécifique
+     */
+
+    async debugCommandeFiltering(): Promise<void> {
+        console.group('🔍 DEBUG FILTRAGE COMMANDES');
+
+        try {
+            // 1. État utilisateur
+            const user = this.getCurrentUserUnified();
+            console.log('👤 Utilisateur actuel:', user);
+
+            if (user) {
+                console.log('🎭 Rôle original:', user.role);
+                console.log('🎭 Rôle normalisé:', this.normalizeUserRole(user));
+
+                if (this.normalizeUserRole(user) === 'magasin') {
+                    console.log('🏪 Store ID extrait:', this.extractStoreId(user));
+                }
+
+                if (this.normalizeUserRole(user) === 'chauffeur') {
+                    console.log('🚛 Driver ID extrait:', this.extractDriverId(user));
+                }
+            }
+
+            // 2. Test récupération commandes
+            const allCommandes = await this.getCommandes();
+            console.log(`📦 Total commandes: ${allCommandes.length}`);
+
+            // 3. Aperçu des magasins dans les commandes
+            const storeIds = [...new Set(allCommandes.map(cmd => this.extractCommandeStoreId(cmd)).filter(Boolean))];
+            console.log('🏪 Store IDs présents dans les commandes:', storeIds);
+
+            // 4. Test filtrage
+            const filteredCommandes = await this.getCommandesForCurrentUser();
+            console.log(`✅ Commandes filtrées: ${filteredCommandes.length}`);
+
+            if (filteredCommandes.length === 0 && allCommandes.length > 0) {
+                console.error('❌ PROBLÈME: Filtrage retourne 0 commandes alors que des commandes existent !');
+            }
+
+        } catch (error) {
+            console.error('❌ Erreur during debug:', error);
+        }
+
+        console.groupEnd();
+    }
+
+    // ==========================================
+    // DIAGNOSTIC SPÉCIFIQUE PAGE DELIVERIES  
+    // ==========================================
+
+    // Ajout de méthode de debug spécifique
+    async debugDeliversPage(): Promise<void> {
+        console.group('🚛 DEBUG PAGE DELIVERIES');
+
+        // 1. État utilisateur
+        const user = this.getCurrentUserUnified();
+        console.log('Utilisateur actuel:', user);
+
+        if (user) {
+            console.log('Rôle normalisé:', this.normalizeUserRole(user));
+            console.log('Store ID:', user.storeId || user.magasin?.id || 'MANQUANT');
+            console.log('Driver ID:', user.driverId || user.chauffeur_id || 'MANQUANT');
+        }
+
+        // 2. Test récupération commandes
+        try {
+            const commandes = await this.getCommandesForCurrentUser();
+            console.log(`Commandes filtrées: ${commandes.length}`);
+
+            if (commandes.length === 0) {
+                console.warn('❌ AUCUNE COMMANDE - Vérifier filtrage');
+
+                // Test sans filtrage
+                const allCommandes = await this.getCommandes();
+                console.log(`Total commandes disponibles: ${allCommandes.length}`);
+            }
+
+        } catch (error) {
+            console.error('❌ Erreur récupération commandes:', error);
+        }
+
+        // 3. État des services
+        console.log('Source de données:', this.getCurrentDataSource());
+        console.log('Mode hors ligne forcé:', localStorage.getItem('forceOfflineMode'));
+
+        console.groupEnd();
     }
 
     // =====================================
@@ -639,4 +1053,117 @@ export class DataServiceAdapter {
         // Cette méthode s'applique surtout aux données locales
         return await this.dataService.cleanupFailedTransactions();
     }
+
+    // ==========================================
+    // Debug mode offline
+    // ==========================================
+
+    async debugOfflineMode(): Promise<void> {
+        console.group('🔍 DEBUG MODE OFFLINE');
+
+        const user = this.getCurrentUserUnified();
+        console.log('👤 Utilisateur:', user);
+
+        if (user) {
+            console.log('🎭 Rôle normalisé:', this.normalizeUserRole(user));
+        }
+
+        // Test données locales
+        const localCommandes = await SafeDbService.getAll<CommandeMetier>('commandes');
+        console.log(`📱 Commandes locales: ${localCommandes.length}`);
+
+        // Test filtrage
+        const filteredCommandes = await this.getCommandesForCurrentUser();
+        console.log(`✅ Commandes filtrées: ${filteredCommandes.length}`);
+
+        console.groupEnd();
+
+        // Exposer pour debug
+        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+            (window as any).debugOfflineMode = () => this.debugOfflineMode();
+        }
+    }
+
+    // ==========================================
+    // Variables d'environnement Vite
+    // =====================================
+} // <-- End of DataServiceAdapter class
+
+// DIAGNOSTIC des variables d'environnement
+function diagnoseEnvironmentVariables(): void {
+    console.group('🔍 DIAGNOSTIC VARIABLES ENVIRONNEMENT');
+
+    console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+    console.log('VITE_BACKEND_URL:', import.meta.env.VITE_BACKEND_URL);
+    console.log('DEV mode:', import.meta.env.DEV);
+    console.log('PROD mode:', import.meta.env.PROD);
+
+    // Toutes les variables VITE
+    const viteVars = Object.keys(import.meta.env)
+        .filter(key => key.startsWith('VITE_'))
+        .reduce((obj, key) => {
+            obj[key] = import.meta.env[key];
+            return obj;
+        }, {} as Record<string, any>);
+
+    console.log('Toutes les variables VITE:', viteVars);
+
+    console.groupEnd();
+}
+
+export async function runCompleteBackendDiagnostic(): Promise<void> {
+    console.log('🔍 === DIAGNOSTIC BACKEND API COMPLET ===');
+
+    // 1. Variables d'environnement
+    diagnoseEnvironmentVariables();
+
+    // 2. Test ApiService
+    const apiService = new ApiService();
+    const isAvailable = await apiService.testBackendConnection();
+
+    // 3. Test direct fetch
+    console.log('🧪 Test direct fetch...');
+    try {
+        const directResponse = await fetch('http://localhost:3000/api/v1/health');
+        console.log('✅ Fetch direct réussi:', directResponse.status);
+    } catch (error) {
+        console.error('❌ Fetch direct échoué:', error);
+    }
+
+    // 4. Test avec curl simulation
+    console.log('🧪 Test curl simulation...');
+    try {
+        const curlResponse = await fetch('http://localhost:3000/api/v1/health', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        console.log('✅ Curl simulation réussie:', curlResponse.status);
+        const data = await curlResponse.json();
+        console.log('Données:', data);
+    } catch (error) {
+        console.error('❌ Curl simulation échouée:', error);
+    }
+
+    // 5. Résumé
+    console.log('\n📋 RÉSUMÉ DIAGNOSTIC:');
+    console.log(`API disponible via ApiService: ${isAvailable}`);
+    console.log('Variables env OK:', !!import.meta.env.VITE_API_URL);
+
+    // 6. Recommandations
+    if (!isAvailable) {
+        console.log('\n💡 ACTIONS RECOMMANDÉES:');
+        console.log('1. Vérifier que le Backend est démarré');
+        console.log('2. Vérifier les variables .env.local');
+        console.log('3. Vérifier la configuration CORS');
+        console.log('4. Redémarrer frontend et backend');
+    }
+}
+
+// Exposer pour debug
+if (typeof window !== 'undefined') {
+    (window as any).runCompleteBackendDiagnostic = runCompleteBackendDiagnostic;
+    (window as any).diagnoseEnvironmentVariables = diagnoseEnvironmentVariables;
 }

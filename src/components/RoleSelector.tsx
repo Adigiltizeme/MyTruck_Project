@@ -16,7 +16,7 @@ const STORES = [
 ];
 
 export const RoleSelector = () => {
-    const { user, setRole, refreshUserContext } = useAuth();
+    const { user } = useAuth();
     const { dataService } = useOffline();
     const [stores, setStores] = useState(STORES);
     const [selectedStore, setSelectedStore] = useState<typeof STORES[0]>(
@@ -79,9 +79,9 @@ export const RoleSelector = () => {
         loadStores();
     }, [dataService, user?.storeId, user?.role]);
 
-    useEffect(() => {
-        refreshUserContext();
-    }, []);
+    // useEffect(() => {
+    //     refreshUserContext();
+    // }, []);
 
     const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const role = e.target.value as UserRole;
@@ -90,11 +90,11 @@ export const RoleSelector = () => {
             case 'magasin':
                 if (selectedStore) {
                     console.log('Changement vers rôle magasin:', selectedStore.name);
-                    setRole(role, {
-                        storeId: selectedStore.id,
-                        storeName: selectedStore.name,
-                        storeAddress: selectedStore.address
-                    });
+                    // setRole(role, {
+                    //     storeId: selectedStore.id,
+                    //     storeName: selectedStore.name,
+                    //     storeAddress: selectedStore.address
+                    // });
 
                     // Réinitialiser l'état de proposition de brouillon
                     localStorage.setItem('draftProposed', 'false');
@@ -108,10 +108,10 @@ export const RoleSelector = () => {
                 }
                 break;
             case 'chauffeur':
-                setRole(role, { driverId: 'recOJXIE0zjz0nqP9' });
+                // setRole(role, { driverId: 'recOJXIE0zjz0nqP9' });
                 break;
             default:
-                setRole('admin');
+                // setRole('admin');
         }
     };
 
@@ -132,11 +132,11 @@ export const RoleSelector = () => {
 
             // Si déjà en rôle magasin, mettre à jour
             if (user?.role === 'magasin') {
-                setRole('magasin', {
-                    storeId: store.id,
-                    storeName: store.name,
-                    storeAddress: store.address
-                });
+                // setRole('magasin', {
+                //     storeId: store.id,
+                //     storeName: store.name,
+                //     storeAddress: store.address
+                // });
 
                 updateDraftStoreInfo(store.id, store.name, store.address);
 
@@ -148,9 +148,9 @@ export const RoleSelector = () => {
                         address: store.address
                     }
                 }));
-                setTimeout(() => {
-                    refreshUserContext();
-                }, 100);
+                // setTimeout(() => {
+                //     refreshUserContext();
+                // }, 100);
                 console.log('Magasin changé:', store.name, store.address);
             }
         } else {

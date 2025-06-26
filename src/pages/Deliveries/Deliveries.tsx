@@ -17,6 +17,13 @@ import AjoutCommande from '../../components/AjoutCommande';
 import { useDraftStorage } from '../../hooks/useDraftStorage';
 import { useOffline } from '../../contexts/OfflineContext';
 
+// Extend the Window interface to include debugDeliveries for TypeScript
+declare global {
+    interface Window {
+        debugDeliveries?: () => void;
+    }
+}
+
 const Deliveries = () => {
     const { user } = useAuth();
     const { dataService, isOnline } = useOffline();
@@ -122,6 +129,14 @@ const Deliveries = () => {
             window.removeEventListener('rolechange', handleRoleChange);
             window.removeEventListener('storechange', handleRoleChange);
         };
+    }, []);
+
+    useEffect(() => {
+        // Debug automatique en dev
+        if (process.env.NODE_ENV === 'development') {
+            window.debugDeliveries = () => dataService.debugDeliversPage();
+            console.log('💡 Debug disponible: window.debugDeliveries()');
+        }
     }, []);
 
     const fetchData = async () => {

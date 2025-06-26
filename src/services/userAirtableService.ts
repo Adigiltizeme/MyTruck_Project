@@ -13,8 +13,45 @@ export class UserAirtableService {
         this.userTableId = import.meta.env.VITE_AIRTABLE_TABLE_USERS_ID as string || 'Users';
     }
 
+    private shouldUseAirtable(): boolean {
+        try {
+            // Ne pas utiliser Airtable si utilisateur Backend API
+            const userSource = localStorage.getItem('userSource');
+            const preferredSource = localStorage.getItem('preferredDataSource');
+
+            if (userSource === 'backend' || preferredSource === 'backend_api') {
+                console.log('🚫 UserAirtableService: Backend API actif, Airtable désactivé');
+                return false;
+            }
+
+            // Vérifier format utilisateur
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    const user = JSON.parse(userStr);
+                    if (user.nom && (user.magasin || user.chauffeur)) {
+                        console.log('🚫 UserAirtableService: Format Backend détecté, Airtable désactivé');
+                        return false;
+                    }
+                } catch (e) {
+                    // Continue
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.warn('Erreur vérification Airtable:', error);
+            return true; // Par défaut, autoriser
+        }
+    }
+
     // Vérifier si l'utilisateur existe déjà
     async checkEmailExists(email: string): Promise<boolean> {
+        if (!this.shouldUseAirtable()) {
+            console.log('🔄 checkEmailExists: Airtable désactivé, retour false');
+            return false;
+        }
+
         try {
             // Utiliser les méthodes publiques de AirtableService
             const users = await this.fetchAllUsers();
@@ -37,6 +74,11 @@ export class UserAirtableService {
 
     // Récupérer tous les utilisateurs
     async fetchAllUsers(): Promise<AuthUser[]> {
+        if (!this.shouldUseAirtable()) {
+            console.log('🔄 fetchAllUsers: Airtable désactivé, retour tableau vide');
+            return [];
+        }
+
         try {
             console.log(`Récupération des utilisateurs depuis la table ${this.userTableId}`);
             const response = await fetch(
@@ -111,6 +153,10 @@ export class UserAirtableService {
 
     // Créer un nouvel utilisateur
     async createUser(userData: UserSignupData): Promise<AuthUser> {
+        if (!this.shouldUseAirtable()) {
+            throw new Error('Création utilisateur Airtable désactivée - Mode Backend API');
+        }
+
         try {
             // Préparer les données au format attendu par Airtable selon la structure de table
             const fields: Record<string, any> = {
@@ -214,6 +260,10 @@ export class UserAirtableService {
 
     // Mettre à jour un utilisateur existant
     async updateUser(userId: string, updates: Partial<AuthUser>): Promise<AuthUser> {
+        if (!this.shouldUseAirtable()) {
+            throw new Error('Mise à jour utilisateur Airtable désactivée - Mode Backend API');
+        }
+
         try {
             // Préparer les données de mise à jour selon la structure réelle de votre table
             const fields: Record<string, any> = {};
@@ -324,6 +374,10 @@ export class UserAirtableService {
     }
 
     async fetchUserById(userId: string): Promise<AuthUser> {
+        if (!this.shouldUseAirtable()) {
+            throw new Error('Récupération utilisateur Airtable désactivée - Mode Backend API');
+        }
+
         try {
             const response = await fetch(
                 `https://api.airtable.com/v0/${this.baseId}/${this.userTableId}/${userId}`,
@@ -380,6 +434,10 @@ export class UserAirtableService {
     }
 
     async deleteUser(userId: string): Promise<boolean> {
+        if (!this.shouldUseAirtable()) {
+            throw new Error('Suppression utilisateur Airtable désactivée - Mode Backend API');
+        }
+
         try {
             // Supprimer l'utilisateur dans Airtable via HTTP direct
             const response = await fetch(

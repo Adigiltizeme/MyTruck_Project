@@ -11,16 +11,17 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
 
         // Extraction des chauffeurs
         console.log('Raw chauffeurs data:', fields['CHAUFFEUR(S)']);
-        console.log('Raw delivery status:', {
-            field: fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'],
-            rawFields: fields
-        });
-        console.log('Transformed status:', fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'], '→',
-            Array.isArray(fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'])
-                ? fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)']?.[0]
-                : fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'] || 'EN ATTENTE'
-        );
-        console.log('Raw date:', fields['DATE DE LIVRAISON']);
+        
+        // console.log('Raw delivery status:', {
+        //     field: fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'],
+        //     rawFields: fields
+        // });
+        // console.log('Transformed status:', fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'], '→',
+        //     Array.isArray(fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'])
+        //         ? fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)']?.[0]
+        //         : fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'] || 'EN ATTENTE'
+        // );
+        // console.log('Raw date:', fields['DATE DE LIVRAISON']);
 
         const chauffeurs = Array.isArray(fields['CHAUFFEUR(S)'])
             ? fields['CHAUFFEUR(S)'].map((chauffeur: any) => ({

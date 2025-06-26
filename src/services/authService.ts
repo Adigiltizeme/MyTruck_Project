@@ -35,6 +35,7 @@ export interface AuthUser {
     passwordHash?: string;
     token?: string;
     lastLogin?: Date;
+    source?: string;
 }
 
 export const SPECIAL_ACCOUNTS = [
@@ -98,12 +99,39 @@ export class AuthService {
             return;
         }
 
+        // ✅ NOUVEAU: Vérifier si on doit synchroniser avec Airtable
+        const userSource = localStorage.getItem('userSource');
+        const preferredSource = localStorage.getItem('preferredDataSource');
+
+        if (userSource === 'backend' || preferredSource === 'backend_api') {
+            console.log('🚫 syncUsers: Backend API actif, synchronisation Airtable ignorée');
+            return;
+        }
+
+        // Vérifier format utilisateur Backend
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.nom && (user.magasin || user.chauffeur)) {
+                    console.log('🚫 syncUsers: Format Backend détecté, synchronisation Airtable ignorée');
+                    return;
+                }
+            } catch (e) {
+                // Continue avec la synchronisation
+            }
+        }
+
         try {
             console.log('Synchronisation des utilisateurs depuis Airtable...');
 
             try {
                 // Récupérer les utilisateurs d'Airtable
-                const airtableUsers = await this.userAirtableService.fetchAllUsers();
+                const airtableService = new UserAirtableService(
+                    import.meta.env.VITE_AIRTABLE_TOKEN as string
+                );
+
+                const airtableUsers = await airtableService.fetchAllUsers();
                 console.log(`${airtableUsers.length} utilisateurs récupérés depuis Airtable`);
 
                 // Vérifier que users est bien initialisé comme un tableau

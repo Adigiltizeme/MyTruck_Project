@@ -47,15 +47,24 @@ const App = () => {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // ✅ NOUVEAU: Éviter init Airtable si Backend API
+        const userSource = localStorage.getItem('userSource');
+        const preferredSource = localStorage.getItem('preferredDataSource');
+
+        if (userSource === 'backend' || preferredSource === 'backend_api') {
+          console.log('🚫 initAuth: Backend API actif, initialisation Airtable ignorée');
+          return;
+        }
+
         // Charger les utilisateurs depuis la BD locale
         await AuthService.loadUsersFromDB();
 
         // Si en ligne, synchroniser avec Airtable
-        if (isOnline) {
-          await AuthService.syncUsers().catch(err => {
-            console.warn('Erreur lors de la synchronisation des utilisateurs:', err);
-          });
-        }
+        // if (isOnline) {
+        //   await AuthService.syncUsers().catch(err => {
+        //     console.warn('Erreur lors de la synchronisation des utilisateurs:', err);
+        //   });
+        // }
       } catch (error) {
         console.error('Erreur lors de l\'initialisation de l\'authentification:', error);
       }
@@ -189,6 +198,7 @@ const App = () => {
   return (
     <OfflineProvider>
       <div className="min-h-screen bg-gray-50">
+        <MigrationControl />
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
@@ -209,7 +219,7 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <Deliveries />
-                  <MigrationControl />
+
                 </ProtectedRoute>
               }
             />

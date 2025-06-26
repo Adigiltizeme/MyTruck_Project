@@ -21,20 +21,86 @@ interface AuthContextType {
     updateUserInfo: (userData: { name: string, email: string, phone?: string }) => Promise<void>;
     changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
     refreshUserContext: () => Promise<void>;
+    updateUserRole: (role: UserRole, options?: {
+        storeId?: string;
+        storeName?: string;
+        storeAddress?: string;
+        driverId?: string
+    }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// ✅ Fonction de normalisation des rôles Backend
+export function normalizeBackendRole(backendRole: string): string {
+    const roleMap: Record<string, string> = {
+        'ADMIN': 'admin',
+        'DIRECTION': 'admin',
+        'MAGASIN': 'magasin',
+        'INTERLOCUTEUR': 'magasin',
+        'CHAUFFEUR': 'chauffeur'
+    };
+
+    return roleMap[backendRole.toUpperCase()] || 'magasin';
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // MODIFICATION: Utiliser l'adaptateur pour récupérer l'utilisateur
-    const [user, setUser] = useState<AuthUser | null>(() => {
-        return authAdapter.getCurrentUser() || AuthService.getCurrentUser() || null;
-    });
 
     const [loading, setLoading] = useState(true);
     const [sessionTimeout] = useState(60 * 60 * 1000);
     const userActivityTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastActivityTime = useRef<number>(Date.now());
+    const [user, setUser] = useState<AuthUser | null>(() => {
+        console.log('🔍 Initialisation AuthContext - Détection source utilisateur');
+
+        // ✅ CORRECTION: Priorité absolue au système unifié
+
+        // 1. Vérifier d'abord Backend API (plus récent)
+        const backendToken = localStorage.getItem('authToken');
+        const backendUser = localStorage.getItem('user');
+
+        if (backendToken && backendUser) {
+            try {
+                const user = JSON.parse(backendUser);
+                console.log('✅ Utilisateur Backend API détecté:', user.email);
+
+                // FORCER la source Backend API
+                localStorage.setItem('preferredDataSource', 'backend_api');
+                localStorage.setItem('userSource', 'backend');
+
+                // Transformer au format AuthUser
+                const authUser: AuthUser = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim(),
+                    role: normalizeBackendRole(user.role) as UserRole, // ✅ Normalisation
+                    storeId: user.magasin?.id,
+                    storeName: user.magasin?.nom,
+                    storeAddress: user.magasin?.adresse,
+                    driverId: user.chauffeur?.id,
+                    token: backendToken,
+                    lastLogin: new Date(),
+                };
+
+                return authUser;
+            } catch (error) {
+                console.warn('⚠️ Erreur parsing Backend user:', error);
+            }
+        }
+
+        // 2. Fallback vers Legacy SEULEMENT si pas de Backend
+        console.log('🔄 Tentative récupération Legacy user');
+        const legacyUser = AuthService.getCurrentUser();
+        if (legacyUser) {
+            console.log('✅ Utilisateur Legacy récupéré:', legacyUser.email);
+            // Forcer Airtable pour les utilisateurs Legacy
+            localStorage.setItem('preferredDataSource', 'airtable');
+            localStorage.setItem('userSource', 'legacy');
+            return legacyUser;
+        }
+
+        console.log('❌ Aucun utilisateur trouvé');
+        return null;
+    });
 
     const resetActivityTimer = useCallback(() => {
         lastActivityTime.current = Date.now();
@@ -157,29 +223,110 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const updateUserRole = async (role: UserRole, options?: any) => {
+        // Implement the logic to update the user role and any related state
+        if (!user) return;
+
+        const updatedUser = {
+            ...user,
+            role,
+            ...options
+        };
+
+        try {
+            await AuthService.updateUserInfo(user.id, updatedUser);
+            setUser(updatedUser);
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour du rôle utilisateur:', error);
+        }
+    };
+
     const login = async (email: string, password: string) => {
         try {
             setLoading(true);
-            console.log('🔐 Tentative de connexion avec:', email);
+            console.log('🔐 Connexion - Backend API PRIORITAIRE');
 
-            // MODIFICATION: Utiliser l'adaptateur d'abord
             let authenticatedUser: AuthUser;
 
+            // ✅ CORRECTION: TOUJOURS essayer Backend en PREMIER
             try {
-                // Essayer avec l'adaptateur (backend API)
-                authenticatedUser = await authAdapter.login(email, password);
-                console.log('✅ Connexion réussie via backend API');
+                console.log('🚀 PRIORITÉ: Tentative Backend API...');
+
+                const apiResponse = await fetch('http://localhost:3000/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email.toLowerCase().trim(),
+                        password: password
+                    }),
+                    signal: AbortSignal.timeout(5000) // Timeout 5s
+                });
+
+                if (!apiResponse.ok) {
+                    const errorText = await apiResponse.text();
+                    console.error('Backend API erreur:', apiResponse.status, errorText);
+                    throw new Error(`Backend: ${apiResponse.status} ${apiResponse.statusText}`);
+                }
+
+                const backendData = await apiResponse.json();
+
+                if (!backendData.access_token || !backendData.user) {
+                    throw new Error('Format réponse Backend invalide');
+                }
+
+                // Transformation Backend → Unifié
+                authenticatedUser = {
+                    id: backendData.user.id,
+                    email: backendData.user.email,
+                    name: `${backendData.user.prenom || ''} ${backendData.user.nom || ''}`.trim(),
+                    role: backendData.user.role?.toLowerCase() || 'magasin',
+                    storeId: backendData.user.magasin?.id,
+                    storeName: backendData.user.magasin?.nom,
+                    storeAddress: backendData.user.magasin?.adresse || '',
+                    driverId: backendData.user.chauffeur?.id,
+                    token: backendData.access_token,
+                    lastLogin: new Date(),
+                    source: 'backend'
+                };
+
+                // ✅ FORCER utilisation Backend pour TOUT
+                localStorage.setItem('preferredDataSource', 'backend_api');
+                localStorage.setItem('userSource', 'backend');
+                localStorage.setItem('authMethod', 'backend_api'); // ✅ NOUVEAU marqueur
+
+                console.log('🎉 SUCCÈS Backend API - Source FORCÉE à Backend');
+
             } catch (backendError) {
-                console.warn('❌ Échec connexion backend, tentative legacy:', backendError);
-                // Fallback vers le système legacy
-                authenticatedUser = await AuthService.login(email, password);
-                console.log('✅ Connexion réussie via système legacy');
+                console.error('❌ Backend API échec:', backendError);
+
+                // ✅ SEULEMENT en dernier recours : Legacy
+                console.log('🔄 FALLBACK vers Legacy (Airtable)...');
+
+                try {
+                    authenticatedUser = await AuthService.login(email, password);
+                    authenticatedUser.source = 'legacy';
+
+                    // Marquer utilisation Legacy
+                    localStorage.setItem('preferredDataSource', 'airtable');
+                    localStorage.setItem('userSource', 'legacy');
+                    localStorage.setItem('authMethod', 'airtable'); // ✅ NOUVEAU marqueur
+
+                    console.log('✅ Fallback Legacy réussi');
+
+                    // Avertir l'utilisateur
+                    console.warn('🔶 ATTENTION: Connexion en mode dégradé (Airtable)');
+
+                } catch (legacyError) {
+                    console.error('❌ Legacy aussi échoué:', legacyError);
+                    throw new Error('Échec de connexion sur tous les systèmes');
+                }
             }
 
             setUser(authenticatedUser);
             return authenticatedUser;
+
         } catch (error) {
-            console.error('❌ Erreur de connexion:', error);
+            console.error('❌ Erreur connexion finale:', error);
             throw error;
         } finally {
             setLoading(false);
@@ -348,6 +495,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updateUserInfo,
             changePassword,
             refreshUserContext,
+            updateUserRole
         }}>
             {children}
         </AuthContext.Provider>
