@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CommandeMetier, FactureInfo, DevisInfo } from '../types/business.types';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { Download, Eye, FileText, FilePlus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -19,7 +19,7 @@ interface DocumentViewerProps {
 }
 
 const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate }) => {
-    const { dataService } = useOffline();
+    // const { dataService } = useOffline();
     const { user } = useAuth();
     const [loading, setLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);

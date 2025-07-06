@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { OfflineProvider, useOffline } from './contexts/OfflineContext';
-import { OfflineIndicator } from './components/OfflineIndicator';
+// import { OfflineProvider, useOffline } from './contexts/OfflineContext';
+// import { OfflineIndicator } from './components/OfflineIndicator';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Deliveries from './pages/Deliveries/Deliveries';
@@ -27,12 +27,12 @@ import Cessions from './pages/Deliveries/Cessions';
 import DocumentsPage from './pages/documents/documents';
 import { DbRepair } from './utils/db-repair';
 import { useAuth } from './contexts/AuthContext';
-import { MigrationControl } from './components/MigrationControl';
+// import { MigrationControl } from './components/MigrationControl';
 import TestAuth from './components/TestAuth';
 
 const App = () => {
 
-  const { dataService, isOnline } = useOffline();
+  // const { dataService, isOnline } = useOffline();
 
   const notificationContext = useNotifications();
 
@@ -44,34 +44,34 @@ const App = () => {
   }, [notificationContext]);
 
   // Initialise le service d'authentification
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        // ✅ NOUVEAU: Éviter init Airtable si Backend API
-        const userSource = localStorage.getItem('userSource');
-        const preferredSource = localStorage.getItem('preferredDataSource');
+  // useEffect(() => {
+  //   const initAuth = async () => {
+  //     try {
+  //       // ✅ NOUVEAU: Éviter init Airtable si Backend API
+  //       const userSource = localStorage.getItem('userSource');
+  //       const preferredSource = localStorage.getItem('preferredDataSource');
 
-        if (userSource === 'backend' || preferredSource === 'backend_api') {
-          console.log('🚫 initAuth: Backend API actif, initialisation Airtable ignorée');
-          return;
-        }
+  //       if (userSource === 'backend' || preferredSource === 'backend_api') {
+  //         console.log('🚫 initAuth: Backend API actif, initialisation Airtable ignorée');
+  //         return;
+  //       }
 
-        // Charger les utilisateurs depuis la BD locale
-        await AuthService.loadUsersFromDB();
+  //       // Charger les utilisateurs depuis la BD locale
+  //       await AuthService.loadUsersFromDB();
 
-        // Si en ligne, synchroniser avec Airtable
-        // if (isOnline) {
-        //   await AuthService.syncUsers().catch(err => {
-        //     console.warn('Erreur lors de la synchronisation des utilisateurs:', err);
-        //   });
-        // }
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation de l\'authentification:', error);
-      }
-    };
+  //       // Si en ligne, synchroniser avec Airtable
+  //       // if (isOnline) {
+  //       //   await AuthService.syncUsers().catch(err => {
+  //       //     console.warn('Erreur lors de la synchronisation des utilisateurs:', err);
+  //       //   });
+  //       // }
+  //     } catch (error) {
+  //       console.error('Erreur lors de l\'initialisation de l\'authentification:', error);
+  //     }
+  //   };
 
-    initAuth();
-  }, [isOnline]);
+  //   initAuth();
+  // }, [isOnline]);
 
   useEffect(() => {
     // Au démarrage de l'application, réparer les relations utilisateur-magasin
@@ -153,52 +153,52 @@ const App = () => {
   cleanupBrouillons();
 
   // Effet pour nettoyer le cache d'images et lancer la migration automatique
-  useEffect(() => {
-    const initImageSystem = async () => {
-      try {
-        // Nettoyer le cache d'images périodiquement
-        await OptimizedImageCache.cleanupCache();
+  // useEffect(() => {
+  //   const initImageSystem = async () => {
+  //     try {
+  //       // Nettoyer le cache d'images périodiquement
+  //       await OptimizedImageCache.cleanupCache();
 
-        // Lancer la migration automatique des images si en ligne
-        if (isOnline) {
-          // Exécuter en différé pour ne pas ralentir le chargement initial
-          setTimeout(() => {
-            if (typeof dataService.migrateAllCommandeImages === 'function') {
-              dataService.migrateAllCommandeImages()
-                .catch(err => {
-                  if (!handleStorageError(err)) {
-                    console.error('Erreur lors de la migration des images:', err);
-                  }
-                });
-            } else {
-              console.warn('La méthode migrateAllCommandeImages est absente du dataService.');
-            }
-          }, 5000);
-        }
-      } catch (error) {
-        if (!handleStorageError(error)) {
-          console.error('Erreur lors de l\'initialisation du système d\'images:', error);
-        }
-      }
-    };
+  //       // Lancer la migration automatique des images si en ligne
+  //       if (isOnline) {
+  //         // Exécuter en différé pour ne pas ralentir le chargement initial
+  //         setTimeout(() => {
+  //           if (typeof dataService.migrateAllCommandeImages === 'function') {
+  //             dataService.migrateAllCommandeImages()
+  //               .catch(err => {
+  //                 if (!handleStorageError(err)) {
+  //                   console.error('Erreur lors de la migration des images:', err);
+  //                 }
+  //               });
+  //           } else {
+  //             console.warn('La méthode migrateAllCommandeImages est absente du dataService.');
+  //           }
+  //         }, 5000);
+  //       }
+  //     } catch (error) {
+  //       if (!handleStorageError(error)) {
+  //         console.error('Erreur lors de l\'initialisation du système d\'images:', error);
+  //       }
+  //     }
+  //   };
 
-    initImageSystem();
+  //   initImageSystem();
 
-    // Définir un nettoyage périodique (une fois par jour)
-    const cleanupInterval = setInterval(() => {
-      OptimizedImageCache.cleanupCache()
-        .catch(err => console.error('Erreur lors du nettoyage du cache:', err));
-    }, 24 * 60 * 60 * 1000);
+  //   // Définir un nettoyage périodique (une fois par jour)
+  //   const cleanupInterval = setInterval(() => {
+  //     OptimizedImageCache.cleanupCache()
+  //       .catch(err => console.error('Erreur lors du nettoyage du cache:', err));
+  //   }, 24 * 60 * 60 * 1000);
 
-    return () => {
-      clearInterval(cleanupInterval);
-    };
-  }, [isOnline, dataService]);
+  //   return () => {
+  //     clearInterval(cleanupInterval);
+  //   };
+  // }, [isOnline, dataService]);
 
   return (
-    <OfflineProvider>
+    // <OfflineProvider>
       <div className="min-h-screen bg-gray-50">
-        <MigrationControl />
+        {/* <MigrationControl /> */}
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
@@ -299,7 +299,7 @@ const App = () => {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Route>
         </Routes>
-        <OfflineIndicator />
+        {/* <OfflineIndicator /> */}
         {import.meta.env.DEV && <DevModeToggle />}
         <ToastContainer
           position="bottom-right"
@@ -313,7 +313,7 @@ const App = () => {
           theme="light"
         />
       </div>
-    </OfflineProvider>
+    // </OfflineProvider>
   );
 };
 

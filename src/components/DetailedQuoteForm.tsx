@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DevisFormData } from '../types/devis.types';
 import { CommandeMetier } from '../types/business.types';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, FileText, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { TarificationService } from '../services/tarification.service';
@@ -24,7 +24,7 @@ const DetailedQuoteForm: React.FC<DetailedQuoteFormProps> = ({
   onClose,
   onQuoteGenerated
 }) => {
-  const { dataService } = useOffline();
+  // const { dataService } = useOffline();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -438,16 +438,16 @@ const DetailedQuoteForm: React.FC<DetailedQuoteFormProps> = ({
       };
 
       // Ajouter le devis à la commande
-      if (commande) {
-        await dataService.addDevisToCommande(commande, {
-          id: devisInfo.id,
-          numeroDevis: devisInfo.numeroDevis,
-          dateDevis: devisInfo.dateDevis,
-          dateEcheance: devisInfo.dateEcheance,
-          montantHT: devisInfo.montantHT,
-          statut: 'En attente'
-        });
-      }
+      // if (commande) {
+      //   await dataService.addDevisToCommande(commande, {
+      //     id: devisInfo.id,
+      //     numeroDevis: devisInfo.numeroDevis,
+      //     dateDevis: devisInfo.dateDevis,
+      //     dateEcheance: devisInfo.dateEcheance,
+      //     montantHT: devisInfo.montantHT,
+      //     statut: 'En attente'
+      //   });
+      // }
 
       // Télécharger le PDF
       const pdfUrl = URL.createObjectURL(pdfBlob);

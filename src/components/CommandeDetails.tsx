@@ -5,14 +5,14 @@ import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { dateFormatter } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
-import CommandeActions from './CommandeActions';
-import AdminActions from './AdminActions';
+// import CommandeActions from './CommandeActions';
+// import AdminActions from './AdminActions';
 import { AirtableService } from '../services/airtable.service';
 import { Personnel } from '../types/airtable.types';
 import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../styles/getStatus';
 import PhotoUploader from './PhotoUploader';
 import { Upload, XCircle } from 'lucide-react';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { SecureImage } from './SecureImage';
 import DocumentViewer from './DocumentViewer';
 import { ArticleDimension } from './forms/ArticleDimensionForm';
@@ -34,24 +34,24 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
 
-    const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-    const { dataService } = useOffline();
+    // const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+    // const { dataService } = useOffline();
 
     // Chargement des chauffeurs pour l'admin
-    useEffect(() => {
-        const loadChauffeurs = async () => {
-            if (user?.role === 'admin') {
-                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                const personnelData = await dataService.getPersonnel();
-                setChauffeurs(personnelData.filter((p: any) => p.role === 'Chauffeur').map((p: any) => ({
-                    ...p,
-                    status: p.status === 'En route vers magasin' ? 'Actif' : p.status
-                })));
-            }
-        };
+    // useEffect(() => {
+    //     const loadChauffeurs = async () => {
+    //         if (user?.role === 'admin') {
+    //             const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+    //             const personnelData = await dataService.getPersonnel();
+    //             setChauffeurs(personnelData.filter((p: any) => p.role === 'Chauffeur').map((p: any) => ({
+    //                 ...p,
+    //                 status: p.status === 'En route vers magasin' ? 'Actif' : p.status
+    //             })));
+    //         }
+    //     };
 
-        loadChauffeurs();
-    }, [user]);
+    //     loadChauffeurs();
+    // }, [user]);
 
     // Vérification sécurisée des dates
     const timelineEvents = [
@@ -102,13 +102,13 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
             const existingPhotos = commande.articles?.photos || [];
             const newPhotos = uploadedPhotos.map(photo => ({ url: photo.url }));
 
-            const updatedCommande = await dataService.addPhotosToCommande(
-                commande.id,
-                newPhotos,
-                existingPhotos
-            );
+            // const updatedCommande = await dataService.addPhotosToCommande(
+            //     commande.id,
+            //     newPhotos,
+            //     existingPhotos
+            // );
 
-            onUpdate(updatedCommande);
+            // onUpdate(updatedCommande);
         } catch (error) {
             setError('Erreur lors de l\'ajout des photos');
             console.error('Erreur lors de l\'ajout des photos:', error);
@@ -121,12 +121,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
 
             const updatedPhotos = commande.articles.photos.filter((_, index) => index !== indexToDelete);
 
-            const updatedCommande = await dataService.deletePhotoFromCommande(
-                commande.id,
-                updatedPhotos
-            );
+            // const updatedCommande = await dataService.deletePhotoFromCommande(
+            //     commande.id,
+            //     updatedPhotos
+            // );
 
-            onUpdate(updatedCommande);
+            // onUpdate(updatedCommande);
         } catch (error) {
             setError('Erreur lors de la suppression de la photo');
             console.error('Erreur lors de la suppression de la photo:', error);
@@ -498,24 +498,24 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate })
                         onUpdate={onUpdate}
                     />
                 );
-            case 'actions':
-                return (
-                    <div className="p-4 bg-white rounded-lg shadow-sm">
-                        {user?.role === 'magasin' && (
-                            <CommandeActions
-                                commande={commande}
-                                onUpdate={onUpdate}
-                            />
-                        )}
-                        {user?.role === 'admin' && (
-                            <AdminActions
-                                commande={commande}
-                                chauffeurs={chauffeurs}
-                                onUpdate={onUpdate}
-                            />
-                        )}
-                    </div>
-                );
+            // case 'actions':
+            //     return (
+            //         <div className="p-4 bg-white rounded-lg shadow-sm">
+            //             {user?.role === 'magasin' && (
+            //                 <CommandeActions
+            //                     commande={commande}
+            //                     onUpdate={onUpdate}
+            //                 />
+            //             )}
+            //             {user?.role === 'admin' && (
+            //                 <AdminActions
+            //                     commande={commande}
+            //                     chauffeurs={chauffeurs}
+            //                     onUpdate={onUpdate}
+            //                 />
+            //             )}
+            //         </div>
+            //     );
             default:
                 return null;
         }

@@ -82,10 +82,10 @@ export class AuthService {
         import.meta.env.VITE_AIRTABLE_TOKEN
     );
 
-    private static airtableService = new AirtableService(
-        import.meta.env.VITE_AIRTABLE_TOKEN,
-        import.meta.env.VITE_AIRTABLE_BASE_ID
-    );
+    // private static airtableService = new AirtableService(
+    //     import.meta.env.VITE_AIRTABLE_TOKEN,
+    //     import.meta.env.VITE_AIRTABLE_BASE_ID
+    // );
 
     // Vérifier si le mode hors ligne est activé
     private static isOfflineMode(): boolean {
@@ -346,7 +346,7 @@ export class AuthService {
                     // Si non trouvé localement et en ligne, essayer via Airtable
                     if (!storeInfo && !this.isOfflineMode()) {
                         try {
-                            storeInfo = await this.airtableService.getMagasinById(user.storeId);
+                            // storeInfo = await this.airtableService.getMagasinById(user.storeId);
                         } catch (airtableError) {
                             console.warn('Erreur lors de la récupération des infos magasin depuis Airtable:', airtableError);
                         }
@@ -518,7 +518,7 @@ export class AuthService {
                 // En ligne : créer le magasin dans Airtable
                 if (!this.isOfflineMode()) {
                     try {
-                        await this.airtableService.createMagasin(storeData);
+                        // await this.airtableService.createMagasin(storeData);
                     } catch (error) {
                         console.error('Erreur lors de la création du magasin dans Airtable:', error);
                     }
@@ -564,7 +564,7 @@ export class AuthService {
                 // En ligne : créer le chauffeur dans Airtable
                 if (!this.isOfflineMode()) {
                     try {
-                        await this.airtableService.createPersonnel(driverData);
+                        // await this.airtableService.createPersonnel(driverData);
                     } catch (error) {
                         console.error('Erreur lors de la création du chauffeur dans Airtable:', error);
                     }

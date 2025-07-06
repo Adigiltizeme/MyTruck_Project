@@ -11,7 +11,7 @@ import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/r
 import { Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NotificationService } from '../services/notificationService';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { NotificationPanel } from './NotificationPanel';
 import { ThemeToggle } from './ThemeToggle';
@@ -28,7 +28,7 @@ const Header = () => {
     localStorage.getItem('darkMode') === 'true'
   );
 
-  const { isOnline, isOfflineForced } = useOffline();
+  // const { isOnline, isOfflineForced } = useOffline();
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -91,12 +91,12 @@ const Header = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium">
+        {/* <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium">
           <span className={`inline-block h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
           <span className="text-gray-600">
             {isOfflineForced ? 'Mode hors ligne forcé' : isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
-        </div>
+        </div> */}
         {/* Bouton de bascule du thème dans la div des contrôles */}
         <ThemeToggle />
 

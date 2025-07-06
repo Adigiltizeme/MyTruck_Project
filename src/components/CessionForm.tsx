@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CessionFormData } from '../types/cession.types';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Plus, Minus, Upload, AlertCircle } from 'lucide-react';
 import { Store } from '../services/store.service';
@@ -14,7 +14,7 @@ interface CessionFormProps {
 
 const CessionForm: React.FC<CessionFormProps> = ({ onSubmit, onCancel, stores = [] }) => {
     const { user } = useAuth();
-    const { dataService } = useOffline();
+    // const { dataService } = useOffline();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
@@ -37,21 +37,21 @@ const CessionForm: React.FC<CessionFormProps> = ({ onSubmit, onCancel, stores = 
     const [step, setStep] = useState(1);
 
     // Charger les magasins si non fournis
-    useEffect(() => {
-        const loadStores = async () => {
-            try {
-                const storeService = await dataService.getMagasins();
-                setAvailableStores(storeService);
-            } catch (error) {
-                console.error('Erreur lors du chargement des magasins:', error);
-                setError('Impossible de charger la liste des magasins');
-            }
-        };
+    // useEffect(() => {
+    //     const loadStores = async () => {
+    //         try {
+    //             const storeService = await dataService.getMagasins();
+    //             setAvailableStores(storeService);
+    //         } catch (error) {
+    //             console.error('Erreur lors du chargement des magasins:', error);
+    //             setError('Impossible de charger la liste des magasins');
+    //         }
+    //     };
 
-        if (stores.length === 0) {
-            loadStores();
-        }
-    }, [dataService, stores]);
+    //     if (stores.length === 0) {
+    //         loadStores();
+    //     }
+    // }, [dataService, stores]);
 
     // Mise à jour du magasin d'origine basé sur l'utilisateur connecté
     useEffect(() => {

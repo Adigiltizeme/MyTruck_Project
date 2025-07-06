@@ -15,7 +15,8 @@ import { dateFormatter } from '../../utils/formatters';
 import { Modal } from '../../components/Modal';
 import AjoutCommande from '../../components/AjoutCommande';
 import { useDraftStorage } from '../../hooks/useDraftStorage';
-import { useOffline } from '../../contexts/OfflineContext';
+import { simpleBackendService } from '../../services/simple-backend.service';
+// import { useOffline } from '../../contexts/OfflineContext';
 
 // Extend the Window interface to include debugDeliveries for TypeScript
 declare global {
@@ -26,7 +27,7 @@ declare global {
 
 const Deliveries = () => {
     const { user } = useAuth();
-    const { dataService, isOnline } = useOffline();
+    // const { dataService, isOnline } = useOffline();
     const airtable = useAirtable();
 
     const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -109,6 +110,24 @@ const Deliveries = () => {
     });
 
     useEffect(() => {
+        const loadCommandes = async () => {
+            try {
+                setLoading(true);
+                const data = await simpleBackendService.getCommandes();
+                setData(data);
+                setError(null);
+            } catch (err) {
+                console.error('Erreur chargement commandes:', err);
+                setError('Erreur lors du chargement des commandes');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadCommandes();
+    }, []);
+
+    useEffect(() => {
         fetchData();
     }, [user]);
 
@@ -134,7 +153,7 @@ const Deliveries = () => {
     useEffect(() => {
         // Debug automatique en dev
         if (process.env.NODE_ENV === 'development') {
-            window.debugDeliveries = () => dataService.debugDeliversPage();
+            // window.debugDeliveries = () => dataService.debugDeliversPage();
             console.log('💡 Debug disponible: window.debugDeliveries()');
         }
     }, []);
@@ -142,9 +161,9 @@ const Deliveries = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            const records = await dataService.getCommandes();
-            setData(records);
+            // const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+            // const records = await dataService.getCommandes();
+            // setData(records);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
         } finally {
@@ -160,8 +179,8 @@ const Deliveries = () => {
     const handleDelete = async (id: string) => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
             try {
-                const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                await dataService.deleteCommande(id);
+                // const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+                // await dataService.deleteCommande(id);
                 setData(prevData => prevData.filter(commande => commande.id !== id));
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la suppression');
@@ -201,7 +220,7 @@ const Deliveries = () => {
 
             // Appel unique à dataService.createCommande
             console.log('Appel à createCommande (UNIQUE)');
-            await dataService.createCommande(commandeToCreate);
+            // await dataService.createCommande(commandeToCreate);
 
             // Nettoyer après création réussie
             console.log('Commande créée, nettoyage...');
@@ -235,11 +254,11 @@ const Deliveries = () => {
     return (
         <div className="p-6">
             {/* Indicateur de mode hors ligne - sans l'OfflineIndicator qui est déjà dans App */}
-            {!isOnline && (
+            {/* {!isOnline && (
                 <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
                     Vous êtes en mode hors ligne. Les données seront synchronisées lorsque vous serez à nouveau connecté.
                 </div>
-            )}
+            )} */}
 
             <div className="mb-6">
                 <RoleSelector />

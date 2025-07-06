@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types/roles';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { storeService } from '../services/store.service';
 import { useDraftStorage } from '../hooks/useDraftStorage';
 
@@ -17,7 +17,7 @@ const STORES = [
 
 export const RoleSelector = () => {
     const { user } = useAuth();
-    const { dataService } = useOffline();
+    // const { dataService } = useOffline();
     const [stores, setStores] = useState(STORES);
     const [selectedStore, setSelectedStore] = useState<typeof STORES[0]>(
         // Initialiser avec le magasin de l'utilisateur ou le premier de la liste
@@ -45,39 +45,39 @@ export const RoleSelector = () => {
     }, [user?.role, user?.storeId, stores]);
 
     // Charger les magasins depuis le service
-    useEffect(() => {
-        const loadStores = async () => {
-            try {
-                setLoading(true);
-                const magasins = await dataService.getMagasins();
+    // useEffect(() => {
+    //     const loadStores = async () => {
+    //         try {
+    //             setLoading(true);
+    //             const magasins = await dataService.getMagasins();
 
-                if (magasins && magasins.length > 0) {
-                    setStores(magasins);
+    //             if (magasins && magasins.length > 0) {
+    //                 setStores(magasins);
 
-                    // Si l'utilisateur a un storeId, sélectionner le magasin correspondant
-                    if (user?.role === 'magasin' && user.storeId) {
-                        const userStore = magasins.find(m => m.id === user.storeId);
-                        if (userStore) {
-                            setSelectedStore(userStore);
-                        } else {
-                            // Si le magasin n'est pas trouvé, sélectionner le premier
-                            setSelectedStore(magasins[0]);
-                        }
-                    } else {
-                        // Par défaut, sélectionner le premier magasin
-                        setSelectedStore(magasins[0]);
-                    }
-                }
-            } catch (error) {
-                console.error('Erreur lors du chargement des magasins:', error);
-                setError('Impossible de charger la liste des magasins');
-            } finally {
-                setLoading(false);
-            }
-        };
+    //                 // Si l'utilisateur a un storeId, sélectionner le magasin correspondant
+    //                 if (user?.role === 'magasin' && user.storeId) {
+    //                     const userStore = magasins.find(m => m.id === user.storeId);
+    //                     if (userStore) {
+    //                         setSelectedStore(userStore);
+    //                     } else {
+    //                         // Si le magasin n'est pas trouvé, sélectionner le premier
+    //                         setSelectedStore(magasins[0]);
+    //                     }
+    //                 } else {
+    //                     // Par défaut, sélectionner le premier magasin
+    //                     setSelectedStore(magasins[0]);
+    //                 }
+    //             }
+    //         } catch (error) {
+    //             console.error('Erreur lors du chargement des magasins:', error);
+    //             setError('Impossible de charger la liste des magasins');
+    //         } finally {
+    //             setLoading(false);
+    //         }
+    //     };
 
-        loadStores();
-    }, [dataService, user?.storeId, user?.role]);
+    //     loadStores();
+    // }, [dataService, user?.storeId, user?.role]);
 
     // useEffect(() => {
     //     refreshUserContext();
@@ -158,14 +158,14 @@ export const RoleSelector = () => {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="mb-4 flex items-center">
-                <div className="mr-2">Chargement des données...</div>
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-600"></div>
-            </div>
-        );
-    }
+    // if (loading) {
+    //     return (
+    //         <div className="mb-4 flex items-center">
+    //             <div className="mr-2">Chargement des données...</div>
+    //             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-600"></div>
+    //         </div>
+    //     );
+    // }
 
     if (error) {
         return (

@@ -216,8 +216,9 @@ export class AuthAdapter {
         this.apiService.logout();
         this.legacyAuthService.logout();
 
+        console.log('🔄 Basculement d\'authentification');
         // Nettoyer les préférences
-        localStorage.removeItem('useBackendAuth');
+        // localStorage.removeItem('useBackendAuth');
 
         console.log('🚪 Déconnexion complète');
     }
@@ -247,9 +248,9 @@ export class AuthAdapter {
             }
         } catch (error) {
             console.warn('Erreur refresh token:', error);
-            // Token invalide, forcer la déconnexion
-            this.logout();
-            return null;
+            // ❌ NE PAS FORCER LA DÉCONNEXION - LAISSER L'UTILISATEUR CONNECTÉ
+            // this.logout();
+            return currentUser; // ✅ RETOURNER L'UTILISATEUR ACTUEL
         }
     }
 

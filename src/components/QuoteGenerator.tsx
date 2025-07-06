@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommandeMetier } from '../types/business.types';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { validateCommande } from '../utils/validation.utils';
 import { formatPrice } from '../utils/formatters';
 import { format as formatDate } from 'date-fns';
@@ -26,7 +26,7 @@ const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
     onClose,
     onQuoteGenerated
 }) => {
-    const { dataService } = useOffline();
+    // const { dataService } = useOffline();
     const [loading, setLoading] = useState(false);
     const [tarifDetails, setTarifDetails] = useState<TarifResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -273,14 +273,14 @@ const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
             };
 
             // Ajouter le devis à la commande
-            await dataService.addDevisToCommande(commande, {
-                id: devisInfo.numeroDevis,
-                numeroDevis: devisNumber,
-                dateDevis: new Date().toISOString(),
-                dateEcheance: new Date(dateEcheance).toISOString(),
-                montantHT: getTotalHT(),
-                statut: 'En attente'
-            });
+            // await dataService.addDevisToCommande(commande, {
+            //     id: devisInfo.numeroDevis,
+            //     numeroDevis: devisNumber,
+            //     dateDevis: new Date().toISOString(),
+            //     dateEcheance: new Date(dateEcheance).toISOString(),
+            //     montantHT: getTotalHT(),
+            //     statut: 'En attente'
+            // });
 
             // Télécharger le PDF
             const pdfUrl = URL.createObjectURL(pdfBlob);

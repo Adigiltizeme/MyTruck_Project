@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommandeMetier } from '../types/business.types';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { formatPrice } from '../utils/formatters';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -23,7 +23,7 @@ const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({
     onClose,
     onInvoiceGenerated
 }) => {
-    const { dataService } = useOffline();
+    // const { dataService } = useOffline();
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -248,14 +248,14 @@ const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({
             };
 
             // Ajouter la facture à la commande via dataService
-            await dataService.addFactureToCommande(commande, {
-                id: factureNumber,
-                numeroFacture: factureNumber,
-                dateFacture: new Date(dateFacture).toISOString(),
-                dateEcheance: new Date(dateEcheance).toISOString(),
-                montantHT: getTotalHT(),
-                statut: 'En attente'
-            });
+            // await dataService.addFactureToCommande(commande, {
+            //     id: factureNumber,
+            //     numeroFacture: factureNumber,
+            //     dateFacture: new Date(dateFacture).toISOString(),
+            //     dateEcheance: new Date(dateEcheance).toISOString(),
+            //     montantHT: getTotalHT(),
+            //     statut: 'En attente'
+            // });
 
             // Télécharger le PDF
             const pdfUrl = URL.createObjectURL(pdfBlob);

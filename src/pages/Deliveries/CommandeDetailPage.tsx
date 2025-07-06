@@ -2,38 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CommandeMetier } from '../../types/business.types';
 import CommandeDetails from '../../components/CommandeDetails';
-import { useOffline } from '../../contexts/OfflineContext';
+// import { useOffline } from '../../contexts/OfflineContext';
 
 const CommandeDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { dataService, isOnline } = useOffline();
+    // const { dataService, isOnline } = useOffline();
     const [commande, setCommande] = useState<CommandeMetier | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchCommande = async () => {
-            if (!id) return;
+    // useEffect(() => {
+    //     const fetchCommande = async () => {
+    //         if (!id) return;
             
-            try {
-                setLoading(true);
-                const data = await dataService.getCommande(id);
-                if (data) {
-                    setCommande(data);
-                } else {
-                    setError('Commande non trouvée');
-                }
-            } catch (err) {
-                console.error('Erreur lors du chargement de la commande:', err);
-                setError('Erreur lors du chargement de la commande');
-            } finally {
-                setLoading(false);
-            }
-        };
+    //         try {
+    //             setLoading(true);
+    //             const data = await dataService.getCommande(id);
+    //             if (data) {
+    //                 setCommande(data);
+    //             } else {
+    //                 setError('Commande non trouvée');
+    //             }
+    //         } catch (err) {
+    //             console.error('Erreur lors du chargement de la commande:', err);
+    //             setError('Erreur lors du chargement de la commande');
+    //         } finally {
+    //             setLoading(false);
+    //         }
+    //     };
 
-        fetchCommande();
-    }, [id, dataService]);
+    //     fetchCommande();
+    // }, [id, dataService]);
 
     const handleUpdate = (updatedCommande: CommandeMetier) => {
         setCommande(updatedCommande);
@@ -61,11 +61,11 @@ const CommandeDetailPage: React.FC = () => {
 
     return (
         <div className="p-6">
-            {!isOnline && (
+            {/* {!isOnline && (
                 <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
                     Vous êtes en mode hors ligne. Les modifications seront synchronisées ultérieurement.
                 </div>
-            )}
+            )} */}
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Commande #{commande.numeroCommande}</h1>
                 <button 

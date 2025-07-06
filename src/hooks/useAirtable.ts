@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AirtableService } from '../services/airtable.service';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 
 export const useAirtable = () => {
   const [service, setService] = useState<AirtableService | null>(null);
@@ -8,7 +8,7 @@ export const useAirtable = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const isOffline = localStorage.getItem('forceOfflineMode') === 'true';
 
-  const { dataService } = useOffline();
+  // const { dataService } = useOffline();
 
   useEffect(() => {
     const initializeAirtable = async () => {
@@ -25,9 +25,9 @@ export const useAirtable = () => {
           throw new Error('Token Airtable non trouvé dans les variables d\'environnement');
         }
 
-        const airtableService = new AirtableService(token);
-        await airtableService.initialize();
-        setService(airtableService);
+        // const airtableService = new AirtableService(token);
+        // await airtableService.initialize();
+        // setService(airtableService);
         setIsInitialized(true);
         setError(null);
       } catch (err) {

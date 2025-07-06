@@ -1,9 +1,24 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { UserRole } from '../types/dashboard.types';
-import { SecureStorageService } from '../services/secureStorage';
-import { AuthService, AuthUser, SPECIAL_ACCOUNTS } from '../services/authService';
 import { NotificationService } from '../services/notificationService';
-import { authAdapter } from '../services/auth-adapter.service'; // AJOUT
+
+interface AuthUser {
+    id: string;
+    email: string;
+    name: string;
+    role: UserRole;
+    storeId?: string;
+    storeName?: string;
+    storeAddress?: string;
+    driverId?: string;
+    token: string;
+    lastLogin: Date;
+    magasin?: {
+        id: string;
+        nom: string;
+        adresse?: string;
+    };
+}
 
 interface AuthContextType {
     user: AuthUser | null;
@@ -30,76 +45,218 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-// ✅ Fonction de normalisation des rôles Backend
-export function normalizeBackendRole(backendRole: string): string {
-    const roleMap: Record<string, string> = {
-        'ADMIN': 'admin',
-        'DIRECTION': 'admin',
-        'MAGASIN': 'magasin',
-        'INTERLOCUTEUR': 'magasin',
-        'CHAUFFEUR': 'chauffeur'
+
+// Configuration API
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+// ⚠️ DEBUG URGENCE - À ajouter AVANT la classe ApiAuthService
+if (typeof window !== 'undefined') {
+    // Sauvegarder les méthodes originales
+    const originalSetItem = localStorage.setItem;
+    const originalRemoveItem = localStorage.removeItem;
+    const originalClear = localStorage.clear;
+
+    // Intercepter toutes les opérations localStorage
+    localStorage.setItem = function (key, value) {
+        if (key === 'authToken' || key === 'user') {
+            console.log(`✅ STOCKAGE: ${key}`, new Error().stack);
+        }
+        return originalSetItem.apply(this, [...arguments] as [string, string]);
     };
 
-    return roleMap[backendRole.toUpperCase()] || 'magasin';
+    localStorage.removeItem = function (key) {
+        if (key === 'authToken' || key === 'user') {
+            console.error(`🚨 SUPPRESSION: ${key}`, new Error().stack);
+        }
+        return originalRemoveItem.apply(this, [...arguments] as [string]);
+    };
+
+    localStorage.clear = function () {
+        console.error('🚨 CLEAR COMPLET localStorage', new Error().stack);
+        return originalClear.apply(this);
+    };
+
+    console.log('🔍 Surveillance localStorage activée');
+}
+// Service API unifié
+class ApiAuthService {
+    public static getStoredUser(): AuthUser | null {
+        try {
+            console.log('🔍 Debug stockage localStorage:');
+            console.log('- authToken:', !!localStorage.getItem('authToken'));
+            console.log('- user:', !!localStorage.getItem('user'));
+            console.log('- Toutes les clés:', Object.keys(localStorage));
+
+            const token = localStorage.getItem('authToken');
+            const userData = localStorage.getItem('user');
+
+            console.log('📦 Token trouvé:', !!token);
+            console.log('📦 UserData trouvé:', !!userData);
+
+            if (!token || !userData) {
+                console.log('❌ Données manquantes dans localStorage');
+
+                // ✅ TENTATIVE DE RÉCUPÉRATION DEPUIS D'AUTRES SOURCES
+                const backupUser = localStorage.getItem('currentUser');
+                if (backupUser) {
+                    console.log('🔄 Tentative récupération backup user');
+                    try {
+                        const parsed = JSON.parse(backupUser);
+                        if (parsed.token) {
+                            // Restaurer les données
+                            localStorage.setItem('authToken', parsed.token);
+                            localStorage.setItem('user', JSON.stringify(parsed));
+                            return this.getStoredUser(); // Rappel récursif
+                        }
+                    } catch (e) {
+                        console.warn('Backup user invalide');
+                    }
+                }
+
+                return null;
+            }
+
+            const user = JSON.parse(userData);
+            console.log('👤 User parsé:', user);
+
+            const authUser = {
+                id: user.id,
+                email: user.email,
+                name: user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim(),
+                role: user.role?.toLowerCase() as UserRole,
+                token,
+                lastLogin: new Date(),
+                magasin: user.magasin,
+                storeId: user.magasin?.id,
+                storeName: user.magasin?.nom,
+                storeAddress: user.magasin?.adresse,
+            };
+
+            console.log('✅ AuthUser créé:', authUser);
+            return authUser;
+        } catch (error) {
+            console.error('❌ Erreur récupération utilisateur stocké:', error);
+            return null;
+        }
+    }
+
+    private static storeUser(token: string, userData: any): void {
+        console.log('💾 STOCKAGE FORCÉ - Avant:', {
+            token: !!localStorage.getItem('authToken'),
+            user: !!localStorage.getItem('user')
+        });
+
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('preferredDataSource', 'backend_api');
+        localStorage.setItem('userSource', 'backend');
+
+        // ✅ VÉRIFICATION IMMÉDIATE
+        setTimeout(() => {
+            console.log('💾 STOCKAGE FORCÉ - Après 0ms:', {
+                token: !!localStorage.getItem('authToken'),
+                user: !!localStorage.getItem('user')
+            });
+        }, 0);
+
+        setTimeout(() => {
+            console.log('💾 STOCKAGE FORCÉ - Après 100ms:', {
+                token: !!localStorage.getItem('authToken'),
+                user: !!localStorage.getItem('user')
+            });
+        }, 100);
+    }
+
+    public static clearUser(): void {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('preferredDataSource');
+        localStorage.removeItem('userSource');
+    }
+
+    static async login(email: string, password: string): Promise<AuthUser> {
+        try {
+            console.log('🔐 Connexion Backend API...');
+
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email.toLowerCase().trim(),
+                    password: password
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Erreur authentification:', response.status, errorText);
+                throw new Error(`Échec de connexion: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.access_token || !data.user) {
+                throw new Error('Réponse invalide du serveur');
+            }
+
+            // Stocker les données
+            this.storeUser(data.access_token, data.user);
+
+            // Transformer au format AuthUser
+            const authUser: AuthUser = {
+                id: data.user.id,
+                email: data.user.email,
+                name: `${data.user.prenom || ''} ${data.user.nom || ''}`.trim(),
+                role: data.user.role?.toLowerCase() as UserRole,
+                token: data.access_token,
+                lastLogin: new Date(),
+                magasin: data.user.magasin,
+                storeId: data.user.magasin?.id,
+                storeName: data.user.magasin?.nom,
+                storeAddress: data.user.magasin?.adresse,
+            };
+
+            console.log('✅ Connexion réussie:', authUser.email);
+            return authUser;
+
+        } catch (error) {
+            console.error('❌ Erreur connexion:', error);
+            throw error;
+        }
+    }
+
+    static async getProfile(token: string): Promise<any> {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur récupération profil');
+        }
+
+        return response.json();
+    }
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-
     const [loading, setLoading] = useState(true);
-    const [sessionTimeout] = useState(60 * 60 * 1000);
+    const [sessionTimeout] = useState(60 * 60 * 1000); // 1 heure
     const userActivityTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastActivityTime = useRef<number>(Date.now());
+
+    // Initialisation de l'utilisateur depuis le stockage
     const [user, setUser] = useState<AuthUser | null>(() => {
-        console.log('🔍 Initialisation AuthContext - Détection source utilisateur');
-
-        // ✅ CORRECTION: Priorité absolue au système unifié
-
-        // 1. Vérifier d'abord Backend API (plus récent)
-        const backendToken = localStorage.getItem('authToken');
-        const backendUser = localStorage.getItem('user');
-
-        if (backendToken && backendUser) {
-            try {
-                const user = JSON.parse(backendUser);
-                console.log('✅ Utilisateur Backend API détecté:', user.email);
-
-                // FORCER la source Backend API
-                localStorage.setItem('preferredDataSource', 'backend_api');
-                localStorage.setItem('userSource', 'backend');
-
-                // Transformer au format AuthUser
-                const authUser: AuthUser = {
-                    id: user.id,
-                    email: user.email,
-                    name: user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim(),
-                    role: normalizeBackendRole(user.role) as UserRole, // ✅ Normalisation
-                    storeId: user.magasin?.id,
-                    storeName: user.magasin?.nom,
-                    storeAddress: user.magasin?.adresse,
-                    driverId: user.chauffeur?.id,
-                    token: backendToken,
-                    lastLogin: new Date(),
-                };
-
-                return authUser;
-            } catch (error) {
-                console.warn('⚠️ Erreur parsing Backend user:', error);
-            }
+        console.log('🔍 Initialisation AuthContext...');
+        const storedUser = ApiAuthService.getStoredUser();
+        if (storedUser) {
+            console.log('✅ Utilisateur trouvé:', storedUser.email);
+        } else {
+            console.log('❌ Aucun utilisateur connecté');
         }
-
-        // 2. Fallback vers Legacy SEULEMENT si pas de Backend
-        console.log('🔄 Tentative récupération Legacy user');
-        const legacyUser = AuthService.getCurrentUser();
-        if (legacyUser) {
-            console.log('✅ Utilisateur Legacy récupéré:', legacyUser.email);
-            // Forcer Airtable pour les utilisateurs Legacy
-            localStorage.setItem('preferredDataSource', 'airtable');
-            localStorage.setItem('userSource', 'legacy');
-            return legacyUser;
-        }
-
-        console.log('❌ Aucun utilisateur trouvé');
-        return null;
+        return storedUser;
     });
 
     const resetActivityTimer = useCallback(() => {
@@ -119,7 +276,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [sessionTimeout]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+            setLoading(false);
+            return;
+        }
 
         const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
         const activityHandler = () => resetActivityTimer();
@@ -128,6 +288,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         resetActivityTimer();
+        setLoading(false);
 
         return () => {
             events.forEach(event => {
@@ -140,193 +301,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
     }, [user, resetActivityTimer]);
 
-    useEffect(() => {
-        // MODIFICATION: Vérifier l'utilisateur avec l'adaptateur d'abord
-        const checkCurrentUser = () => {
-            console.log('🔍 Vérification utilisateur au démarrage...');
-
-            // 1. Essayer avec l'adaptateur (backend + legacy)
-            const adapterUser = authAdapter.getCurrentUser();
-            if (adapterUser) {
-                console.log('✅ Utilisateur trouvé via adaptateur:', adapterUser.email);
-                setUser(adapterUser);
-                setLoading(false);
-                return;
-            }
-
-            // 2. Fallback vers le système existant
-            const currentUser = AuthService.getCurrentUser();
-            if (currentUser) {
-                console.log('✅ Utilisateur trouvé via AuthService:', currentUser.email);
-                setUser(currentUser);
-            } else {
-                console.log('❌ Aucun utilisateur connecté trouvé');
-            }
-
-            setLoading(false);
-        };
-
-        checkCurrentUser();
-
-        // Configurer un intervalle pour rafraîchir le token
-        const tokenRefreshInterval = setInterval(() => {
-            if (user) {
-                refreshToken().catch(err => {
-                    console.error('Erreur lors du rafraîchissement du token', err);
-                    logout();
-                });
-            }
-        }, 30 * 60 * 1000);
-
-        return () => clearInterval(tokenRefreshInterval);
-    }, []); // Dépendances vides pour ne s'exécuter qu'au montage
-
-    const refreshToken = async () => {
-        if (user) {
-            try {
-                // MODIFICATION: Essayer d'abord avec l'adaptateur
-                const refreshedUser = authAdapter.refreshToken ?
-                    await authAdapter.refreshToken() :
-                    AuthService.refreshToken();
-
-                if (refreshedUser) {
-                    setUser(refreshedUser);
-                }
-            } catch (error) {
-                console.error('Erreur refresh token:', error);
-                logout();
-            }
-        }
-    };
-
-    const refreshUserContext = async () => {
-        if (!user) return;
-
-        try {
-            // MODIFICATION: Utiliser l'adaptateur pour rafraîchir
-            const refreshedUser = authAdapter.refreshToken ?
-                await authAdapter.refreshToken() :
-                await AuthService.refreshUserContext(user.id);
-
-            if (refreshedUser) {
-                setUser(refreshedUser);
-            }
-
-            // Vérifier aussi le stockage direct
-            const currentUser = authAdapter.getCurrentUser() || AuthService.getCurrentUser();
-            if (currentUser && currentUser.id === user.id) {
-                setUser(currentUser);
-            }
-
-        } catch (error) {
-            console.error('Erreur lors du rafraîchissement du contexte utilisateur:', error);
-        }
-    };
-
-    const updateUserRole = async (role: UserRole, options?: any) => {
-        // Implement the logic to update the user role and any related state
-        if (!user) return;
-
-        const updatedUser = {
-            ...user,
-            role,
-            ...options
-        };
-
-        try {
-            await AuthService.updateUserInfo(user.id, updatedUser);
-            setUser(updatedUser);
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour du rôle utilisateur:', error);
-        }
-    };
-
-    const login = async (email: string, password: string) => {
+    const login = async (email: string, password: string): Promise<AuthUser> => {
         try {
             setLoading(true);
-            console.log('🔐 Connexion - Backend API PRIORITAIRE');
-
-            let authenticatedUser: AuthUser;
-
-            // ✅ CORRECTION: TOUJOURS essayer Backend en PREMIER
-            try {
-                console.log('🚀 PRIORITÉ: Tentative Backend API...');
-
-                const apiResponse = await fetch('http://localhost:3000/api/v1/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email.toLowerCase().trim(),
-                        password: password
-                    }),
-                    signal: AbortSignal.timeout(5000) // Timeout 5s
-                });
-
-                if (!apiResponse.ok) {
-                    const errorText = await apiResponse.text();
-                    console.error('Backend API erreur:', apiResponse.status, errorText);
-                    throw new Error(`Backend: ${apiResponse.status} ${apiResponse.statusText}`);
-                }
-
-                const backendData = await apiResponse.json();
-
-                if (!backendData.access_token || !backendData.user) {
-                    throw new Error('Format réponse Backend invalide');
-                }
-
-                // Transformation Backend → Unifié
-                authenticatedUser = {
-                    id: backendData.user.id,
-                    email: backendData.user.email,
-                    name: `${backendData.user.prenom || ''} ${backendData.user.nom || ''}`.trim(),
-                    role: backendData.user.role?.toLowerCase() || 'magasin',
-                    storeId: backendData.user.magasin?.id,
-                    storeName: backendData.user.magasin?.nom,
-                    storeAddress: backendData.user.magasin?.adresse || '',
-                    driverId: backendData.user.chauffeur?.id,
-                    token: backendData.access_token,
-                    lastLogin: new Date(),
-                    source: 'backend'
-                };
-
-                // ✅ FORCER utilisation Backend pour TOUT
-                localStorage.setItem('preferredDataSource', 'backend_api');
-                localStorage.setItem('userSource', 'backend');
-                localStorage.setItem('authMethod', 'backend_api'); // ✅ NOUVEAU marqueur
-
-                console.log('🎉 SUCCÈS Backend API - Source FORCÉE à Backend');
-
-            } catch (backendError) {
-                console.error('❌ Backend API échec:', backendError);
-
-                // ✅ SEULEMENT en dernier recours : Legacy
-                console.log('🔄 FALLBACK vers Legacy (Airtable)...');
-
-                try {
-                    authenticatedUser = await AuthService.login(email, password);
-                    authenticatedUser.source = 'legacy';
-
-                    // Marquer utilisation Legacy
-                    localStorage.setItem('preferredDataSource', 'airtable');
-                    localStorage.setItem('userSource', 'legacy');
-                    localStorage.setItem('authMethod', 'airtable'); // ✅ NOUVEAU marqueur
-
-                    console.log('✅ Fallback Legacy réussi');
-
-                    // Avertir l'utilisateur
-                    console.warn('🔶 ATTENTION: Connexion en mode dégradé (Airtable)');
-
-                } catch (legacyError) {
-                    console.error('❌ Legacy aussi échoué:', legacyError);
-                    throw new Error('Échec de connexion sur tous les systèmes');
-                }
-            }
-
+            const authenticatedUser = await ApiAuthService.login(email, password);
             setUser(authenticatedUser);
             return authenticatedUser;
-
         } catch (error) {
-            console.error('❌ Erreur connexion finale:', error);
+            console.error('❌ Erreur connexion:', error);
             throw error;
         } finally {
             setLoading(false);
@@ -335,17 +317,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const logout = () => {
         console.log('🚪 Déconnexion...');
-
-        // MODIFICATION: Nettoyer les deux systèmes
-        authAdapter.logout();
-        AuthService.logout();
+        ApiAuthService.clearUser();
         setUser(null);
-
-        // Rediriger vers la page de connexion
         window.location.href = '/login';
     };
 
-    // Fonction pour changer de rôle
+    const refreshToken = async () => {
+        if (user && user.token) {
+            try {
+                const profile = await ApiAuthService.getProfile(user.token);
+
+                const refreshedUser: AuthUser = {
+                    ...user,
+                    name: `${profile.prenom || ''} ${profile.nom || ''}`.trim(),
+                    magasin: profile.magasin,
+                    storeId: profile.magasin?.id,
+                    storeName: profile.magasin?.nom,
+                    storeAddress: profile.magasin?.adresse,
+                };
+
+                setUser(refreshedUser);
+            } catch (error) {
+                console.error('Erreur refresh token:', error);
+                // ❌ NE PAS FORCER LA DÉCONNEXION
+                // logout();
+                // ✅ LAISSER L'UTILISATEUR CONNECTÉ
+                console.warn('Refresh token échoué, utilisateur maintenu connecté');
+            }
+        }
+    };
+
+    const refreshUserContext = async () => {
+        if (user && user.token) {
+            try {
+                await refreshToken();
+            } catch (error) {
+                console.error('Erreur rafraîchissement contexte:', error);
+            }
+        }
+    };
+
     const setRole = (role: UserRole, options?: {
         storeId?: string;
         storeName?: string;
@@ -354,134 +365,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }) => {
         if (!user) return;
 
-        const newUser = {
+        const updatedUser = {
             ...user,
             role,
-            storeId: options?.storeId,
-            storeName: options?.storeName,
-            storeAddress: options?.storeAddress,
-            driverId: options?.driverId,
-            lastLogin: new Date()
+            storeId: options?.storeId || user.storeId,
+            storeName: options?.storeName || user.storeName,
+            storeAddress: options?.storeAddress || user.storeAddress,
+            driverId: options?.driverId || user.driverId,
         };
 
-        AuthService.updateUserInfo(user.id, {
-            role,
-            storeId: options?.storeId,
-            storeName: options?.storeName,
-            storeAddress: options?.storeAddress,
-            driverId: options?.driverId
-        }).then(updatedUser => {
-            if (updatedUser) {
-                setUser(updatedUser);
-            } else {
-                setUser(newUser);
-            }
-        }).catch(error => {
-            console.error('Failed to update user info:', error);
-            setUser(newUser);
-        });
+        setUser(updatedUser);
+    };
+
+    const updateUserRole = async (role: UserRole, options?: any) => {
+        if (!user) return;
 
         const updatedUser = {
             ...user,
-            role
+            role,
+            ...options
         };
 
-        if (role === 'magasin' && options) {
-            updatedUser.storeId = options.storeId || user.storeId;
-            updatedUser.storeName = options.storeName || user.storeName;
-            updatedUser.storeAddress = options.storeAddress || user.storeAddress;
-        } else if (role === 'chauffeur' && options) {
-            updatedUser.driverId = options.driverId || user.driverId;
-        }
-
-        if (updatedUser.token) {
-            SecureStorageService.setAuthData(updatedUser.token, updatedUser);
-        }
-
         setUser(updatedUser);
-
-        setTimeout(() => {
-            refreshUserContext();
-        }, 100);
     };
 
     const updateUserInfo = async (userData: { name: string, email: string, phone?: string }) => {
         if (!user) return;
 
-        try {
-            const updatedUser = await AuthService.updateUserInfo(user.id, {
-                ...user,
-                name: userData.name,
-                email: userData.email,
-                storePhone: userData.phone
-            });
+        const updatedUser = {
+            ...user,
+            name: userData.name,
+            email: userData.email,
+        };
 
-            if (updatedUser) {
-                setUser({
-                    ...user,
-                    name: userData.name,
-                    email: userData.email,
-                    storePhone: userData.phone
-                });
-
-                SecureStorageService.updateAuthData({
-                    ...user,
-                    name: userData.name,
-                    email: userData.email,
-                    phone: userData.phone
-                });
-            }
-        } catch (error) {
-            console.error('Erreur lors de la mise à jour des informations:', error);
-            throw error;
-        }
+        setUser(updatedUser);
     };
 
     const changePassword = async (currentPassword: string, newPassword: string) => {
         if (!user) return;
 
-        try {
-            const isSpecialAccount = SPECIAL_ACCOUNTS.includes(user.email.toLowerCase());
-
-            if (!isSpecialAccount) {
-                const isCurrentPasswordValid = await AuthService.verifyPassword(currentPassword, user.passwordHash || '');
-
-                if (!isCurrentPasswordValid) {
-                    throw new Error('Mot de passe actuel incorrect');
-                }
-            }
-
-            const newPasswordHash = await AuthService.hashPassword(newPassword);
-            const updatedUser = await AuthService.updateUserPassword(user.id, newPasswordHash);
-
-            if (updatedUser) {
-                setUser({
-                    ...user,
-                    passwordHash: newPasswordHash
-                });
-            }
-        } catch (error) {
-            console.error('Erreur lors du changement de mot de passe:', error);
-            throw error;
-        }
+        // TODO: Implémenter l'appel API pour changer le mot de passe
+        console.log('Changement de mot de passe à implémenter');
     };
-
-    // AJOUT: Fonction de debug pour diagnostiquer les problèmes
-    const debugAuthState = () => {
-        console.log('=== DEBUG AUTH STATE ===');
-        console.log('User dans le contexte:', user);
-        console.log('Loading:', loading);
-        console.log('User via adaptateur:', authAdapter.getCurrentUser());
-        console.log('User via AuthService:', AuthService.getCurrentUser());
-        console.log('LocalStorage authToken:', localStorage.getItem('authToken'));
-        console.log('LocalStorage user:', localStorage.getItem('user'));
-        console.log('========================');
-    };
-
-    // AJOUT: Exposer la fonction de debug en développement
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        (window as any).debugAuthState = debugAuthState;
-    }
 
     return (
         <AuthContext.Provider value={{

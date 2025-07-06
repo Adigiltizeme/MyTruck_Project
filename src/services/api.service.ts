@@ -113,10 +113,10 @@ export class ApiService {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('authToken');
       // Vérifier immédiatement si le token stocké est valide
-      if (token && this.isTokenExpired(token)) {
-        this.clearToken();
-        return null;
-      }
+      // if (token && this.isTokenExpired(token)) {
+      //   this.clearToken();
+      //   return null;
+      // }
       return token;
     }
     return null;
@@ -143,15 +143,15 @@ export class ApiService {
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     // Vérifier si le token est expiré avant chaque requête
-    if (this.token && this.isTokenExpired(this.token)) {
-      console.log('🔄 Token expiré, nettoyage automatique...');
-      this.clearToken();
-      // Rediriger vers la page de connexion
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      throw new Error('Session expirée. Redirection en cours...');
-    }
+    // if (this.token && this.isTokenExpired(this.token)) {
+    //   console.log('🔄 Token expiré, nettoyage automatique...');
+    //   this.clearToken();
+    //   // Rediriger vers la page de connexion
+    //   if (typeof window !== 'undefined') {
+    //     window.location.href = '/login';
+    //   }
+    //   throw new Error('Session expirée. Redirection en cours...');
+    // }
 
     const url = `${this.baseUrl}${endpoint}`;
 
@@ -168,16 +168,28 @@ export class ApiService {
       const response = await fetch(url, { ...options, headers });
 
       // Gestion des erreurs 401
-      if (response.status === 401) {
-        console.log('❌ 401 Unauthorized - Token invalide');
-        this.clearToken();
+      // if (response.status === 401 || response.status === 403) {
+      //   console.error('❌ Erreur d\'authentification:', {
+      //     url,
+      //     status: response.status,
+      //     currentPath: window.location.pathname,
+      //     hasToken: !!localStorage.getItem('authToken')
+      //   });
 
-        // Redirection automatique
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+      //   // throw new Error('Session expirée. Veuillez vous reconnecter.');
+      // }
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/login' && !url.includes('/auth/login')) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
         }
 
-        throw new Error('Session expirée. Veuillez vous reconnecter.');
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
 
       if (!response.ok) {
