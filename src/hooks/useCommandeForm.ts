@@ -202,7 +202,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                             name: user.storeName || '',
                             address: user.storeAddress || '',
                             phone: user.storePhone || '',
-                            status: user.storeStatus || 'active'
+                            status: user.storeStatus || 'Actif'
                         };
                     }
 

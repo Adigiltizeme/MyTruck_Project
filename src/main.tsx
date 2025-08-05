@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
-// import { OfflineProvider } from './contexts/OfflineContext'
+import { OfflineProvider } from './contexts/OfflineContext'
 import App from './App'
 import './styles/Home.css';
 import './index.css'
@@ -35,13 +35,13 @@ DatabaseManager.initialize()
       <React.StrictMode>
         <BrowserRouter>
           <AuthProvider>
-            {/* <OfflineProvider> */}
+            <OfflineProvider>
               <ThemeProvider>
                 <NotificationProvider>
                   <App />
                 </NotificationProvider>
               </ThemeProvider>
-            {/* </OfflineProvider> */}
+            </OfflineProvider>
           </AuthProvider>
         </BrowserRouter>
       </React.StrictMode>

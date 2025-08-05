@@ -13,7 +13,6 @@ interface PhotoUploaderProps {
 
 const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     onUpload,
-    maxPhotos = 5,
     existingPhotos = [],
     MAX_SIZE = 10 * 1024 * 1024 // 10MB
 }) => {
@@ -22,49 +21,61 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     const [photos, setPhotos] = useState(existingPhotos);
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
-    // Le nombre maximal est toujours 5
+
     const TOTAL_MAX_PHOTOS = 5;
-    // Le nombre actuel de photos
+
     const currentPhotoCount = existingPhotos.length;
     // Le nombre de photos qu'on peut encore ajouter
     const remainingPhotos = TOTAL_MAX_PHOTOS - currentPhotoCount;
 
-    // Fonction de validation du format des photos
-    const validatePhotoFormat = (photo: { url: string, file: File }): boolean => {
-        // Vérifie si l'URL est au format data:image
-        if (!photo.url.startsWith('data:image/')) {
-            throw new Error('Format d\'image invalide');
-        }
+    // const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const files = e.target.files;
+    //     if (!files) return;
 
-        // Vérifie si les données base64 sont présentes
-        if (!photo.url.includes('base64,')) {
-            throw new Error('Données image corrompues');
-        }
+    //     try {
+    //         setUploading(true);
+    //         setError('');
 
-        return true;
-    };
+    //         // Validation initiale
+    //         if (existingPhotos.length + files.length > 5) {
+    //             throw new Error('Maximum 5 photos autorisées');
+    //         }
+    //         // Validation du volume total
+    //         const totalSize = photos.reduce((acc, photo) => acc + photo.file.size, 0) +
+    //             Array.from(files).reduce((acc, file) => acc + file.size, 0);
 
-    // Fonction de conversion de fichier en base64
-    const convertToBase64 = async (file: File): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                if (typeof reader.result === 'string') {
-                    // Vérification du format
-                    if (!reader.result.startsWith('data:image/')) {
-                        reject(new Error('Format d\'image invalide'));
-                        return;
-                    }
-                    resolve(reader.result);
-                } else {
-                    reject(new Error('Erreur de lecture du fichier'));
-                }
-            };
-            reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
-            reader.readAsDataURL(file);
-        });
-    };
+    //         if (totalSize > 50 * 1024 * 1024) {
+    //             throw new Error('Volume total des photos trop élevé');
+    //         }
 
+
+    //         const cloudinaryService = new CloudinaryService();
+
+    //         // Traitement des fichiers
+    //         const newPhotos = await Promise.all(
+    //             Array.from(files).map(async (file) => {
+    //                 if (!ALLOWED_TYPES.includes(file.type)) {
+    //                     throw new Error(`Type de fichier non supporté: ${file.type}`);
+    //                 }
+
+    //                 if (file.size > MAX_SIZE) {
+    //                     throw new Error(`Fichier trop volumineux: ${file.name}`);
+    //                 }
+
+    //                 const uploadResult = await cloudinaryService.uploadImage(file);
+    //                 return { url: uploadResult.url, file };
+    //             })
+    //         );
+
+    //         onUpload(newPhotos);
+
+    //     } catch (error) {
+    //         setError(error instanceof Error ? error.message : 'Erreur lors du chargement');
+    //         console.error('Erreur upload:', error);
+    //     } finally {
+    //         setUploading(false);
+    //     }
+    // };
     const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files) return;
@@ -73,24 +84,22 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
             setUploading(true);
             setError('');
 
+            console.log('📸 Début upload photos:', files.length, 'fichier(s)');
+
             // Validation initiale
             if (existingPhotos.length + files.length > 5) {
                 throw new Error('Maximum 5 photos autorisées');
             }
-            // Validation du volume total
-            const totalSize = photos.reduce((acc, photo) => acc + photo.file.size, 0) +
-                Array.from(files).reduce((acc, file) => acc + file.size, 0);
-
-            if (totalSize > 50 * 1024 * 1024) {
-                throw new Error('Volume total des photos trop élevé');
-            }
-
 
             const cloudinaryService = new CloudinaryService();
 
-            // Traitement des fichiers
-            const newPhotos = await Promise.all(
-                Array.from(files).map(async (file) => {
+            // ✅ AJOUTER: Upload une par une avec gestion d'erreur individuelle
+            const newPhotos = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    console.log(`📸 Upload photo ${i + 1}/${files.length}: ${file.name}`);
+
                     if (!ALLOWED_TYPES.includes(file.type)) {
                         throw new Error(`Type de fichier non supporté: ${file.type}`);
                     }
@@ -100,27 +109,27 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                     }
 
                     const uploadResult = await cloudinaryService.uploadImage(file);
-                    return { url: uploadResult.url, file };
-                })
-            );
+                    console.log(`✅ Photo ${i + 1} uploadée:`, uploadResult.url);
 
+                    newPhotos.push({ url: uploadResult.url, file });
+                } catch (fileError) {
+                    console.error(`❌ Erreur upload photo ${file.name}:`, fileError);
+                    throw fileError; // Arrêter le processus si une photo échoue
+                }
+            }
+
+            console.log('✅ Toutes les photos uploadées, envoi au parent...');
             onUpload(newPhotos);
+            console.log('✅ Photos envoyées au composant parent');
 
         } catch (error) {
+            console.error('❌ Erreur générale upload:', error);
             setError(error instanceof Error ? error.message : 'Erreur lors du chargement');
-            console.error('Erreur upload:', error);
         } finally {
             setUploading(false);
         }
     };
 
-    const removePhoto = (index: number) => {
-        const updatedPhotos = photos.filter((_, i) => i !== index);
-        setPhotos(updatedPhotos);
-        onUpload(updatedPhotos); // Envoyer les photos mises à jour au parent
-    };
-
-    // Clean up des URLs lors du démontage du composant
     useEffect(() => {
         return () => {
             photos.forEach(photo => {
@@ -131,71 +140,115 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
         };
     }, []);
 
-    const compressImage = async (file: File): Promise<{ url: string; file: File; metadata: PhotoMetadata }> => {
-        // Création d'une image pour la compression
-        const img = new Image();
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d')!;
+    // const removePhoto = (index: number) => {
+    //     const updatedPhotos = photos.filter((_, i) => i !== index);
+    //     setPhotos(updatedPhotos);
+    //     onUpload(updatedPhotos); // Envoyer les photos mises à jour au parent
+    // };
 
-        // Chargement de l'image
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = URL.createObjectURL(file);
-        });
+    // Clean up des URLs lors du démontage du composant
 
-        // Calcul des dimensions
-        let width = img.width;
-        let height = img.height;
-        const maxDimension = 1920; // Maximum dimension
+    // const compressImage = async (file: File): Promise<{ url: string; file: File; metadata: PhotoMetadata }> => {
+    //     // Création d'une image pour la compression
+    //     const img = new Image();
+    //     const canvas = document.createElement('canvas');
+    //     const ctx = canvas.getContext('2d')!;
 
-        if (width > maxDimension || height > maxDimension) {
-            if (width > height) {
-                height = (height / width) * maxDimension;
-                width = maxDimension;
-            } else {
-                width = (width / height) * maxDimension;
-                height = maxDimension;
-            }
-        }
+    //     // Chargement de l'image
+    //     await new Promise((resolve, reject) => {
+    //         img.onload = resolve;
+    //         img.onerror = reject;
+    //         img.src = URL.createObjectURL(file);
+    //     });
 
-        // Configuration du canvas
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
+    //     // Calcul des dimensions
+    //     let width = img.width;
+    //     let height = img.height;
+    //     const maxDimension = 1920; // Maximum dimension
 
-        // Conversion en blob
-        const blob = await new Promise<Blob>((resolve) => {
-            canvas.toBlob(
-                (blob) => resolve(blob!),
-                file.type,
-                0.8
-            );
-        });
+    //     if (width > maxDimension || height > maxDimension) {
+    //         if (width > height) {
+    //             height = (height / width) * maxDimension;
+    //             width = maxDimension;
+    //         } else {
+    //             width = (width / height) * maxDimension;
+    //             height = maxDimension;
+    //         }
+    //     }
 
-        // Création du nouveau fichier
-        const compressedFile = new File([blob], file.name, {
-            type: file.type,
-            lastModified: Date.now()
-        });
+    //     // Configuration du canvas
+    //     canvas.width = width;
+    //     canvas.height = height;
+    //     ctx.drawImage(img, 0, 0, width, height);
 
-        // Métadonnées
-        const metadata: PhotoMetadata = {
-            id: Math.random().toString(36).substr(2, 9),
-            fileName: file.name,
-            fileSize: compressedFile.size,
-            mimeType: file.type,
-            dimensions: { width, height },
-            lastModified: Date.now(),
-            compressed: true
-        };
+    //     // Conversion en blob
+    //     const blob = await new Promise<Blob>((resolve) => {
+    //         canvas.toBlob(
+    //             (blob) => resolve(blob!),
+    //             file.type,
+    //             0.8
+    //         );
+    //     });
 
-        return {
-            url: URL.createObjectURL(compressedFile),
-            file: compressedFile,
-            metadata
-        };
-    };
+    //     // Création du nouveau fichier
+    //     const compressedFile = new File([blob], file.name, {
+    //         type: file.type,
+    //         lastModified: Date.now()
+    //     });
+
+    //     // Métadonnées
+    //     const metadata: PhotoMetadata = {
+    //         id: Math.random().toString(36).substr(2, 9),
+    //         fileName: file.name,
+    //         fileSize: compressedFile.size,
+    //         mimeType: file.type,
+    //         dimensions: { width, height },
+    //         lastModified: Date.now(),
+    //         compressed: true
+    //     };
+
+    //     return {
+    //         url: URL.createObjectURL(compressedFile),
+    //         file: compressedFile,
+    //         metadata
+    //     };
+    // };
+
+    // // Fonction de validation du format des photos
+    // const validatePhotoFormat = (photo: { url: string, file: File }): boolean => {
+    //     // Vérifie si l'URL est au format data:image
+    //     if (!photo.url.startsWith('data:image/')) {
+    //         throw new Error('Format d\'image invalide');
+    //     }
+
+    //     // Vérifie si les données base64 sont présentes
+    //     if (!photo.url.includes('base64,')) {
+    //         throw new Error('Données image corrompues');
+    //     }
+
+    //     return true;
+    // };
+
+    // // Fonction de conversion de fichier en base64
+    // const convertToBase64 = async (file: File): Promise<string> => {
+    //     return new Promise((resolve, reject) => {
+    //         const reader = new FileReader();
+    //         reader.onload = () => {
+    //             if (typeof reader.result === 'string') {
+    //                 // Vérification du format
+    //                 if (!reader.result.startsWith('data:image/')) {
+    //                     reject(new Error('Format d\'image invalide'));
+    //                     return;
+    //                 }
+    //                 resolve(reader.result);
+    //             } else {
+    //                 reject(new Error('Erreur de lecture du fichier'));
+    //             }
+    //         };
+    //         reader.onerror = () => reject(new Error('Erreur de lecture du fichier'));
+    //         reader.readAsDataURL(file);
+    //     });
+    // };
 
     return (
         <div className="space-y-4">

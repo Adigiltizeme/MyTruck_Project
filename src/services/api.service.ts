@@ -1,5 +1,8 @@
+import { CRENEAUX_LIVRAISON, VEHICULES } from '../components/constants/options';
 import { CommandeMetier, PersonnelInfo, MagasinInfo } from '../types/business.types';
+import { FilterOptions, MetricData } from '../types/metrics';
 import { AuthUser } from './authService';
+import { MetricsCalculator } from './metrics.service';
 
 export interface ApiResponse<T> {
   data: T;
@@ -25,6 +28,25 @@ export interface LoginResponse {
       nom: string;
     };
   };
+}
+
+interface MagasinMap {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  status: string;
+}
+
+interface PersonnelMap {
+  id: string;
+  nom: string;
+  prenom: string;
+  telephone: string;
+  role: string;
+  status: 'Actif' | 'Inactif';
+  email?: string;
+  // autres propriétés...
 }
 
 export class ApiService {
@@ -109,6 +131,10 @@ export class ApiService {
     }
   }
 
+  initialize(): void {
+    this.token = this.getStoredToken();
+  }
+
   private getStoredToken(): string | null {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('authToken');
@@ -138,79 +164,90 @@ export class ApiService {
   }
 
   getToken(): string | null {
-    return this.token || this.getStoredToken();
+    const token = this.token || this.getStoredToken();
+    console.log('🔍 getToken appelé:', {
+      hasToken: !!token,
+      tokenLength: token?.length,
+      source: this.token ? 'memory' : 'localStorage'
+    });
+    return token;
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    // Vérifier si le token est expiré avant chaque requête
-    // if (this.token && this.isTokenExpired(this.token)) {
-    //   console.log('🔄 Token expiré, nettoyage automatique...');
-    //   this.clearToken();
-    //   // Rediriger vers la page de connexion
-    //   if (typeof window !== 'undefined') {
-    //     window.location.href = '/login';
-    //   }
-    //   throw new Error('Session expirée. Redirection en cours...');
-    // }
-
     const url = `${this.baseUrl}${endpoint}`;
+
+    // ✅ CORRECTION: Récupérer le token à chaque requête
+    const currentToken = this.getToken();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string> | undefined)
     };
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    // ✅ CORRECTION: Vérifier et ajouter le token
+    if (currentToken) {
+      headers['Authorization'] = `Bearer ${currentToken}`;
+    } else {
+      console.warn('⚠️ Aucun token disponible pour la requête:', endpoint);
     }
 
     try {
       const response = await fetch(url, { ...options, headers });
 
-      // Gestion des erreurs 401
-      // if (response.status === 401 || response.status === 403) {
-      //   console.error('❌ Erreur d\'authentification:', {
-      //     url,
-      //     status: response.status,
-      //     currentPath: window.location.pathname,
-      //     hasToken: !!localStorage.getItem('authToken')
-      //   });
-
-      //   // throw new Error('Session expirée. Veuillez vous reconnecter.');
-      // }
-
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          const currentPath = window.location.pathname;
-          if (currentPath !== '/login' && !url.includes('/auth/login')) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-          }
-        }
+          console.error('❌ Erreur d\'authentification:', {
+            endpoint,
+            hasToken: !!currentToken,
+            tokenLength: currentToken?.length
+          });
 
+          // ✅ Nettoyer le token invalide
+          this.clearToken();
+          throw new Error('Token invalide ou expiré');
+        }
         throw new Error(`Erreur ${response.status}: ${response.statusText}`);
       }
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
-      }
-
       return response.json();
-
     } catch (error) {
       console.error(`❌ ${options.method || 'GET'} ${endpoint}:`, error);
       throw error;
     }
   }
 
-  private isTokenExpired(token: string): boolean {
+  private async checkClockSkew(): Promise<number> {
+    try {
+      const start = Date.now();
+      const response = await fetch(`${this.baseUrl}/health`);
+      const serverTime = response.headers.get('date');
+
+      if (serverTime) {
+        const serverTimestamp = new Date(serverTime).getTime();
+        const clientTimestamp = Date.now();
+        const skew = Math.abs(serverTimestamp - clientTimestamp);
+
+        console.log(`🕐 Clock skew: ${skew}ms`);
+
+        if (skew > 60000) { // Plus d'1 minute
+          console.warn(`⚠️ Décalage horloge important: ${Math.round(skew / 1000)}s`);
+        }
+
+        return skew;
+      }
+    } catch (error) {
+      console.error('Erreur vérification horloge:', error);
+    }
+
+    return 0;
+  }
+
+  private isTokenExpired(token: string, toleranceSeconds: number = 30): boolean {
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       const now = Date.now() / 1000;
-      // Ajouter une marge de 5 minutes pour éviter les expirations pendant les requêtes
-      return payload.exp < (now + 300);
+      // ✅ Ajouter une tolérance côté client aussi
+      return payload.exp < (now - toleranceSeconds);
     } catch {
       return true;
     }
@@ -341,8 +378,14 @@ export class ApiService {
   }
 
   async createCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
+    console.log('📤 ===== ENVOI CRÉATION COMMANDE =====');
+    console.log('📤 Données brutes reçues:', commande);
+
     // ✅ Transformer les données du format frontend vers le format API
     const apiData = this.transformCommandeToApi(commande);
+    console.log('📤 Données transformées pour API:', apiData);
+    console.log('📤 JSON final:', JSON.stringify(apiData, null, 2));
+
     return this.post<CommandeMetier>('/commandes', apiData);
   }
 
@@ -354,6 +397,78 @@ export class ApiService {
 
   async deleteCommande(id: string): Promise<void> {
     await this.delete(`/commandes/${id}`);
+  }
+
+  async addPhotosToCommande(commandeId: string, newPhotos: Array<{ url: string }>, existingPhotos: Array<{ url: string }> = []) {
+    const allPhotos = [...existingPhotos, ...newPhotos];
+    const response = await fetch(`/api/commandes/${commandeId}/photos`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photos: allPhotos }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to add photos to commande');
+    }
+    return await response.json();
+  }
+
+  async deletePhotoFromCommande(commandeId: string, updatedPhotos: Array<{ url: string }>) {
+    const response = await fetch(`/api/commandes/${commandeId}/photos`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photos: updatedPhotos }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete photo from commande');
+    }
+    return await response.json();
+  }
+
+  async getFieldOptions(field: string): Promise<string[]> {
+    // Retourner directement les constantes sans appel API
+    if (field === 'CRENEAU DE LIVRAISON') {
+      return CRENEAUX_LIVRAISON;
+    }
+    if (field === 'CATEGORIE DE VEHICULE') {
+      return Object.values(VEHICULES);
+    }
+    return [];
+  }
+
+  // async updateTarif(commandeId: string, tarif: number): Promise<CommandeMetier> {
+  //   try {
+  //     const fields = {
+  //       'TARIF HT': Number(tarif)
+  //     };
+  //     const response = await this.patch<CommandeMetier>(`/commandes/${commandeId}`, { fields });
+  //     console.log('✅ Tarif mis à jour avec succès:', response);
+  //     return response;
+  //   } catch (error) {
+  //     console.error('Erreur lors de la mise à jour du tarif:', error);
+  //     throw error;
+  //   }
+  // }
+  async updateTarif(commandeId: string, tarif: number): Promise<CommandeMetier> {
+    try {
+      console.log('💰 ===== UPDATE TARIF =====');
+      console.log('💰 Commande ID:', commandeId);
+      console.log('💰 Nouveau tarif:', tarif);
+
+      // ✅ Structure exacte attendue par Backend
+      const updateData = {
+        tarifHT: Number(tarif)
+      };
+
+      console.log('💰 Données envoyées:', updateData);
+
+      const response = await this.patch<CommandeMetier>(`/commandes/${commandeId}`, updateData);
+
+      console.log('✅ Tarif mis à jour avec succès:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Erreur lors de la mise à jour du tarif:', error);
+      throw error;
+    }
   }
 
   async getCommandesStats(magasinId?: string): Promise<any> {
@@ -387,8 +502,19 @@ export class ApiService {
   // =====================================
 
   async getPersonnel(): Promise<PersonnelInfo[]> {
-    const response = await this.get<ApiResponse<PersonnelInfo[]>>('/chauffeurs');
-    return response.data || response as any;
+    console.log('🔍 API getPersonnel appelé');
+
+    try {
+      // ✅ CORRECTION : Utiliser l'endpoint chauffeurs
+      const response = await this.get<ApiResponse<PersonnelInfo[]>>('/chauffeurs');
+      const personnel = response.data || response as any;
+
+      console.log('📊 Réponse Backend getPersonnel:', personnel);
+      return personnel;
+    } catch (error) {
+      console.error('❌ Erreur API getPersonnel:', error);
+      throw error;
+    }
   }
 
   async getChauffeur(id: string): Promise<PersonnelInfo> {
@@ -447,60 +573,143 @@ export class ApiService {
     }
   }
 
+  // async getMetrics(filters: FilterOptions): Promise<MetricData> {
+  //   const [commandes, personnel, magasins] = await Promise.all([
+  //     this.getCommandes(),
+  //     this.getPersonnel(),
+  //     this.getMagasins()
+  //   ]);
+  //   const calculateur = new MetricsCalculator({ dateRange: filters.dateRange });
+
+  //   const filteredCommandes = filters.store
+  //     ? commandes.data.filter(cmd => cmd.magasin?.name === filters.store)
+  //     : commandes.data;
+
+  //   const historique = calculateur.calculateHistorique(filteredCommandes);
+  //   const statutsDistribution = calculateur.calculateStatutsDistribution(filteredCommandes);
+
+  //   const chauffeursActifs = new Set(
+  //     filteredCommandes
+  //       .filter(c => ['EN COURS DE LIVRAISON', 'CONFIRMEE', 'ENLEVEE']
+  //         .includes(c.statuts.livraison))
+  //       .flatMap(c => c.chauffeurs || [])
+  //   ).size;
+
+  //   return {
+  //     totalLivraisons: filteredCommandes.length,
+  //     enCours: filteredCommandes.filter(c => c.statuts.livraison === 'EN COURS DE LIVRAISON').length,
+  //     enAttente: filteredCommandes.filter(c => c.statuts.livraison === 'EN ATTENTE').length,
+  //     performance: statutsDistribution.termine,
+  //     chauffeursActifs,
+  //     chiffreAffaires: filteredCommandes.reduce((acc, c) => acc + (typeof c.financier?.tarifHT === 'number' ? c.financier?.tarifHT : 0), 0),
+  //     historique,
+  //     statutsDistribution,
+  //     commandes: filteredCommandes,
+  //     store: magasins.map((m: MagasinMap) => m.name || ''),
+  //     chauffeurs: personnel
+  //       .filter((p: PersonnelMap) => p.role === 'Chauffeur')
+  //       .map((c: PersonnelMap) => c.nom),
+  //   };
+  // }
+
   // =====================================
   // TRANSFORMATIONS DE DONNÉES
   // =====================================
 
   private transformCommandeToApi(commande: Partial<CommandeMetier>): any {
-    // ✅ Transformer les données du format frontend (compatible Airtable) vers le format API
-    const apiData: any = {
-      dateLivraison: commande.dates?.livraison,
+    console.log('🔄 Transformation Frontend → API...');
+    console.log('🔄 ===== TRANSFORMATION DISPATCH =====');
+    console.log('🔄 Commande Frontend reçue:', commande);
+    console.log('🔄 Chauffeurs Frontend:', commande.chauffeurs);
+
+    const apiData: any = {};
+
+    if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
+      apiData.chauffeurIds = commande.chauffeurIds;
+      console.log('🔄 ChauffeurIds ajoutés:', apiData.chauffeurIds);
+    }
+
+    if (commande.statutCommande) {
+      apiData.statutCommande = commande.statutCommande;
+    }
+    if (commande.statutLivraison) {
+      apiData.statutLivraison = commande.statutLivraison;
+    }
+    // ✅ CRITIQUE : Gérer tarifHT
+    if (commande.tarifHT !== undefined) {
+      apiData.tarifHT = Number(commande.tarifHT);
+      console.log('💰 TarifHT ajouté:', apiData.tarifHT);
+    }
+
+    // ✅ GESTION FINANCIER OBJECT (structure alternative)
+    if (commande.financier?.tarifHT !== undefined) {
+      apiData.tarifHT = Number(commande.financier.tarifHT);
+      console.log('💰 TarifHT depuis financier:', apiData.tarifHT);
+    }
+
+    // ✅ Champs de base
+    if (commande.numeroCommande) apiData.numeroCommande = commande.numeroCommande;
+    if (commande.dates?.livraison) apiData.dateLivraison = commande.dates.livraison;
+    if (commande.livraison?.creneau) apiData.creneauLivraison = commande.livraison.creneau;
+    if (commande.livraison?.vehicule) apiData.categorieVehicule = commande.livraison.vehicule;
+    if (commande.livraison?.equipiers !== undefined) apiData.optionEquipier = parseInt(String(commande.livraison.equipiers), 10);
+    if (commande.livraison?.reserve !== undefined) apiData.reserveTransport = commande.livraison.reserve;
+
+    // ✅ STATUTS
+    if (commande.statuts?.commande) apiData.statutCommande = commande.statuts.commande;
+    if (commande.statuts?.livraison) apiData.statutLivraison = commande.statuts.livraison;
+    if (commande.statutCommande) apiData.statutCommande = commande.statutCommande;
+    if (commande.statutLivraison) apiData.statutLivraison = commande.statutLivraison;
+
+    // ✅ CHAUFFEURS
+    if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
+      apiData.chauffeurIds = commande.chauffeurIds;
+      console.log('🚛 ChauffeurIds ajoutés:', apiData.chauffeurIds);
+    }
+
+    console.log('🔄 Output API final:', apiData);
+
+    return {
+      // ✅ Champs de base
+      numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
+      dateLivraison: commande.dates?.livraison || new Date().toISOString(),
       creneauLivraison: commande.livraison?.creneau,
       categorieVehicule: commande.livraison?.vehicule,
-      optionEquipier: commande.livraison?.equipiers || 0,
-      tarifHT: commande.financier?.tarifHT || 0,
+      optionEquipier: parseInt(String(commande.livraison?.equipiers || 0), 10),
+      tarifHT: parseFloat(String(commande.financier?.tarifHT || 0)),
       reserveTransport: commande.livraison?.reserve || false,
-      prenomVendeur: commande.magasin?.manager,
+      prenomVendeur: commande.vendeur?.prenom || null, // ✅ null au lieu d'undefined
+      // ✅ Magasin
       magasinId: commande.magasin?.id,
+      // ✅ STRUCTURE NESTED pour client
+      client: {
+        nom: commande.client?.nom,
+        prenom: commande.client?.prenom,
+        telephone: commande.client?.telephone?.principal || commande.client?.telephone,
+        telephoneSecondaire: commande.client?.telephone?.secondaire || '',
+        adresseLigne1: commande.client?.adresse?.ligne1,
+        batiment: commande.client?.adresse?.batiment || '',
+        etage: commande.client?.adresse?.etage || '',
+        interphone: commande.client?.adresse?.interphone || '',
+        ascenseur: commande.client?.adresse?.ascenseur || false,
+        typeAdresse: commande.client?.adresse?.type || 'Domicile',
+      },
+
+      // ✅ STRUCTURE NESTED pour articles
+      articles: {
+        nombre: parseInt(String(commande.articles?.nombre || 1), 10),
+        details: commande.articles?.details || '',
+        dimensions: commande.articles?.dimensions || [],
+        photos: commande.articles?.photos || [],
+        newPhotos: commande.articles?.newPhotos || [],
+        canBeTilted: commande.articles?.canBeTilted || false,
+      },
+      // ✅ STRUCTURE NESTED pour statuts
+      statuts: {
+        livraison: commande.statuts?.livraison || 'EN ATTENTE',
+        commande: commande.statuts?.commande || 'En attente',
+      },
     };
-
-    // ✅ Informations client
-    if (commande.client) {
-      apiData.client = {
-        nom: commande.client.nom,
-        prenom: commande.client.prenom,
-        telephone: commande.client.telephone?.principal,
-        telephoneSecondaire: commande.client.telephone?.secondaire,
-        adresseLigne1: commande.client.adresse?.ligne1,
-        batiment: commande.client.adresse?.batiment,
-        etage: commande.client.adresse?.etage,
-        interphone: commande.client.adresse?.interphone,
-        ascenseur: commande.client.adresse?.ascenseur || false,
-        typeAdresse: commande.client.adresse?.type,
-      };
-    }
-
-    // ✅ Informations articles
-    if (commande.articles) {
-      apiData.articles = {
-        nombre: commande.articles.nombre || 0,
-        details: commande.articles.details,
-        categories: commande.articles.categories || [],
-      };
-    }
-
-    // ✅ Chauffeurs assignés
-    if (commande.chauffeurs && commande.chauffeurs.length > 0) {
-      apiData.chauffeurIds = commande.chauffeurs.map(c => c.id);
-    }
-
-    // ✅ Statuts pour les mises à jour
-    if (commande.statuts) {
-      apiData.statutCommande = commande.statuts.commande;
-      apiData.statutLivraison = commande.statuts.livraison;
-    }
-
-    return apiData;
   }
 
   // ✅ Vérifier si l'API est disponible

@@ -1,13 +1,13 @@
 import { CommandeMetier, FactureInfo } from '../types/business.types';
-import { AirtableService } from './airtable.service';
 import { CloudinaryService } from './cloudinary.service';
+import { ApiService } from './api.service';
 
 export class DocumentService {
-  private airtableService: AirtableService;
+  private apiService: ApiService;
   private cloudinaryService: CloudinaryService;
 
-  constructor(apiToken: string) {
-    this.airtableService = new AirtableService(apiToken);
+  constructor() {
+    this.apiService = new ApiService();
     this.cloudinaryService = new CloudinaryService();
   }
 
@@ -30,9 +30,9 @@ export class DocumentService {
       // Récupérer l'URL du document le plus récent (supposons qu'il soit le dernier dans la liste)
       const documentId = documents[documents.length - 1].id;
       
-      // Essayer d'abord de récupérer le document depuis Airtable (pour la compatibilité avec l'existant)
+      // Essayer d'abord de récupérer le document depuis Api (pour la compatibilité avec l'existant)
       try {
-        const documentBlob = await this.airtableService.getDocument(commande.id, type);
+        const documentBlob = await this.apiService.getDocument(commande.id, type);
         if (documentBlob) {
           return documentBlob;
         }
@@ -118,7 +118,7 @@ export class DocumentService {
       };
       
       // Mettre à jour la commande avec le nouveau devis
-      const updatedCommande = await this.airtableService.updateCommande({
+      const updatedCommande = await this.apiService.updateCommande({
         ...commande,
         id: commande.id,
         financier: {
@@ -158,7 +158,7 @@ export class DocumentService {
       };
       
       // Mettre à jour la commande avec la nouvelle facture
-      const updatedCommande = await this.airtableService.updateCommande({
+      const updatedCommande = await this.apiService.updateCommande({
         ...commande,
         id: commande.id,
         financier: {

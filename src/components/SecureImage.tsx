@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CloudinaryService } from '../services/cloudinary.service';
 import { imageCache } from '../services/image-cache.service';
-// import { useOffline } from '../contexts/OfflineContext';
+import { useOffline } from '../contexts/OfflineContext';
 
 interface SecureImageProps {
     src: string;
@@ -21,7 +21,7 @@ export const SecureImage: React.FC<SecureImageProps> = ({
     const [imgSrc, setImgSrc] = useState<string>('/placeholder-image.jpg');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    // const { isOnline } = useOffline();
+    const { isOnline } = useOffline();
 
     useEffect(() => {
         if (!src) {
@@ -52,20 +52,20 @@ export const SecureImage: React.FC<SecureImageProps> = ({
                     // URL Cloudinary trouvée en cache
                     setImgSrc(cachedUrl);
                     setLoading(false);
-                // } else if (!isOnline) {
-                //     // Mode hors ligne, essayer de récupérer depuis le cache local
-                //     const blob = await imageCache.getImageBlob(src);
-                //     if (blob) {
-                //         const objectUrl = URL.createObjectURL(blob);
-                //         setImgSrc(objectUrl);
-                //         setLoading(false);
-                //         return;
-                //     }
+                } else if (!isOnline) {
+                    // Mode hors ligne, essayer de récupérer depuis le cache local
+                    const blob = await imageCache.getImageBlob(src);
+                    if (blob) {
+                        const objectUrl = URL.createObjectURL(blob);
+                        setImgSrc(objectUrl);
+                        setLoading(false);
+                        return;
+                    }
 
-                //     // Pas de blob en cache, utiliser placeholder
-                //     setImgSrc('/placeholder-image.jpg');
-                //     setError(true);
-                //     setLoading(false);
+                    // Pas de blob en cache, utiliser placeholder
+                    setImgSrc('/placeholder-image.jpg');
+                    setError(true);
+                    setLoading(false);
                 } else if (cloudinaryService.isAirtableUrl(src)) {
                     // URL Airtable, essayer de la migrer vers Cloudinary
                     try {
@@ -111,7 +111,7 @@ export const SecureImage: React.FC<SecureImageProps> = ({
                 URL.revokeObjectURL(imgSrc);
             }
         };
-    }, [src]);// , isOnline <-- mis de côté pour l'instant
+    }, [src, isOnline]);
 
     // Fonction de gestion d'erreur
     const handleError = () => {

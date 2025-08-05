@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types/roles';
-// import { useOffline } from '../contexts/OfflineContext';
+import { useOffline } from '../contexts/OfflineContext';
 import { storeService } from '../services/store.service';
 import { useDraftStorage } from '../hooks/useDraftStorage';
 
@@ -16,15 +16,10 @@ const STORES = [
 ];
 
 export const RoleSelector = () => {
-    const { user } = useAuth();
-    // const { dataService } = useOffline();
-    const [stores, setStores] = useState(STORES);
-    const [selectedStore, setSelectedStore] = useState<typeof STORES[0]>(
-        // Initialiser avec le magasin de l'utilisateur ou le premier de la liste
-        user?.storeId
-            ? STORES.find(s => s.id === user.storeId) || STORES[0]
-            : STORES[0]
-    );
+    const { user, setRole } = useAuth();
+    const { dataService } = useOffline();
+    const [stores, setStores] = useState<any[]>([]); // ✅ Initialiser avec tableau vide
+    const [selectedStore, setSelectedStore] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +40,48 @@ export const RoleSelector = () => {
     }, [user?.role, user?.storeId, stores]);
 
     // Charger les magasins depuis le service
+    useEffect(() => {
+        const loadStores = async () => {
+            try {
+                setLoading(true);
+
+                // ✅ CORRECTION : Utiliser getMagasins() du Backend
+                const magasins = await dataService.getMagasins();
+                console.log('🏪 Magasins chargés depuis Backend:', magasins);
+
+                if (magasins && magasins.length > 0) {
+                    // ✅ TRANSFORMATION : Adapter la structure si nécessaire
+                    const storesFormatted = magasins.map(m => ({
+                        id: m.id,
+                        name: m.nom || m.name,
+                        address: m.adresse || m.address || 'Adresse non renseignée'
+                    }));
+
+                    console.log('🏪 Magasins formatés:', storesFormatted);
+                    setStores(storesFormatted);
+
+                    // Sélectionner le magasin de l'utilisateur ou le premier
+                    if (user?.role === 'magasin' && user.storeId) {
+                        const userStore = storesFormatted.find(s => s.id === user.storeId);
+                        setSelectedStore(userStore || storesFormatted[0]);
+                    } else {
+                        setSelectedStore(storesFormatted[0]);
+                    }
+                } else {
+                    console.warn('⚠️ Aucun magasin trouvé dans le Backend');
+                    setError('Aucun magasin disponible');
+                }
+            } catch (error) {
+                console.error('❌ Erreur chargement magasins:', error);
+                setError('Impossible de charger la liste des magasins depuis le Backend');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadStores();
+    }, [dataService, user?.storeId, user?.role]);
+
     // useEffect(() => {
     //     const loadStores = async () => {
     //         try {
@@ -90,11 +127,11 @@ export const RoleSelector = () => {
             case 'magasin':
                 if (selectedStore) {
                     console.log('Changement vers rôle magasin:', selectedStore.name);
-                    // setRole(role, {
-                    //     storeId: selectedStore.id,
-                    //     storeName: selectedStore.name,
-                    //     storeAddress: selectedStore.address
-                    // });
+                    setRole(role, {
+                        storeId: selectedStore.id,
+                        storeName: selectedStore.name,
+                        storeAddress: selectedStore.address
+                    });
 
                     // Réinitialiser l'état de proposition de brouillon
                     localStorage.setItem('draftProposed', 'false');
@@ -108,10 +145,10 @@ export const RoleSelector = () => {
                 }
                 break;
             case 'chauffeur':
-                // setRole(role, { driverId: 'recOJXIE0zjz0nqP9' });
+                setRole(role, { driverId: 'recOJXIE0zjz0nqP9' });
                 break;
             default:
-                // setRole('admin');
+                setRole('admin');
         }
     };
 
@@ -132,11 +169,11 @@ export const RoleSelector = () => {
 
             // Si déjà en rôle magasin, mettre à jour
             if (user?.role === 'magasin') {
-                // setRole('magasin', {
-                //     storeId: store.id,
-                //     storeName: store.name,
-                //     storeAddress: store.address
-                // });
+                setRole('magasin', {
+                    storeId: store.id,
+                    storeName: store.name,
+                    storeAddress: store.address
+                });
 
                 updateDraftStoreInfo(store.id, store.name, store.address);
 
@@ -158,14 +195,14 @@ export const RoleSelector = () => {
         }
     };
 
-    // if (loading) {
-    //     return (
-    //         <div className="mb-4 flex items-center">
-    //             <div className="mr-2">Chargement des données...</div>
-    //             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-600"></div>
-    //         </div>
-    //     );
-    // }
+    if (loading) {
+        return (
+            <div className="mb-4 flex items-center">
+                <div className="mr-2">Chargement des données...</div>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-red-600"></div>
+            </div>
+        );
+    }
 
     if (error) {
         return (

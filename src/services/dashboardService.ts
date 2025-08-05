@@ -32,8 +32,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { DeliveryMetrics, Delivery, DriverStats, DeliveryData } from '../types/dashboard';
 import { HistoriqueData, MetricData } from '../types/metrics';
-import { AirtableService } from './airtable.service';
-
+import { ApiService } from './api.service';
 // Données mockées
 const mockMetrics: DeliveryMetrics = {
     total: 45,
@@ -88,10 +87,10 @@ const mockDeliveryData: DeliveryData[] = [
 const isDevEnvironment = true; // À changer selon l'environnement
 
 export class DashboardService {
-    private airtableService: AirtableService;
+    private apiService: ApiService;
 
     constructor() {
-        this.airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+        this.apiService = new ApiService();
     }
 
     private calculateHistorique(commandes: CommandeMetier[]): HistoriqueData[] {
@@ -164,7 +163,7 @@ export class DashboardService {
 
     async getMetrics(): Promise<MetricData> {
         try {
-            const commandes = await this.airtableService.getCommandes();
+            const commandes = await this.apiService.getCommandes();
 
             // Calcul des métriques
             interface Totals {
@@ -174,7 +173,7 @@ export class DashboardService {
                 chiffreAffaires: number;
             }
 
-            const totals: Totals = commandes.reduce((acc: Totals, commande: CommandeMetier) => ({
+            const totals: Totals = commandes.data.reduce((acc: Totals, commande: CommandeMetier) => ({
                 totalLivraisons: acc.totalLivraisons + 1,
                 enCours: acc.enCours + (commande.statuts.livraison === 'EN COURS DE LIVRAISON' ? 1 : 0),
                 enAttente: acc.enAttente + (commande.statuts.livraison === 'EN ATTENTE' ? 1 : 0),
@@ -187,23 +186,24 @@ export class DashboardService {
             });
 
             // Calcul de l'historique
-            const historique = this.calculateHistorique(commandes);
+            const historique = this.calculateHistorique(commandes.data);
 
             return {
                 ...totals,
-                performance: this.calculatePerformance(commandes),
-                chauffeursActifs: this.getChauffeursActifs(commandes).length,
+                performance: this.calculatePerformance(commandes.data),
+                chauffeursActifs: this.getChauffeursActifs(commandes.data).length,
                 historique,
-                statutsDistribution: this.calculateStatutsDistribution(commandes),
-                commandes,
-                chauffeurs: this.getChauffeursActifs(commandes).map(chauffeur => ({
+                statutsDistribution: this.calculateStatutsDistribution(commandes.data),
+                commandes: commandes.data,
+                chauffeurs: this.getChauffeursActifs(commandes.data).map(chauffeur => ({
                     id: '', // Provide appropriate id
                     nom: chauffeur, // Assuming chauffeur is the name
                     prenom: '', // Provide appropriate prenom
                     role: '', // Provide appropriate role
                     telephone: '', // Provide appropriate telephone
                     email: '', // Provide appropriate email
-                    status: 'Actif' // Assuming the default status is 'Actif'
+                    status: 'Actif', // Assuming the default status is 'Actif'
+                    location: { latitude: 0, longitude: 0 } // Provide appropriate location
                 }))
             };
         } catch (error) {

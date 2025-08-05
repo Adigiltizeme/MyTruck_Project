@@ -8,7 +8,7 @@ import { ClientForm } from './forms/ClientForm';
 import { ArticlesForm } from './forms/ArticlesForm';
 import { LivraisonForm } from './forms/LivraisonForm';
 import { RecapitulatifForm } from './forms/RecapitulatifForm';
-// import { useOffline } from '../contexts/OfflineContext';
+import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
 
 
@@ -104,7 +104,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
 
     const { loading } = useDraftStorage();
 
-    // const { dataService } = useOffline();
+    const { dataService } = useOffline();
 
     const {
         state,               // Contient formData, errors, step, etc.
@@ -224,29 +224,29 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
         }
     }, [isEditing, user?.storeId, user?.storeName, user?.storeAddress]);
 
-    // useEffect(() => {
-    //     const loadOptions = async () => {
-    //         try {
-    //             const [creneauxData, vehiculesData] = await Promise.all([
-    //                 dataService.getFieldOptions('CRENEAU DE LIVRAISON'),
-    //                 dataService.getFieldOptions('CATEGORIE DE VEHICULE')
-    //             ]);
+    useEffect(() => {
+        const loadOptions = async () => {
+            try {
+                const [creneauxData, vehiculesData] = await Promise.all([
+                    dataService.getFieldOptions('CRENEAU DE LIVRAISON'),
+                    dataService.getFieldOptions('CATEGORIE DE VEHICULE')
+                ]);
 
-    //             if (creneauxData.length > 0) setCreneaux(creneauxData);
-    //             if (vehiculesData.length > 0) {
-    //                 const vehiculesMap = vehiculesData.reduce((acc: { [key: string]: string }, vehicule: string) => {
-    //                     acc[vehicule] = vehicule;
-    //                     return acc;
-    //                 }, {});
-    //                 setVehicules(vehiculesMap);
-    //             }
-    //         } catch (error) {
-    //             console.error('Erreur chargement options:', error);
-    //             // En cas d'erreur, on garde les valeurs par défaut des constantes
-    //         }
-    //     };
-    //     loadOptions();
-    // }, []);
+                if (creneauxData.length > 0) setCreneaux(creneauxData);
+                if (vehiculesData.length > 0) {
+                    const vehiculesMap = vehiculesData.reduce((acc: { [key: string]: string }, vehicule: string) => {
+                        acc[vehicule] = vehicule;
+                        return acc;
+                    }, {});
+                    setVehicules(vehiculesMap);
+                }
+            } catch (error) {
+                console.error('Erreur chargement options:', error);
+                // En cas d'erreur, on garde les valeurs par défaut des constantes
+            }
+        };
+        loadOptions();
+    }, []);
 
     useEffect(() => {
         console.log("Mode édition:", isEditing); // Debug

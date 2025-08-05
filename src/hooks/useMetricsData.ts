@@ -21,7 +21,7 @@
 
 //   async getMetricsOptimized(filters: FilterOptions): Promise<MetricData> {
 //     const cacheKey = this.getCacheKey(filters);
-    
+
 //     if (this.isCacheValid(cacheKey)) {
 //       return this.cache.get(cacheKey)!.data;
 //     }
@@ -80,6 +80,7 @@ import { AirtableService } from '../services/airtable.service';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useOffline } from '../contexts/OfflineContext';
+import { ApiService } from '../services/api.service';
 
 interface UseMetricsDataResult {
   data: MetricData | null;
@@ -97,14 +98,14 @@ export const useMetricsData = (filters: FilterOptions): UseMetricsDataResult => 
       try {
         setLoading(true);
         setError(null);
-        
-        const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
+
+        const apiService = new ApiService();
         // const { dataService, isOnline } = useOffline();
-        
+
         // Attendre l'initialisation
-        await airtableService.initialize();
-        
-        const metrics = await airtableService.getMetrics(filters);
+        apiService.initialize();
+
+        const metrics = await apiService.getMetrics(filters);
         console.log('Metrics fetched:', {
           totalLivraisons: metrics.totalLivraisons,
           historique: metrics.historique.map(h => ({
@@ -123,7 +124,7 @@ export const useMetricsData = (filters: FilterOptions): UseMetricsDataResult => 
             return dateA.getTime() - dateB.getTime();
           });
         }
-        
+
         setData(metrics);
       } catch (err) {
         console.error('Error fetching metrics:', err);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cession, CessionStatus } from '../types/cession.types';
-// import { useOffline } from '../contexts/OfflineContext';
+import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
 import { CessionService } from '../services/cession.service';
 import { formatData } from '../utils/formatters';
@@ -14,7 +14,7 @@ interface CessionListProps {
 
 const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
     const { user } = useAuth();
-    // const { dataService, isOnline } = useOffline();
+    const { isOnline } = useOffline();
     const [loading, setLoading] = useState(true);
     const [cessions, setCessions] = useState<Cession[]>([]);
     const [filteredCessions, setFilteredCessions] = useState<Cession[]>([]);
@@ -252,11 +252,11 @@ const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
             )}
 
             {/* Mode hors ligne */}
-            {/* {!isOnline && (
+            {!isOnline && (
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
                     Vous êtes en mode hors ligne. Certaines fonctionnalités peuvent être limitées.
                 </div>
-            )} */}
+            )}
 
             {/* Liste des cessions */}
             {loading ? (

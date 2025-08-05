@@ -4,7 +4,7 @@ import { CommandeMetier } from '../../types/business.types';
 import Pagination from '../../components/Pagination';
 import CommandeDetails from '../../components/CommandeDetails';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAirtable } from '../../hooks/useAirtable';
+// import { useAirtable } from '../../hooks/useAirtable';
 import { RoleSelector } from '../../components/RoleSelector';
 import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../../styles/getStatus';
 import { useSearch } from '../../hooks/useSearch';
@@ -16,7 +16,7 @@ import { Modal } from '../../components/Modal';
 import AjoutCommande from '../../components/AjoutCommande';
 import { useDraftStorage } from '../../hooks/useDraftStorage';
 import { simpleBackendService } from '../../services/simple-backend.service';
-// import { useOffline } from '../../contexts/OfflineContext';
+import { useOffline } from '../../contexts/OfflineContext';
 
 // Extend the Window interface to include debugDeliveries for TypeScript
 declare global {
@@ -27,12 +27,12 @@ declare global {
 
 const Deliveries = () => {
     const { user } = useAuth();
-    // const { dataService, isOnline } = useOffline();
-    const airtable = useAirtable();
+    const { dataService, isOnline } = useOffline();
+    // const airtable = useAirtable();
 
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [data, setData] = useState<CommandeMetier[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dateRange, setDateRange] = useState<DateRange>({
         start: null,
@@ -110,21 +110,29 @@ const Deliveries = () => {
     });
 
     useEffect(() => {
-        const loadCommandes = async () => {
+        const loadCommandesFromBackend = async () => {
             try {
                 setLoading(true);
-                const data = await simpleBackendService.getCommandes();
-                setData(data);
                 setError(null);
+
+                console.log('🔄 Chargement commandes depuis Backend API...');
+                const commandes = await simpleBackendService.getCommandes();
+
+                console.log('✅ Commandes chargées:', commandes.length);
+                console.log('📋 Exemple commande:', commandes[0]);
+
+                setData(commandes);
             } catch (err) {
-                console.error('Erreur chargement commandes:', err);
-                setError('Erreur lors du chargement des commandes');
+                console.error('❌ Erreur chargement Backend:', err);
+                setError(`Erreur: ${err}`);
+                // Fallback vers données vides pour éviter le crash
+                setData([]);
             } finally {
                 setLoading(false);
             }
         };
 
-        loadCommandes();
+        loadCommandesFromBackend();
     }, []);
 
     useEffect(() => {
@@ -153,22 +161,62 @@ const Deliveries = () => {
     useEffect(() => {
         // Debug automatique en dev
         if (process.env.NODE_ENV === 'development') {
-            // window.debugDeliveries = () => dataService.debugDeliversPage();
+            window.debugDeliveries = () => dataService.debugDeliversPage();
             console.log('💡 Debug disponible: window.debugDeliveries()');
         }
     }, []);
 
-    const fetchData = async () => {
+    const fetchData = async (contextToPreserve?: {
+        page: number;
+        expandedRow: string | null;
+        scrollPosition: number;
+    }) => {
         setLoading(true);
         try {
-            // const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-            // const records = await dataService.getCommandes();
-            // setData(records);
+            console.log('🔄 fetchData: Chargement commandes depuis Backend...');
+            const records = await simpleBackendService.getCommandes();
+            console.log('✅ fetchData: Commandes reçues:', records.length);
+            setData(records);
+
+            // ✅ Restaurer contexte après chargement SI fourni
+            if (contextToPreserve) {
+                console.log('🔄 Restauration contexte:', contextToPreserve);
+
+                // Restaurer pagination APRÈS le rendu
+                setTimeout(() => {
+                    setCurrentPage(contextToPreserve.page);
+                    setExpandedRow(contextToPreserve.expandedRow);
+
+                    // Restaurer scroll après pagination
+                    setTimeout(() => {
+                        window.scrollTo({
+                            top: contextToPreserve.scrollPosition,
+                            behavior: 'smooth'
+                        });
+                    }, 100);
+                }, 50);
+            }
+
         } catch (err) {
+            console.error('❌ fetchData erreur:', err);
             setError(err instanceof Error ? err.message : 'Une erreur est survenue');
         } finally {
             setLoading(false);
         }
+    };
+
+    const refreshWithContext = async () => {
+        // 1. Sauvegarder contexte AVANT refresh
+        const contextToPreserve = {
+            page: currentPage,
+            expandedRow: expandedRow,
+            scrollPosition: window.scrollY
+        };
+
+        console.log('💾 Sauvegarde contexte avant refresh:', contextToPreserve);
+
+        // 2. Refresh avec préservation
+        await fetchData(contextToPreserve);
     };
 
     function handleEdit(id: string): void {
@@ -179,8 +227,7 @@ const Deliveries = () => {
     const handleDelete = async (id: string) => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
             try {
-                // const airtableService = new AirtableService(import.meta.env.VITE_AIRTABLE_TOKEN);
-                // await dataService.deleteCommande(id);
+                await dataService.deleteCommande(id);
                 setData(prevData => prevData.filter(commande => commande.id !== id));
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la suppression');
@@ -220,12 +267,14 @@ const Deliveries = () => {
 
             // Appel unique à dataService.createCommande
             console.log('Appel à createCommande (UNIQUE)');
-            // await dataService.createCommande(commandeToCreate);
+            await dataService.createCommande(commandeToCreate);
 
             // Nettoyer après création réussie
             console.log('Commande créée, nettoyage...');
             // La commande a été créée avec succès, maintenant on peut supprimer le brouillon
             await clearDraft();
+
+            window.dispatchEvent(new CustomEvent('commandeCreated'));
 
             setShowNewCommandeModal(false);
             setShowSuccess(true);
@@ -251,14 +300,80 @@ const Deliveries = () => {
 
     const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur', 'tarifHT'];
 
+    if (loading) {
+        return (
+            <div className="p-6">
+                <div className="mb-6">
+                    <RoleSelector />
+                </div>
+                <div className="flex justify-center items-center h-64">
+                    <div className="text-lg">Chargement des commandes depuis le Backend...</div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-6">
+                <div className="mb-6">
+                    <RoleSelector />
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                    <div className="text-red-800">
+                        <strong>Erreur Backend:</strong> {error}
+                    </div>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                        Réessayer
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const getClientName = (commande: any): string => {
+        if (commande.client?.nom && commande.client?.prenom) {
+            return `${commande.client.prenom} ${commande.client.nom}`;
+        }
+        if (commande.client?.nom) return commande.client.nom;
+        if (commande.client?.prenom) return commande.client.prenom;
+        return commande.numeroCommande || 'Client inconnu';
+    };
+
+    const formatDateValue = (dateValue: any): string => {
+        if (!dateValue) return 'N/A';
+        try {
+            if (typeof dateValue === 'string') {
+                return dateFormatter.forDisplay(dateValue);
+            }
+            if (dateValue instanceof Date) {
+                return dateFormatter.forDisplay(dateValue.toISOString());
+            }
+            return 'N/A';
+        } catch {
+            return 'N/A';
+        }
+    };
+
+    const formatDisplayValue = (value: any): string => {
+        if (value === null || value === undefined) return 'N/A';
+        if (typeof value === 'string') return value || 'N/A';
+        if (Array.isArray(value)) return value[0] || 'N/A';
+        if (typeof value === 'object' && value.nom) return value.nom;
+        return String(value) || 'N/A';
+    };
+
     return (
         <div className="p-6">
             {/* Indicateur de mode hors ligne - sans l'OfflineIndicator qui est déjà dans App */}
-            {/* {!isOnline && (
+            {!isOnline && (
                 <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
                     Vous êtes en mode hors ligne. Les données seront synchronisées lorsque vous serez à nouveau connecté.
                 </div>
-            )} */}
+            )}
 
             <div className="mb-6">
                 <RoleSelector />
@@ -478,13 +593,9 @@ const Deliveries = () => {
                                             sortConfig.direction === 'asc' ? '↑' : '↓'
                                         )}
                                     </th>
-                                    {user?.role !== 'magasin' && (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Client</th>
-                                    )}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Client</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date livraison</th>
-                                    {user?.role !== 'magasin' && (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>
-                                    )}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut livraison</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Créneau</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Véhicule</th>
@@ -514,21 +625,22 @@ const Deliveries = () => {
                                                     {expandedRow === commande.id ? '▼' : '▶'}
                                                 </button>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.numeroCommande || 'N/A'}</td>
-                                            {user?.role !== 'magasin' && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande?.client?.nom.toUpperCase() || 'N/A'} {commande.client?.prenom}</td>
-                                            )}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                {commande.numeroCommande || 'N/A'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                {commande?.client?.nom.toUpperCase() || 'N/A'} {commande.client?.prenom}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary">
                                                 {(commande.dates?.livraison) ?
-                                                    dateFormatter.forDisplay(commande.dates?.livraison) : 'N/A'}
+                                                    formatDateValue(commande.dates?.livraison) : 'N/A'}
+                                                {/* dateFormatter.forDisplay(commande.dates?.livraison) : 'N/A'} */}
                                             </td>
-                                            {user?.role !== 'magasin' && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    <span className={getStatutCommandeStyle(commande.statuts?.commande || 'N/A')}>
-                                                        {commande.statuts?.commande || 'N/A'}
-                                                    </span>
-                                                </td>
-                                            )}
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                <span className={getStatutCommandeStyle(commande.statuts?.commande || 'N/A')}>
+                                                    {commande.statuts?.commande || 'N/A'}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'N/A')}>
                                                     {commande.statuts?.livraison || 'N/A'}
@@ -536,7 +648,7 @@ const Deliveries = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.creneau || 'N/A'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.vehicule || 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.reserve || 'NON'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.reserve || commande.livraison?.reserve ? 'OUI' : 'NON'}</td>
                                             {user?.role === 'admin' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-right">
                                                     {commande.financier?.tarifHT
@@ -547,7 +659,7 @@ const Deliveries = () => {
                                             )}
                                             {user?.role === 'admin' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
-                                                    {commande.magasin?.name}
+                                                    {commande.magasin?.name || 'N/A'}
                                                 </td>
                                             )}
                                             {(user?.role === 'admin') && (
@@ -578,6 +690,7 @@ const Deliveries = () => {
                                                             onUpdate={(updatedCommande) => {
                                                                 setData(prevData => prevData.map(c => c.id === updatedCommande.id ? updatedCommande : c));
                                                             }}
+                                                            onRefresh={refreshWithContext}
                                                         />
                                                     </div>
                                                 </td>

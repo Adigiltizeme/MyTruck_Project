@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-// import { useOffline } from '../../contexts/OfflineContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import CessionList from '../../components/CessionList';
 import { motion } from 'framer-motion';
 import { Truck, AlertTriangle } from 'lucide-react';
@@ -10,7 +10,7 @@ import { Truck, AlertTriangle } from 'lucide-react';
  */
 const Cessions: React.FC = () => {
     const { user } = useAuth();
-    // const { isOnline } = useOffline();
+    const { isOnline } = useOffline();
     const [error, setError] = useState<string | null>(null);
 
     return (
@@ -41,11 +41,11 @@ const Cessions: React.FC = () => {
                 )}
 
                 {/* Avertissement hors ligne */}
-                {/* {!isOnline && (
+                {!isOnline && (
                     <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
                         Vous êtes en mode hors ligne. Les actions seront synchronisées lorsque la connexion sera rétablie.
                     </div>
-                )} */}
+                )}
 
                 {/* Information contextuelle selon le rôle */}
                 {user?.role === 'magasin' && (

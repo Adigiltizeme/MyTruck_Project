@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-// import { useOffline } from '../../contexts/OfflineContext';
+import { useOffline } from '../../contexts/OfflineContext';
 import { CommandeMetier, FactureInfo, DevisInfo } from '../../types/business.types';
 import { dateFormatter, formatPrice } from '../../utils/formatters';
 import { DocumentService } from '../../services/document.service';
@@ -14,7 +14,7 @@ import DetailedQuoteForm from '../../components/DetailedQuoteForm';
  */
 const DocumentsPage: React.FC = () => {
     const { user } = useAuth();
-    // const { dataService, isOnline } = useOffline();
+    const { dataService, isOnline } = useOffline();
     const [loading, setLoading] = useState(true);
     const [commandes, setCommandes] = useState<CommandeMetier[]>([]);
     const [devis, setDevis] = useState<DevisInfo[]>([]);
@@ -27,7 +27,7 @@ const DocumentsPage: React.FC = () => {
     const [selectedCommande, setSelectedCommande] = useState<CommandeMetier | null>(null);
 
     // Document service
-    const documentService = new DocumentService(import.meta.env.VITE_AIRTABLE_TOKEN);
+    const documentService = new DocumentService();
 
     useEffect(() => {
         loadData();
@@ -39,40 +39,40 @@ const DocumentsPage: React.FC = () => {
             setError(null);
 
             // Charger les commandes, cela inclut les devis et factures
-            // const commandesData = await dataService.getCommandes();
-            // setCommandes(commandesData);
+            const commandesData = await dataService.getCommandes();
+            setCommandes(commandesData);
 
             // Extraire tous les devis et factures des commandes
             const allDevis: DevisInfo[] = [];
             const allFactures: FactureInfo[] = [];
 
-            // commandesData.forEach((commande: CommandeMetier) => {
-            //     // Ajouter les devis avec référence à la commande
-            //     if (commande.financier?.devis && commande.financier.devis.length > 0) {
-            //         commande.financier.devis.forEach(devis => {
-            //             allDevis.push({
-            //                 ...devis,
-            //                 id: commande.id,
-            //                 numeroDevis: commande.numeroCommande,
-            //                 client: commande.client || { nom: '', id: '' },
-            //                 magasin: commande.magasin || { id: '', name: '' }
-            //             });
-            //         });
-            //     }
+            commandesData.forEach((commande: CommandeMetier) => {
+                // Ajouter les devis avec référence à la commande
+                if (commande.financier?.devis && commande.financier.devis.length > 0) {
+                    commande.financier.devis.forEach(devis => {
+                        allDevis.push({
+                            ...devis,
+                            id: commande.id,
+                            numeroDevis: commande.numeroCommande,
+                            client: commande.client || { nom: '', id: '' },
+                            magasin: commande.magasin || { id: '', name: '' }
+                        });
+                    });
+                }
 
-            //     // Ajouter les factures avec référence à la commande
-            //     if (commande.financier?.factures && commande.financier.factures.length > 0) {
-            //         commande.financier.factures.forEach(facture => {
-            //             allFactures.push({
-            //                 ...facture,
-            //                 id: commande.id,
-            //                 numeroFacture: commande.numeroCommande,
-            //                 client: commande.client || { nom: '', id: '' },
-            //                 magasin: commande.magasin || { id: '', name: '' }
-            //             });
-            //         });
-            //     }
-            // });
+                // Ajouter les factures avec référence à la commande
+                if (commande.financier?.factures && commande.financier.factures.length > 0) {
+                    commande.financier.factures.forEach(facture => {
+                        allFactures.push({
+                            ...facture,
+                            id: commande.id,
+                            numeroFacture: commande.numeroCommande,
+                            client: commande.client || { nom: '', id: '' },
+                            magasin: commande.magasin || { id: '', name: '' }
+                        });
+                    });
+                }
+            });
 
             setDevis(allDevis);
             setFactures(allFactures);
@@ -270,11 +270,11 @@ const DocumentsPage: React.FC = () => {
                 )}
 
                 {/* Avertissement hors ligne */}
-                {/* {!isOnline && (
+                {!isOnline && (
                     <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-6">
                         Vous êtes en mode hors ligne. Certaines fonctionnalités peuvent être limitées.
                     </div>
-                )} */}
+                )}
 
                 {/* Filtres et recherche */}
                 <div className="mb-6 flex flex-col md:flex-row gap-4">

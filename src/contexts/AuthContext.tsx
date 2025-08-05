@@ -10,6 +10,8 @@ interface AuthUser {
     storeId?: string;
     storeName?: string;
     storeAddress?: string;
+    storePhone?: string;
+    storeStatus?: string;
     driverId?: string;
     token: string;
     lastLogin: Date;

@@ -4,7 +4,7 @@ import { AuthService, SPECIAL_ACCOUNTS, UserSignupData } from '../services/authS
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationService } from '../services/notificationService';
-// import { useOffline } from '../contexts/OfflineContext';
+import { useOffline } from '../contexts/OfflineContext';
 import { UserRole } from '../types/roles';
 
 const Signup: React.FC = () => {
@@ -24,16 +24,16 @@ const Signup: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
     const { login, user } = useAuth();
-    // const { isOnline } = useOffline();
+    const { isOnline } = useOffline();
 
     // Afficher un avertissement ou des informations sur le mode hors ligne si nécessaire
-    // useEffect(() => {
-    //     if (!isOnline) {
-    //         NotificationService.warning(
-    //             "Vous êtes en mode hors ligne. Votre compte sera créé localement et synchronisé ultérieurement."
-    //         );
-    //     }
-    // }, [isOnline]);
+    useEffect(() => {
+        if (!isOnline) {
+            NotificationService.warning(
+                "Vous êtes en mode hors ligne. Votre compte sera créé localement et synchronisé ultérieurement."
+            );
+        }
+    }, [isOnline]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -150,29 +150,29 @@ const Signup: React.FC = () => {
         }
     };
 
-    // const renderOfflineWarning = () => {
-    //     if (!isOnline) {
-    //         return (
-    //             <motion.div
-    //                 className="mb-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md text-yellow-700"
-    //                 initial={{ opacity: 0, height: 0 }}
-    //                 animate={{ opacity: 1, height: 'auto' }}
-    //             >
-    //                 <p className="flex items-center">
-    //                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-    //                         <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-    //                     </svg>
-    //                     Mode hors ligne
-    //                 </p>
-    //                 <p className="mt-1 text-sm">
-    //                     Vous êtes actuellement en mode hors ligne. Votre compte sera créé localement
-    //                     et synchronisé avec le serveur lorsque vous serez à nouveau connecté.
-    //                 </p>
-    //             </motion.div>
-    //         );
-    //     }
-    //     return null;
-    // };
+    const renderOfflineWarning = () => {
+        if (!isOnline) {
+            return (
+                <motion.div
+                    className="mb-4 bg-yellow-50 border border-yellow-200 p-4 rounded-md text-yellow-700"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                >
+                    <p className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Mode hors ligne
+                    </p>
+                    <p className="mt-1 text-sm">
+                        Vous êtes actuellement en mode hors ligne. Votre compte sera créé localement
+                        et synchronisé avec le serveur lorsque vous serez à nouveau connecté.
+                    </p>
+                </motion.div>
+            );
+        }
+        return null;
+    };
 
     const SpecialAccountsInfo = () => (
         <div className="text-sm text-gray-600 mt-2 p-2 bg-blue-50 rounded-md">
@@ -214,7 +214,7 @@ const Signup: React.FC = () => {
                     </p>
                 </div>
 
-                {/* {renderOfflineWarning()} */}
+                {renderOfflineWarning()}
 
                 {errors.form && (
                     <motion.div
