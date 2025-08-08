@@ -648,7 +648,15 @@ const Deliveries = () => {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.creneau || 'N/A'}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.vehicule || 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.reserve || commande.livraison?.reserve ? 'OUI' : 'NON'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                {/* ✅ Affichage intelligent de la réserve */}
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${(commande.reserve || commande.livraison?.reserve)
+                                                        ? 'bg-red-100 text-red-800'
+                                                        : 'bg-green-100 text-green-800'
+                                                    }`}>
+                                                    {(commande.reserve || commande.livraison?.reserve) ? 'OUI' : 'NON'}
+                                                </span>
+                                            </td>
                                             {user?.role === 'admin' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-right">
                                                     {commande.financier?.tarifHT

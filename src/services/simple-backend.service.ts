@@ -30,11 +30,13 @@ export class SimpleBackendService {
     // ✅ TRANSFORMATION EXACTE BACKEND → FRONTEND
     private transformBackendToFrontend(backendData: any): CommandeMetier {
         console.log('🔄 Transform Backend → Frontend pour:', backendData.numeroCommande);
-        console.log('🔄 Articles bruts:', backendData.articles);
-        console.log('🔄 Photos Backend (racine):', backendData.photos);
-        console.log('🔄 Chauffeurs Backend bruts:', backendData.chauffeurs);
+        // console.log('🔄 Articles bruts:', backendData.articles);
+        console.log('🔍 Client Backend brut:', backendData.client);
+        console.log('🔍 Etage Backend:', backendData.client?.etage);
+        console.log('🔍 Interphone Backend:', backendData.client?.interphone);
+        console.log('🔍 Ascenseur Backend:', backendData.client?.ascenseur);
 
-        return {
+        const result = {
             id: backendData.id,
             numeroCommande: backendData.numeroCommande,
 
@@ -54,8 +56,10 @@ export class SimpleBackendService {
                 vehicule: backendData.categorieVehicule,
                 equipiers: backendData.optionEquipier || 0,
                 reserve: backendData.reserveTransport || false,
-                remarques: backendData.remarques
+                remarques: backendData.remarques || '',
             },
+            // ✅ AJOUT CRITIQUE : Champ racine "reserve"
+            reserve: backendData.reserveTransport || false,
 
             client: {
                 nom: backendData.client?.nom || '',
@@ -69,9 +73,13 @@ export class SimpleBackendService {
                     type: backendData.client?.typeAdresse || 'Domicile',
                     ligne1: backendData.client?.adresseLigne1 || '',
                     batiment: backendData.client?.batiment || '',
-                    etage: backendData.client?.etage || '',
-                    ascenseur: backendData.client?.ascenseur || false,
-                    interphone: backendData.client?.interphone || ''
+                    etage: backendData.client?.etage !== undefined
+                        ? String(backendData.client.etage)
+                        : '',
+                    ascenseur: backendData.client?.ascenseur === true,
+                    interphone: backendData.client?.interphone !== undefined
+                        ? String(backendData.client.interphone)
+                        : '',
                 }
             },
 
@@ -103,7 +111,11 @@ export class SimpleBackendService {
                 details: backendData.articles && backendData.articles.length > 0
                     ? backendData.articles[0].details || ''
                     : '',
-                photos: backendData.photos ? backendData.photos.map((photo: { url: string }) => ({ url: photo.url })) : [],
+                photos: backendData.photos ?
+                    backendData.photos
+                        .filter((photo: { type: string }) => photo.type === 'ARTICLE')
+                        .map((photo: { url: string }) => ({ url: photo.url }))
+                    : [],
                 newPhotos: [],
                 categories: backendData.articles && backendData.articles.length > 0
                     ? backendData.articles[0].categories || []
@@ -131,6 +143,13 @@ export class SimpleBackendService {
             createdAt: backendData.createdAt,
             updatedAt: backendData.updatedAt
         };
+        console.log('🔍 ===== APRÈS TRANSFORMATION =====');
+        console.log('🔍 Frontend etage:', result.client.adresse.etage);
+        console.log('🔍 Frontend interphone:', result.client.adresse.interphone);
+        console.log('🔍 Frontend ascenseur:', result.client.adresse.ascenseur);
+        console.log('🔍 Frontend tel secondaire:', result.client.telephone.secondaire);
+
+        return result;
     }
 
     private extractDimensions(backendData: any): any[] {
@@ -142,25 +161,19 @@ export class SimpleBackendService {
             const article = backendData.articles[0];
             const dimensionsRaw = article.dimensions;
 
-            console.log('🔄 Dimensions brutes type:', typeof dimensionsRaw);
-            console.log('🔄 Dimensions brutes valeur:', dimensionsRaw);
-
             // Si c'est déjà un array
             if (Array.isArray(dimensionsRaw)) {
-                console.log('✅ Dimensions déjà array:', dimensionsRaw.length);
                 return dimensionsRaw;
             }
 
             // Si c'est une string JSON
             if (typeof dimensionsRaw === 'string') {
-                console.log('🔄 Parsing JSON string dimensions');
                 const parsed = JSON.parse(dimensionsRaw);
                 return Array.isArray(parsed) ? parsed : [];
             }
 
             // Si c'est un objet (JSON parse automatique de Prisma)
             if (dimensionsRaw && typeof dimensionsRaw === 'object') {
-                console.log('🔄 Dimensions objet, tentative conversion');
 
                 // Si c'est déjà un array d'objets valides
                 if (Array.isArray(dimensionsRaw)) {
@@ -218,14 +231,11 @@ export class SimpleBackendService {
     async getCommandes(): Promise<CommandeMetier[]> {
         try {
             const result = await this.request<{ data: any[] }>('/commandes');
-            console.log('🔍 Données Backend brutes:', result.data[0]);
+            // console.log('🔍 Données Backend brutes:', result.data[0]);
 
             // ✅ TRANSFORMER chaque commande
             const transformedData = result.data.map(item => this.transformBackendToFrontend(item));
-            console.log('🔄 Données transformées:', transformedData[0]);
-            console.log('📋 Structure dates:', transformedData[0]?.dates);
-            console.log('📋 Structure statuts:', transformedData[0]?.statuts);
-            console.log('📋 Structure livraison:', transformedData[0]?.livraison);
+            // console.log('🔄 Données transformées:', transformedData[0]);
 
             return transformedData;
         } catch (error) {
@@ -287,7 +297,6 @@ export class SimpleBackendService {
                 }
             }));
 
-            console.log('🔄 Chauffeurs transformés:', transformedChauffeurs);
             return transformedChauffeurs;
         } catch (error) {
             console.error('❌ Erreur récupération chauffeurs:', error);

@@ -616,100 +616,219 @@ export class ApiService {
   // TRANSFORMATIONS DE DONNÉES
   // =====================================
 
+  // private transformCommandeToApi(commande: Partial<CommandeMetier>): any {
+  //   console.log('🔄 Transformation Frontend → API...');
+  //   console.log('🔄 ===== TRANSFORMATION DISPATCH =====');
+  //   console.log('🔄 Commande Frontend reçue:', commande);
+  //   console.log('🔄 Chauffeurs Frontend:', commande.chauffeurs);
+
+  //   const apiData: any = {};
+
+  //   if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
+  //     apiData.chauffeurIds = commande.chauffeurIds;
+  //     console.log('🔄 ChauffeurIds ajoutés:', apiData.chauffeurIds);
+  //   }
+
+  //   if (commande.statutCommande) {
+  //     apiData.statutCommande = commande.statutCommande;
+  //   }
+  //   if (commande.statutLivraison) {
+  //     apiData.statutLivraison = commande.statutLivraison;
+  //   }
+  //   // ✅ Gérer tarifHT
+  //   if (commande.tarifHT !== undefined) {
+  //     apiData.tarifHT = Number(commande.tarifHT);
+  //     console.log('💰 TarifHT ajouté:', apiData.tarifHT);
+  //   }
+
+  //   // ✅ GESTION FINANCIER OBJECT (structure alternative)
+  //   if (commande.financier?.tarifHT !== undefined) {
+  //     apiData.tarifHT = Number(commande.financier.tarifHT);
+  //     console.log('💰 TarifHT depuis financier:', apiData.tarifHT);
+  //   }
+
+  //   // ✅ Champs de base
+  //   if (commande.numeroCommande) apiData.numeroCommande = commande.numeroCommande;
+  //   if (commande.dates?.livraison) apiData.dateLivraison = commande.dates.livraison;
+  //   if (commande.livraison?.creneau) apiData.creneauLivraison = commande.livraison.creneau;
+  //   if (commande.livraison?.vehicule) apiData.categorieVehicule = commande.livraison.vehicule;
+  //   if (commande.livraison?.equipiers !== undefined) apiData.optionEquipier = parseInt(String(commande.livraison.equipiers), 10);
+  //   if (commande.livraison?.reserve !== undefined) apiData.reserveTransport = commande.livraison.reserve;
+  //   if (commande.livraison?.remarques !== undefined) apiData.remarques = commande.livraison.remarques || '';
+
+  //   // ✅ STATUTS
+  //   if (commande.statuts?.commande) apiData.statutCommande = commande.statuts.commande;
+  //   if (commande.statuts?.livraison) apiData.statutLivraison = commande.statuts.livraison;
+  //   if (commande.statutCommande) apiData.statutCommande = commande.statutCommande;
+  //   if (commande.statutLivraison) apiData.statutLivraison = commande.statutLivraison;
+
+  //   // ✅ CHAUFFEURS
+  //   if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
+  //     apiData.chauffeurIds = commande.chauffeurIds;
+  //     console.log('🚛 ChauffeurIds ajoutés:', apiData.chauffeurIds);
+  //   }
+
+  //   // ✅ Remarques
+  //   if (commande.remarques) {
+  //     apiData.remarques = commande.remarques;
+  //     console.log('📝 Remarques ajoutées:', apiData.remarques);
+  //   }
+
+  //   console.log('🔄 Output API final:', apiData);
+
+  //   return {
+  //     // ✅ Champs de base
+  //     numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
+  //     dateLivraison: commande.dates?.livraison || new Date().toISOString(),
+  //     creneauLivraison: commande.livraison?.creneau,
+  //     categorieVehicule: commande.livraison?.vehicule,
+  //     optionEquipier: parseInt(String(commande.livraison?.equipiers || 0), 10),
+  //     tarifHT: parseFloat(String(commande.financier?.tarifHT || 0)),
+  //     reserveTransport: commande.livraison?.reserve || false,
+  //     prenomVendeur: commande.vendeur?.prenom || null, // ✅ null au lieu d'undefined
+  //     remarques: commande.livraison?.remarques || '',
+  //     // ✅ Magasin
+  //     magasinId: commande.magasin?.id,
+
+  //     // ✅ STRUCTURE NESTED pour client
+  //     client: {
+  //       nom: commande.client?.nom,
+  //       prenom: commande.client?.prenom,
+  //       telephone: commande.client?.telephone?.principal || commande.client?.telephone,
+  //       telephoneSecondaire: commande.client?.telephone?.secondaire || '',
+  //       adresseLigne1: commande.client?.adresse?.ligne1,
+  //       batiment: commande.client?.adresse?.batiment || '',
+  //       etage: commande.client?.adresse?.etage || '',
+  //       interphone: commande.client?.adresse?.interphone || '',
+  //       ascenseur: commande.client?.adresse?.ascenseur || false,
+  //       typeAdresse: commande.client?.adresse?.type || 'Domicile',
+  //     },
+
+  //     // ✅ STRUCTURE NESTED pour articles
+  //     articles: {
+  //       nombre: parseInt(String(commande.articles?.nombre || 1), 10),
+  //       details: commande.articles?.details || '',
+  //       dimensions: commande.articles?.dimensions || [],
+  //       photos: commande.articles?.photos || [],
+  //       newPhotos: commande.articles?.newPhotos || [],
+  //       canBeTilted: commande.articles?.canBeTilted || false,
+  //     },
+  //     // ✅ STRUCTURE NESTED pour statuts
+  //     statuts: {
+  //       livraison: commande.statuts?.livraison || 'EN ATTENTE',
+  //       commande: commande.statuts?.commande || 'En attente',
+  //     },
+  //   };
+  // }
   private transformCommandeToApi(commande: Partial<CommandeMetier>): any {
     console.log('🔄 Transformation Frontend → API...');
-    console.log('🔄 ===== TRANSFORMATION DISPATCH =====');
     console.log('🔄 Commande Frontend reçue:', commande);
-    console.log('🔄 Chauffeurs Frontend:', commande.chauffeurs);
 
-    const apiData: any = {};
+    // ✅ DÉTECTION : Création vs Modification
+    const isModification = !!commande.id;
 
-    if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
-      apiData.chauffeurIds = commande.chauffeurIds;
-      console.log('🔄 ChauffeurIds ajoutés:', apiData.chauffeurIds);
-    }
+    if (isModification) {
+      console.log('🔄 Mode MODIFICATION - Structure nested');
 
-    if (commande.statutCommande) {
-      apiData.statutCommande = commande.statutCommande;
-    }
-    if (commande.statutLivraison) {
-      apiData.statutLivraison = commande.statutLivraison;
-    }
-    // ✅ CRITIQUE : Gérer tarifHT
-    if (commande.tarifHT !== undefined) {
-      apiData.tarifHT = Number(commande.tarifHT);
-      console.log('💰 TarifHT ajouté:', apiData.tarifHT);
-    }
+      // ✅ MODIFICATION : Structure nested
+      return {
+        // Champs de base
+        dateLivraison: commande.dates?.livraison,
+        creneauLivraison: commande.livraison?.creneau,
+        categorieVehicule: commande.livraison?.vehicule,
+        optionEquipier: Number(commande.livraison?.equipiers || 0),
+        tarifHT: Number(commande.financier?.tarifHT || 0),
+        reserveTransport: commande.livraison?.reserve || false,
+        remarques: commande.livraison?.remarques || '',
 
-    // ✅ GESTION FINANCIER OBJECT (structure alternative)
-    if (commande.financier?.tarifHT !== undefined) {
-      apiData.tarifHT = Number(commande.financier.tarifHT);
-      console.log('💰 TarifHT depuis financier:', apiData.tarifHT);
-    }
+        // Client nested
+        ...(commande.client && {
+          client: {
+            nom: commande.client.nom,
+            prenom: commande.client.prenom,
+            telephone: commande.client.telephone?.principal || commande.client.telephone,
+            telephoneSecondaire: commande.client.telephone?.secondaire || '',
+            adresseLigne1: commande.client.adresse?.ligne1,
+            batiment: commande.client.adresse?.batiment || '',
+            etage: commande.client.adresse?.etage || '',
+            interphone: commande.client.adresse?.interphone || '',
+            ascenseur: commande.client.adresse?.ascenseur || false,
+            typeAdresse: commande.client.adresse?.type || 'Domicile'
+          }
+        }),
 
-    // ✅ Champs de base
-    if (commande.numeroCommande) apiData.numeroCommande = commande.numeroCommande;
-    if (commande.dates?.livraison) apiData.dateLivraison = commande.dates.livraison;
-    if (commande.livraison?.creneau) apiData.creneauLivraison = commande.livraison.creneau;
-    if (commande.livraison?.vehicule) apiData.categorieVehicule = commande.livraison.vehicule;
-    if (commande.livraison?.equipiers !== undefined) apiData.optionEquipier = parseInt(String(commande.livraison.equipiers), 10);
-    if (commande.livraison?.reserve !== undefined) apiData.reserveTransport = commande.livraison.reserve;
+        // Articles nested
+        ...(commande.articles && {
+          articles: {
+            nombre: Number(commande.articles.nombre || 1),
+            details: commande.articles.details || '',
+            categories: commande.articles.categories || [],
+            photos: commande.articles.photos || [],
+            newPhotos: commande.articles.newPhotos || [],
+            canBeTilted: commande.articles.canBeTilted || false,
+            dimensions: commande.articles.dimensions || []
+          }
+        }),
 
-    // ✅ STATUTS
-    if (commande.statuts?.commande) apiData.statutCommande = commande.statuts.commande;
-    if (commande.statuts?.livraison) apiData.statutLivraison = commande.statuts.livraison;
-    if (commande.statutCommande) apiData.statutCommande = commande.statutCommande;
-    if (commande.statutLivraison) apiData.statutLivraison = commande.statutLivraison;
+        // Statuts nested
+        ...(commande.statuts && {
+          statuts: {
+            livraison: commande.statuts.livraison || 'EN ATTENTE',
+            commande: commande.statuts.commande || 'En attente'
+          }
+        }),
 
-    // ✅ CHAUFFEURS
-    if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
-      apiData.chauffeurIds = commande.chauffeurIds;
-      console.log('🚛 ChauffeurIds ajoutés:', apiData.chauffeurIds);
-    }
+        // Chauffeurs nested
+        ...(commande.chauffeurs && {
+          chauffeurIds: commande.chauffeurs.map(ch => ch.id)
+        }),
+      };
+    } else {
+      console.log('🔄 Mode CRÉATION - Structure flat');
 
-    console.log('🔄 Output API final:', apiData);
+      // ✅ CRÉATION : Structure flat (qui fonctionne)
+      return {
+        // Champs de base
+        numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
+        dateLivraison: commande.dates?.livraison || new Date().toISOString(),
+        creneauLivraison: commande.livraison?.creneau,
+        categorieVehicule: commande.livraison?.vehicule,
+        optionEquipier: Number(commande.livraison?.equipiers || 0),
+        tarifHT: Number(commande.financier?.tarifHT || 0),
+        reserveTransport: commande.livraison?.reserve || false,
+        prenomVendeur: commande.vendeur?.prenom || null,
+        remarques: commande.livraison?.remarques || '',
+        magasinId: commande.magasin?.id,
 
-    return {
-      // ✅ Champs de base
-      numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
-      dateLivraison: commande.dates?.livraison || new Date().toISOString(),
-      creneauLivraison: commande.livraison?.creneau,
-      categorieVehicule: commande.livraison?.vehicule,
-      optionEquipier: parseInt(String(commande.livraison?.equipiers || 0), 10),
-      tarifHT: parseFloat(String(commande.financier?.tarifHT || 0)),
-      reserveTransport: commande.livraison?.reserve || false,
-      prenomVendeur: commande.vendeur?.prenom || null, // ✅ null au lieu d'undefined
-      // ✅ Magasin
-      magasinId: commande.magasin?.id,
-      // ✅ STRUCTURE NESTED pour client
-      client: {
-        nom: commande.client?.nom,
-        prenom: commande.client?.prenom,
-        telephone: commande.client?.telephone?.principal || commande.client?.telephone,
-        telephoneSecondaire: commande.client?.telephone?.secondaire || '',
-        adresseLigne1: commande.client?.adresse?.ligne1,
-        batiment: commande.client?.adresse?.batiment || '',
-        etage: commande.client?.adresse?.etage || '',
-        interphone: commande.client?.adresse?.interphone || '',
-        ascenseur: commande.client?.adresse?.ascenseur || false,
-        typeAdresse: commande.client?.adresse?.type || 'Domicile',
-      },
+        // Client flat
+        clientNom: commande.client?.nom || '',
+        clientPrenom: commande.client?.prenom || '',
+        clientTelephone: commande.client?.telephone?.principal || commande.client?.telephone || '',
+        clientTelephoneSecondaire: commande.client?.telephone?.secondaire || '',
+        clientAdresseLigne1: commande.client?.adresse?.ligne1 || '',
+        clientBatiment: commande.client?.adresse?.batiment || '',
+        clientEtage: commande.client?.adresse?.etage || '',
+        clientInterphone: commande.client?.adresse?.interphone || '',
+        clientAscenseur: commande.client?.adresse?.ascenseur || false,
+        clientTypeAdresse: commande.client?.adresse?.type || 'Domicile',
 
-      // ✅ STRUCTURE NESTED pour articles
-      articles: {
-        nombre: parseInt(String(commande.articles?.nombre || 1), 10),
-        details: commande.articles?.details || '',
-        dimensions: commande.articles?.dimensions || [],
-        photos: commande.articles?.photos || [],
-        newPhotos: commande.articles?.newPhotos || [],
+        // Articles flat
+        nombreArticles: Number(commande.articles?.nombre || 1),
+        detailsArticles: commande.articles?.details || '',
+        categoriesArticles: commande.articles?.categories || [],
+        dimensionsArticles: commande.articles?.dimensions || [],
+        photosArticles: commande.articles?.photos || [],
+        newPhotosArticles: commande.articles?.newPhotos || [],
         canBeTilted: commande.articles?.canBeTilted || false,
-      },
-      // ✅ STRUCTURE NESTED pour statuts
-      statuts: {
-        livraison: commande.statuts?.livraison || 'EN ATTENTE',
-        commande: commande.statuts?.commande || 'En attente',
-      },
-    };
+
+        // Statuts flat
+        statutLivraison: commande.statuts?.livraison || 'EN ATTENTE',
+        statutCommande: commande.statuts?.commande || 'En attente',
+
+        // Chauffeurs flat
+        chauffeurIds: commande.chauffeurs ? commande.chauffeurs.map(ch => ch.id) : [],
+      };
+    }
   }
 
   // ✅ Vérifier si l'API est disponible

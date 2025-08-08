@@ -15,8 +15,6 @@ export interface ClientInfo {
         etage: string;
         ascenseur: boolean;
         interphone: string;
-        codePostal?: string;
-        ville?: string;
     };
 }
 

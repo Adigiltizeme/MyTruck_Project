@@ -8,7 +8,7 @@ interface StatusManagerProps {
     commande: CommandeMetier;
     onUpdate: (commande: CommandeMetier) => void;
     onRefresh?: () => Promise<void>;
-    mode?: 'admin' | 'magasin'; // Pour différencier AdminActions vs CommandeActions*
+    mode?: 'admin' | 'magasin' | 'chauffeur'; // Pour différencier AdminActions vs CommandeActions*
     showAdvancedOnly?: boolean; // Pour afficher uniquement les actions avancées
 }
 
@@ -30,9 +30,10 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
     const canModifyCommandeStatus = () => {
         // Règle 2 : Magasin peut modifier tant que livraison pas CONFIRMEE
         if (user?.role === 'magasin') {
-            return commande.statuts?.livraison !== 'CONFIRMEE' &&
+            return commande.statuts?.livraison !== 'ENLEVEE' &&
                 commande.statuts?.livraison !== 'EN COURS DE LIVRAISON' &&
-                commande.statuts?.livraison !== 'LIVREE';
+                commande.statuts?.livraison !== 'LIVREE' &&
+                commande.statuts?.livraison !== 'ANNULEE';
         }
         // Admin/Direction peuvent toujours modifier
         return user?.role === 'admin';
@@ -52,7 +53,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
             if (commande.statuts?.commande === 'En attente' && user?.role === 'magasin') {
                 setTimeout(async () => {
                     await handleQuickStatusUpdate('commande', 'Confirmée');
-                }, 5000);
+                }, 2000);
             }
         };
         autoConfirmCommande();
@@ -161,24 +162,26 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
     const getQuickActions = () => {
         const actions = [];
 
-        if (mode === 'admin') {
+        if (mode === 'admin' || mode === 'chauffeur') {
             // Actions admin/direction
             if (canModifyLivraisonStatus()) {
                 if (commande.statuts?.livraison === 'EN ATTENTE') {
                     actions.push({
-                        label: 'Confirmer livraison',
+                        label: 'Confirmer prise en charge',
                         action: () => handleQuickStatusUpdate('livraison', 'CONFIRMEE'),
                         color: 'bg-green-600 hover:bg-green-700'
                     });
                 }
-                if (commande.statuts?.livraison === 'CONFIRMEE') {
+                if (commande.statuts?.livraison === 'CONFIRMEE' &&
+                    commande.statuts?.commande === 'Transmise') {
                     actions.push({
                         label: 'Marquer enlevée',
                         action: () => handleQuickStatusUpdate('livraison', 'ENLEVEE'),
                         color: 'bg-blue-600 hover:bg-blue-700'
                     });
                 }
-                if (commande.statuts?.livraison === 'ENLEVEE') {
+                if (commande.statuts?.livraison === 'ENLEVEE' &&
+                    commande.statuts?.commande === 'Transmise') {
                     actions.push({
                         label: 'Démarrer livraison',
                         action: () => handleQuickStatusUpdate('livraison', 'EN COURS DE LIVRAISON'),
@@ -203,7 +206,8 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                         color: 'bg-green-600 hover:bg-green-700'
                     });
                 }
-                if (commande.statuts?.commande === 'Confirmée') {
+                if (commande.statuts?.commande === 'Confirmée' &&
+                    commande.statuts?.livraison === 'CONFIRMEE') {
                     actions.push({
                         label: 'Marquer transmise',
                         action: () => handleQuickStatusUpdate('commande', 'Transmise'),
@@ -215,6 +219,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                     (
                         commande.statuts?.livraison !== 'EN COURS DE LIVRAISON' &&
                         commande.statuts?.livraison !== 'LIVREE' &&
+                        commande.statuts?.livraison !== 'ENLEVEE' &&
                         commande.statuts?.livraison !== 'ANNULEE'
                     )
                 ) {
@@ -231,10 +236,31 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                         color: 'bg-green-600 hover:bg-green-700'
                     });
                 }
+            } else {
+                // ✅ AJOUT : Message explicatif si modification bloquée
+                console.log('🚫 Modification bloquée - My Truck a confirmé la livraison');
             }
         }
 
         return actions;
+    };
+
+    const validateCanChangeStatus = (newStatus: string): { canChange: boolean; reason?: string } => {
+        // ✅ Si passage à ECHEC, rapport devient obligatoire
+        if (newStatus === 'ECHEC') {
+            return {
+                canChange: true,
+                reason: 'Un rapport de livraison sera requis pour justifier cet échec'
+            };
+        }
+
+        // ✅ Si déjà ECHEC et pas de rapport, bloquer certaines actions
+        if (commande.statuts?.livraison === 'ECHEC') {
+            // Vérifier si rapport livraison existe
+            // Cette logique peut être ajoutée selon les besoins métier
+        }
+
+        return { canChange: true };
     };
 
     // if (showAdvancedOnly && mode === 'magasin') {
@@ -400,10 +426,11 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
 
             {/* Règles métier affichées */}
             <div className="mt-4 text-xs text-gray-500 space-y-1">
-                {user?.role === 'magasin' && (commande.statuts?.livraison === 'CONFIRMEE'
+                {user?.role === 'magasin' && (commande.statuts?.livraison === 'ENLEVEE'
+                    || commande.statuts?.livraison === 'ANNULEE'
                     || commande.statuts?.livraison === 'EN COURS DE LIVRAISON'
                     || commande.statuts?.livraison === 'LIVREE') && (
-                        <p>⚠️ Modification limitée : livraison confirmée par My Truck</p>
+                        <p>⚠️ Modification limitée : livraison {commande.statuts?.livraison} par My Truck</p>
                     )}
                 {user?.role === 'chauffeur' && (
                     <p>🚛 Vous pouvez gérer les statuts de livraison</p>

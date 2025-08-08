@@ -16,6 +16,8 @@ interface VehicleSelectorProps {
   onDeliveryDetailsChange?: (details: any) => void;
   initialVehicle?: VehicleType;
   initialCrew?: number;
+  initialCanBeTilted?: boolean;
+  onCanBeTiltedChange?: (canBeTilted: boolean) => void;
   deliveryInfo?: {
     floor?: string | number;
     hasElevator?: boolean;
@@ -28,6 +30,7 @@ interface VehicleSelectorProps {
     rueInaccessible?: boolean;
     paletteComplete?: boolean;
   };
+  isEditing?: boolean;
 }
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({
@@ -35,14 +38,17 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   onVehicleSelect,
   onCrewSelect,
   onDeliveryDetailsChange,
+  onCanBeTiltedChange,
   initialVehicle,
   initialCrew,
+  initialCanBeTilted = false,
   deliveryInfo = {},
+  isEditing = false
 }) => {
   const [selectedVehicleShort, setSelectedVehicleShort] = useState<VehicleType | null>(null); // Format court
   const [selectedVehicleLong, setSelectedVehicleLong] = useState<string>('');
   const [crewSize, setCrewSize] = useState<number>(initialCrew || 0);
-  const [canBeTilted, setCanBeTilted] = useState<boolean>(false);
+  const [canBeTilted, setCanBeTilted] = useState<boolean>(initialCanBeTilted);
   const [showTiltQuestion, setShowTiltQuestion] = useState<boolean>(true);
   const [restrictedVehicles, setRestrictedVehicles] = useState<VehicleType[]>([]);
   const [recommendedVehicle, setRecommendedVehicle] = useState<VehicleType | null>(null);
@@ -377,7 +383,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     // Restaurer canBeTilted
     if (deliveryInfo && typeof deliveryInfo === 'object') {
-      let canBeTiltedValue = false;
+      let canBeTiltedValue = initialCanBeTilted;
 
       try {
         if (typeof deliveryInfo.details === 'string' && deliveryInfo.details) {
@@ -389,6 +395,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
         if (canBeTiltedValue !== canBeTilted) {
           setCanBeTilted(canBeTiltedValue);
+          console.log('🔧 Restauration canBeTilted:', canBeTiltedValue);
         }
       } catch (e) {
         // Ignorer les erreurs de parsing
@@ -401,8 +408,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     initialCrew,
     // Ne pas inclure selectedVehicleShort dans les dépendances
     // pour éviter la boucle
-    getDisplayFormat
+    getDisplayFormat,
     // Pas de deliveryInfo directement car c'est un objet qui change
+    // JSON.stringify(deliveryInfo),
+    initialCanBeTilted
   ]);
 
   // Pour deliveryInfo avec comparaison JSON
@@ -446,10 +455,18 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const handleTiltChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.checked;
     setCanBeTilted(newValue);
+
+    console.log('🔧 [VEHICLE] CanBeTilted changé:', newValue);
+
+    // ✅ DOUBLE MISE À JOUR
     if (onDeliveryDetailsChange) {
       onDeliveryDetailsChange({ ...deliveryInfo, canBeTilted: newValue });
     }
-  }, [onDeliveryDetailsChange, deliveryInfo]);
+
+    if (onCanBeTiltedChange) {
+      onCanBeTiltedChange(newValue);
+    }
+  }, [onDeliveryDetailsChange, onCanBeTiltedChange, deliveryInfo]);
 
   // ========== MISE À JOUR DES VALIDATIONS DES ÉQUIPIERS ==========
   useEffect(() => {

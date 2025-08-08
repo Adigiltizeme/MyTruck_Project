@@ -17,6 +17,8 @@ import { SecureImage } from './SecureImage';
 import DocumentViewer from './DocumentViewer';
 import { ArticleDimension } from './forms/ArticleDimensionForm';
 import { BackendDataService } from '../services/backend-data.service';
+import RapportManager from './RapportManager';
+import PhotosCommentaires from './PhotosCommentaires';
 
 interface CommandeDetailsProps {
     commande: CommandeMetier;
@@ -565,10 +567,48 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Client</h3>
                             <div className="space-y-2">
-                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom}</p>
+                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom || ''}</p>
                                 {/* <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p> */}
+
                                 <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
+
+                                {commande.client?.telephone?.secondaire && (
+                                    <p><span className="text-gray-500">Téléphone secondaire:</span> {commande.client?.telephone?.secondaire}</p>
+                                )}
+
                                 <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
+
+                                {commande.client?.adresse?.type && (
+                                    <p><span className="text-gray-500">Type d'adresse:</span> {commande.client?.adresse?.type}</p>
+                                )}
+
+                                {commande.client?.adresse?.batiment && (
+                                    <p><span className="text-gray-500">Bâtiment:</span> {commande.client?.adresse?.batiment || commande.batiment}</p>
+                                )}
+
+                                <p><span className="text-gray-500">Étage:</span> {
+                                    commande.client?.adresse?.etage !== undefined && commande.client?.adresse?.etage !== null
+                                        ? commande.client.adresse.etage
+                                        : (commande.etage !== undefined && commande.etage !== null
+                                            ? commande.etage
+                                            : 'Non spécifié')
+                                }</p>
+
+                                <p><span className="text-gray-500">Interphone/Code:</span> {
+                                    commande.client?.adresse?.interphone !== undefined && commande.client?.adresse?.interphone !== null
+                                        ? commande.client.adresse.interphone
+                                        : (commande.interphone !== undefined && commande.interphone !== null
+                                            ? commande.interphone
+                                            : 'Non spécifié')
+                                }</p>
+
+                                <p><span className="text-gray-500">Ascenseur:</span> {
+                                    commande.client?.adresse?.ascenseur !== undefined
+                                        ? (commande.client.adresse.ascenseur ? 'Oui' : 'Non')
+                                        : (commande.ascenseur !== undefined
+                                            ? (commande.ascenseur ? 'Oui' : 'Non')
+                                            : 'Non spécifié')
+                                }</p>
                             </div>
                         </div>
 
@@ -657,39 +697,22 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Autres remarques</h3>
 
-                            {commande.livraison?.remarques ? (
+                            {(commande.livraison?.remarques || commande.remarques) ? (
                                 <div className="space-y-2">
-                                    <p>{commande.livraison.remarques}</p>
+                                    <p>{commande.livraison.remarques || commande.remarques}</p>
                                 </div>
                             ) : (
                                 <p className="text-gray-500">Aucune remarque</p>
                             )}
                         </div>
 
-                        {/* Commentaires */}
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Commentaires</h3>
-                            <div className="space-y-2">
-                                {(commande.livraison?.commentaireEnlevement || commande.livraison?.commentaireLivraison) ? (
-                                    <>
-                                        {commande.livraison?.commentaireEnlevement && (
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <p className="text-sm font-medium text-gray-700">À l'enlèvement:</p>
-                                                <p className="text-sm mt-1">{commande.livraison.commentaireEnlevement}</p>
-                                            </div>
-                                        )}
-
-                                        {commande.livraison?.commentaireLivraison && (
-                                            <div className="bg-gray-50 p-3 rounded-lg">
-                                                <p className="text-sm font-medium text-gray-700">À la livraison:</p>
-                                                <p className="text-sm mt-1">{commande.livraison.commentaireLivraison}</p>
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <p className="text-gray-500">Aucun commentaire</p>
-                                )}
-                            </div>
+                        {/* Commentaires/Rapports */}
+                        <div className="col-span-2 space-y-4">
+                            <RapportManager
+                                commande={commande}
+                                onUpdate={onUpdate}
+                                onRefresh={onRefresh}
+                            />
                         </div>
                     </div>
                 );
@@ -760,72 +783,11 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             case 'photos-commentaires':
                 return (
                     <div className="space-y-4">
-                        {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && (commande?.livraison?.photosEnlevement?.length ?? 0) > 0)
-                            || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && (commande?.livraison?.photosLivraison?.length ?? 0) > 0) ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {commande.livraison?.photosEnlevement && commande.livraison.photosEnlevement.map((photo: string | { url: string }, index) => {
-                                    // Vérifier si l'URL de la photo est un URL valide
-                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                    return (
-                                        <div key={`enlèvement-${index}`}>
-                                            <p className="text-sm font-medium text-gray-700">Photo(s) à l'enlèvement :</p>
-                                            <div className="relative group">
-
-                                                {photoUrl && (
-                                                    <SecureImage
-                                                        src={photoUrl}
-                                                        alt={`Photo ${index + 1}`}
-                                                        className="rounded-lg w-full h-48 object-cover"
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                    <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                        onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-                                                    >
-                                                        Voir
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {commande.livraison?.photosLivraison?.map((photo: string | { url: string }, index) => {
-                                    // Vérifier si l'URL de la photo est un URL valide
-                                    const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-                                    return (
-                                        <div key={`livraison-${index}`}>
-                                            <p className="text-sm font-medium text-gray-700">Photo(s) à la livraison :</p>
-                                            <div className="relative group">
-
-                                                {photoUrl && (
-                                                    <SecureImage
-                                                        src={photoUrl}
-                                                        alt={`Photo ${index + 1}`}
-                                                        className="rounded-lg w-full h-48 object-cover"
-                                                    />
-                                                )}
-                                                <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                                    <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-                                                        onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-                                                    >
-                                                        Voir
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="text-center text-gray-500">Aucune photo de commentaire disponible</p>
-                        )}
-                        {user?.role === 'admin' && (
-                            <div className="flex justify-center mt-4">
-                                <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
-                                    Ajouter photo
-                                </button>
-                            </div>
-                        )}
+                        {/* ✅ Photos des rapports via Backend */}
+                        <PhotosCommentaires
+                            commande={commande}
+                            onRefresh={onRefresh}
+                        />
                     </div>
                 );
             case 'chronologie':

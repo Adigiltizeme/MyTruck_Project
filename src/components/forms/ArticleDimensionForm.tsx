@@ -15,12 +15,14 @@ interface ArticleDimensionsFormProps {
     initialArticles?: ArticleDimension[];
     onChange: (articles: ArticleDimension[]) => void;
     readOnly?: boolean;
+    isEditing?: boolean;
 }
 
 const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     initialArticles = [],
     onChange,
-    readOnly = false
+    readOnly = false,
+    isEditing = false
 }) => {
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);

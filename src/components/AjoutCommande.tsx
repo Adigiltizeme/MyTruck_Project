@@ -177,6 +177,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         errors={state.errors}
                         onChange={handleInputChange}
                         isEditing={isEditing}
+                        initialCanBeTilted={state.data.articles?.canBeTilted || false}
                     />
                 );
             case 3:

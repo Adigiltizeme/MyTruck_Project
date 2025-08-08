@@ -115,94 +115,125 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
         setShowEditModal(true);
     };
 
-    const EditCommandeModal = () => {
-        return (
-            <Modal
-                isOpen={showEditModal}
-                onClose={() => setShowEditModal(false)}
-            >
-                <div className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">Modifier la commande</h2>
-                    <AjoutCommande
-                        commande={commande}
-                        initialData={commande}
-                        onSubmit={handleEditSubmit}
-                        onCancel={() => setShowEditModal(false)}
-                        isEditing={true}
-                    />
-                </div>
-            </Modal>
-        );
-    };
-    const handleEditSubmit = async (updatedData: Partial<CommandeMetier>) => {
+    // const EditCommandeModal = () => {
+    //     return (
+    //         <Modal
+    //             isOpen={showEditModal}
+    //             onClose={() => setShowEditModal(false)}
+    //         >
+    //             <div className="p-6">
+    //                 <h2 className="text-xl font-semibold mb-4">Modifier la commande</h2>
+    //                 <AjoutCommande
+    //                     commande={commande}
+    //                     initialData={commande}
+    //                     onSubmit={handleEditSubmit}
+    //                     onCancel={() => setShowEditModal(false)}
+    //                     isEditing={true}
+    //                 />
+    //             </div>
+    //         </Modal>
+    //     );
+    // };
+    // const handleEditSubmit = async (updatedData: Partial<CommandeMetier>) => {
+    //     try {
+    //         setLoading(true);
+
+    //         // Préserver la valeur de réserve si elle n'a pas été explicitement modifiée
+    //         if (updatedData.livraison && commande?.livraison) {
+    //             updatedData.livraison = {
+    //                 ...updatedData.livraison,
+    //                 reserve: commande?.livraison.reserve
+    //             };
+    //         }
+
+    //         const result = await dataService.updateCommande({
+    //             ...updatedData,
+    //             id: commande?.id,
+    //             // Préserver les champs qui ne doivent pas être modifiés
+    //             numeroCommande: commande?.numeroCommande,
+    //             dates: {
+    //                 ...commande?.dates,
+    //                 misAJour: new Date().toISOString()
+    //             }
+    //         });
+
+    //         if (onRefresh && typeof onRefresh === 'function') {
+    //             await onRefresh();
+    //         } else {
+    //             onUpdate(result);
+    //         }
+
+    //         setShowEditModal(false);
+    //     } catch (error) {
+    //         console.error('Erreur lors de la modification:', error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+    const handleSubmitModification = async () => {
         try {
             setLoading(true);
+            console.log('📝 ===== SOUMISSION MODIFICATION =====');
+            console.log('📝 Données editData:', editData);
 
-            // Préserver la valeur de réserve si elle n'a pas été explicitement modifiée
-            if (updatedData.livraison && commande?.livraison) {
-                updatedData.livraison = {
-                    ...updatedData.livraison,
-                    reserve: commande?.livraison.reserve
-                };
-            }
+            // ✅ STRUCTURE FLAT comme pour la création (qui fonctionne)
+            const modifiedData: any = {
+                // Champs de base
+                dateLivraison: editData.dates?.livraison,
+                creneauLivraison: editData.livraison?.creneau,
+                categorieVehicule: editData.livraison?.vehicule,
+                optionEquipier: Number(editData.livraison?.equipiers || 0),
+                tarifHT: Number(editData.financier?.tarifHT || 0),
+                reserveTransport: editData.livraison?.reserve || false,
+                remarques: editData.livraison?.remarques || '',
 
-            const result = await dataService.updateCommande({
-                ...updatedData,
-                id: commande?.id,
-                // Préserver les champs qui ne doivent pas être modifiés
-                numeroCommande: commande?.numeroCommande,
-                dates: {
-                    ...commande?.dates,
-                    misAJour: new Date().toISOString()
-                }
-            });
+                // ✅ CLIENT STRUCTURE FLAT (comme création)
+                ...(editData.client && {
+                    clientNom: editData.client.nom,
+                    clientPrenom: editData.client.prenom,
+                    clientTelephone: editData.client.telephone?.principal || editData.client.telephone,
+                    clientTelephoneSecondaire: editData.client.telephone?.secondaire || '',
+                    clientAdresseLigne1: editData.client.adresse?.ligne1,
+                    clientBatiment: editData.client.adresse?.batiment || '',
+                    clientEtage: editData.client.adresse?.etage || '',
+                    clientInterphone: editData.client.adresse?.interphone || '',
+                    clientAscenseur: editData.client.adresse?.ascenseur || false,
+                    clientTypeAdresse: editData.client.adresse?.type || 'Domicile'
+                }),
+
+                // ✅ ARTICLES STRUCTURE FLAT (comme création)
+                ...(editData.articles && {
+                    nombreArticles: Number(editData.articles.nombre),
+                    detailsArticles: editData.articles.details || '',
+                    categoriesArticles: editData.articles.categories || [],
+                    dimensionsArticles: editData.articles.dimensions || [],
+                    canBeTiltedArticles: editData.articles.canBeTilted || false,
+                })
+            };
+
+            console.log('📝 Données FLAT à envoyer:', modifiedData);
+
+            // ✅ UTILISER PATCH direct avec structure flat
+            const result = await apiService.patch(`/commandes/${commande.id}`, modifiedData);
+
+            console.log('✅ Modification réussie');
 
             if (onRefresh && typeof onRefresh === 'function') {
                 await onRefresh();
             } else {
-                onUpdate(result);
+                onUpdate(result as CommandeMetier);
             }
 
-            setShowEditModal(false);
-        } catch (error) {
-            console.error('Erreur lors de la modification:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-    const handleSubmitModification = async () => {
-        try {
-            setLoading(true);
-            // S'assurer de garder la date de livraison originale
-            const modifiedData: Partial<CommandeMetier> = {
-                ...editData,
-                ...commande, // Données originales
-                id: commande?.id,
-                client: editData.client,
-                articles: {
-                    ...editData.articles,
-                    nombre: editData.articles?.nombre ?? commande?.articles?.nombre ?? 0,
-                    dimensions: editData.articles?.dimensions ?? commande?.articles?.dimensions ?? [],
-                },
-                dates: {
-                    ...commande?.dates,
-                    livraison: editData.dates?.livraison || commande?.dates?.livraison,
-                    misAJour: new Date().toISOString()
-                },
-                livraison: editData.livraison
-            };
-
-            // Log pour debug
-            console.log('Données modifiées:', modifiedData);
-
-            const result = await dataService.updateCommande(modifiedData);
-
-            onUpdate(result);
             setShowEditModal(false);
             setIsEditing(false);
 
         } catch (error) {
-            console.error('Erreur lors de la modification:', error);
+            console.error('❌ Erreur modification:', error);
+            if (error instanceof Error) {
+                alert(`Erreur: ${error.message}`);
+            } else {
+                alert('Erreur modification');
+            }
         } finally {
             setLoading(false);
         }
@@ -301,24 +332,24 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
         }
     };
 
-    const handleConfirmTransmission = async () => {
-        try {
-            setLoading(true);
-            // ✅ UTILISER le nouveau système intelligent
-            await dataService.updateStatutsCommande(
-                commande?.id,
-                'Transmise',
-                undefined,
-                'Transmission confirmée par magasin'
-            );
+    // const handleConfirmTransmission = async () => {
+    //     try {
+    //         setLoading(true);
+    //         // ✅ UTILISER le nouveau système intelligent
+    //         await dataService.updateStatutsCommande(
+    //             commande?.id,
+    //             'Transmise',
+    //             undefined,
+    //             'Transmission confirmée par magasin'
+    //         );
 
-            if (onRefresh) await onRefresh();
-        } catch (error) {
-            console.error('Erreur lors de la confirmation:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    //         if (onRefresh) await onRefresh();
+    //     } catch (error) {
+    //         console.error('Erreur lors de la confirmation:', error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
 
     return (
         <div className="space-y-4">

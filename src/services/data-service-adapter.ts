@@ -231,6 +231,127 @@ export class DataServiceAdapter {
         }
     }
 
+    public async createRapport(
+        commandeId: string,
+        rapportData: {
+            message: string;
+            type: 'ENLEVEMENT' | 'LIVRAISON';
+            chauffeurId: string;
+            photos?: Array<{ url: string; filename?: string }>;
+            obligatoire?: boolean;
+        }
+    ): Promise<any> {
+        try {
+            console.log('📝 createRapport:', { commandeId, type: rapportData.type });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                // ✅ ENDPOINT DÉDIÉ comme les autres fonctionnalités
+                const result = await this.apiService.post(`/commandes/${commandeId}/rapports`, rapportData);
+
+                console.log('✅ Rapport créé via endpoint dédié');
+
+                // ✅ REFRESH CONTEXTE (pattern éprouvé)
+                await this.invalidateCache();
+
+                return result;
+            } else {
+                throw new Error('Création rapport impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur createRapport:', error);
+            throw error;
+        }
+    }
+
+    public async getRapportsCommande(commandeId: string): Promise<any> {
+        try {
+            console.log('📝 getRapportsCommande:', commandeId);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.get(`/commandes/${commandeId}/rapports`);
+
+                console.log('✅ Rapports récupérés');
+
+                return result;
+            } else {
+                throw new Error('Récupération rapports impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur getRapportsCommande:', error);
+            throw error;
+        }
+    }
+
+    public async isRapportObligatoire(commandeId: string, type: 'ENLEVEMENT' | 'LIVRAISON'): Promise<boolean> {
+        try {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.get(`/commandes/${commandeId}/rapports/obligatoire?type=${type}`);
+                return (result as { obligatoire?: boolean }).obligatoire || false;
+            }
+            return false;
+        } catch (error) {
+            console.error('❌ Erreur isRapportObligatoire:', error);
+            return false;
+        }
+    }
+
+    public async updateRapport(
+        commandeId: string,
+        rapportType: 'ENLEVEMENT' | 'LIVRAISON',
+        updateData: {
+            message?: string;
+            newPhotos?: Array<{ url: string; filename?: string }>;
+            photosToRemove?: string[];
+        }
+    ): Promise<any> {
+        try {
+            console.log('📝 updateRapport:', { commandeId, rapportType });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.patch(
+                    `/commandes/${commandeId}/rapports/${rapportType}`,
+                    updateData
+                );
+
+                console.log('✅ Rapport mis à jour');
+
+                // ✅ REFRESH CONTEXTE
+                await this.invalidateCache();
+
+                return result;
+            } else {
+                throw new Error('Modification rapport impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur updateRapport:', error);
+            throw error;
+        }
+    }
+
+    public async deleteRapport(
+        commandeId: string,
+        rapportType: 'ENLEVEMENT' | 'LIVRAISON'
+    ): Promise<void> {
+        try {
+            console.log('📝 deleteRapport:', { commandeId, rapportType });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                await this.apiService.delete(`/commandes/${commandeId}/rapports/${rapportType}`);
+
+                console.log('✅ Rapport supprimé');
+
+                // ✅ REFRESH CONTEXTE
+                await this.invalidateCache();
+
+            } else {
+                throw new Error('Suppression rapport impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur deleteRapport:', error);
+            throw error;
+        }
+    }
+
     public async assignChauffeursToCommande(commandeId: string, chauffeurIds: string[]): Promise<CommandeMetier> {
         try {
             console.log('🚛 assignChauffeursToCommande:', { commandeId, chauffeurIds });
@@ -298,6 +419,52 @@ export class DataServiceAdapter {
         }
     }
 
+    // async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
+    //     if (!commande.id) {
+    //         throw new Error('ID de commande requis pour la mise à jour');
+    //     }
+
+    //     try {
+    //         if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+    //             console.log('📝 updateCommande via Backend API, commande:', commande);
+
+    //             // ✅ VÉRIFIER : Le champ chauffeurIds est-il passé correctement ?
+    //             if (commande.chauffeurIds) {
+    //                 console.log('🚛 Détection chauffeurIds dans updateCommande:', commande.chauffeurIds);
+    //             }
+
+    //             const result = await this.apiService.updateCommande(commande.id, commande);
+
+    //             // Synchroniser avec la base locale
+    //             await SafeDbService.update('commandes', commande.id, result);
+
+    //             return result;
+    //         } else {
+    //             return await this.dataService.updateCommande(commande);
+    //         }
+    //     } catch (error) {
+    //         console.error('Erreur updateCommande, mise à jour locale:', error);
+
+    //         // Mise à jour locale et ajout aux changements en attente
+    //         const existingCommande = await SafeDbService.getById<CommandeMetier>('commandes', commande.id);
+    //         if (!existingCommande) throw new Error('Commande non trouvée');
+
+    //         const updatedCommande = { ...existingCommande, ...commande };
+    //         await SafeDbService.update('commandes', commande.id, updatedCommande);
+
+    //         // Ajouter aux changements en attente
+    //         await SafeDbService.add('pendingChanges', {
+    //             id: uuidv4(),
+    //             entityType: 'commande',
+    //             entityId: commande.id,
+    //             action: 'update',
+    //             data: commande,
+    //             timestamp: Date.now()
+    //         });
+
+    //         return updatedCommande;
+    //     }
+    // }
     async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
         if (!commande.id) {
             throw new Error('ID de commande requis pour la mise à jour');
@@ -312,7 +479,81 @@ export class DataServiceAdapter {
                     console.log('🚛 Détection chauffeurIds dans updateCommande:', commande.chauffeurIds);
                 }
 
-                const result = await this.apiService.updateCommande(commande.id, commande);
+                // ✅ CORRECTION : Structure différente pour modification vs création
+                const updateData: any = {
+                    id: commande.id
+                };
+
+                // ✅ Champs simples de commande
+                if (commande.dates?.livraison) {
+                    updateData.dateLivraison = commande.dates.livraison;
+                }
+                if (commande.livraison?.creneau) {
+                    updateData.creneauLivraison = commande.livraison.creneau;
+                }
+                if (commande.livraison?.vehicule) {
+                    updateData.categorieVehicule = commande.livraison.vehicule;
+                }
+                if (commande.livraison?.equipiers !== undefined) {
+                    updateData.optionEquipier = Number(commande.livraison.equipiers);
+                }
+                if (commande.livraison?.reserve !== undefined) {
+                    updateData.reserveTransport = commande.livraison.reserve;
+                }
+                if (commande.livraison?.remarques !== undefined) {
+                    updateData.remarques = commande.livraison.remarques;
+                }
+                if (commande.financier?.tarifHT !== undefined) {
+                    updateData.tarifHT = Number(commande.financier.tarifHT);
+                }
+                if (commande.articles?.photos && commande.articles.photos.length > 0) {
+                    updateData.photos = commande.articles.photos;
+                }
+                if (commande.articles?.newPhotos && commande.articles.newPhotos.length > 0) {
+                    updateData.newPhotos = commande.articles.newPhotos;
+                }
+
+                // ✅ CLIENT NESTED (pour modification)
+                if (commande.client) {
+                    updateData.client = {
+                        nom: commande.client.nom,
+                        prenom: commande.client.prenom,
+                        telephone: commande.client.telephone?.principal || commande.client.telephone,
+                        telephoneSecondaire: commande.client.telephone?.secondaire || '',
+                        adresseLigne1: commande.client.adresse?.ligne1,
+                        batiment: commande.client.adresse?.batiment || '',
+                        etage: commande.client.adresse?.etage || '',
+                        interphone: commande.client.adresse?.interphone || '',
+                        ascenseur: commande.client.adresse?.ascenseur || false,
+                        typeAdresse: commande.client.adresse?.type || 'Domicile'
+                    };
+                }
+
+                // ✅ ARTICLES NESTED (pour modification)
+                if (commande.articles) {
+                    updateData.articles = {
+                        nombre: Number(commande.articles.nombre),
+                        details: commande.articles.details || '',
+                        categories: commande.articles.categories || [],
+                        dimensions: commande.articles.dimensions || [],
+                        photos: commande.articles.photos || [],
+                        newPhotos: commande.articles.newPhotos || [],
+                        canBeTilted: commande.articles.canBeTilted || false,
+                    };
+                }
+
+                // ✅ STATUTS
+                if (commande.statuts?.commande) {
+                    updateData.statutCommande = commande.statuts.commande;
+                }
+                if (commande.statuts?.livraison) {
+                    updateData.statutLivraison = commande.statuts.livraison;
+                }
+
+                console.log('📝 Données modification (structure nested):', updateData);
+
+                // ✅ APPEL DIRECT PATCH sans transformation
+                const result = await this.apiService.patch<CommandeMetier>(`/commandes/${commande.id}`, updateData);
 
                 // Synchroniser avec la base locale
                 await SafeDbService.update('commandes', commande.id, result);
@@ -322,32 +563,39 @@ export class DataServiceAdapter {
                 return await this.dataService.updateCommande(commande);
             }
         } catch (error) {
-            console.error('Erreur updateCommande, mise à jour locale:', error);
+            console.error('Erreur updateCommande:', error);
+            throw error;
+        }
+    }
 
-            // Mise à jour locale et ajout aux changements en attente
-            const existingCommande = await SafeDbService.getById<CommandeMetier>('commandes', commande.id);
-            if (!existingCommande) throw new Error('Commande non trouvée');
+    public async updateCommandeSimple(
+        commandeId: string,
+        updateData: any
+    ): Promise<CommandeMetier> {
+        try {
+            console.log('📝 updateCommandeSimple - Bypass transformation');
+            console.log('📝 Données directes:', updateData);
 
-            const updatedCommande = { ...existingCommande, ...commande };
-            await SafeDbService.update('commandes', commande.id, updatedCommande);
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                // ✅ APPEL DIRECT sans transformation
+                const result = await this.apiService.patch<CommandeMetier>(`/commandes/${commandeId}`, updateData);
 
-            // Ajouter aux changements en attente
-            await SafeDbService.add('pendingChanges', {
-                id: uuidv4(),
-                entityType: 'commande',
-                entityId: commande.id,
-                action: 'update',
-                data: commande,
-                timestamp: Date.now()
-            });
+                console.log('✅ Modification directe réussie');
 
-            return updatedCommande;
+                const freshCommande = await this.getCommande(commandeId);
+                return freshCommande || result;
+            } else {
+                throw new Error('Modification impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur updateCommandeSimple:', error);
+            throw error;
         }
     }
 
     async deleteCommande(id: string): Promise<void> {
         try {
-            if (this.dataSource === DataSource.BACKEND_API) {
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 await this.apiService.deleteCommande(id);
 
                 // Supprimer de la base locale
@@ -531,29 +779,25 @@ export class DataServiceAdapter {
             optionEquipier: frontendData.livraison?.equipiers || 0,
             tarifHT: frontendData.financier?.tarifHT || 0,
             reserveTransport: frontendData.livraison?.reserve || false,
+            remarques: frontendData.remarques || '',
             prenomVendeur: frontendData.prenomVendeur,
 
-            // ✅ Client nested
-            client: {
-                nom: frontendData.client?.nom,
-                prenom: frontendData.client?.prenom,
-                telephone: frontendData.client?.telephone?.principal,
-                telephoneSecondaire: frontendData.client?.telephone?.secondaire,
-                adresseLigne1: frontendData.client?.adresse?.ligne1,
-                typeAdresse: frontendData.client?.adresse?.type,
-                batiment: frontendData.client?.adresse?.batiment,
-                etage: frontendData.client?.adresse?.etage,
-                interphone: frontendData.client?.adresse?.interphone,
-                ascenseur: frontendData.client?.adresse?.ascenseur || false
-            },
+            // ✅ Client flat
+            clientNom: frontendData.client?.nom || '',
+            clientPrenom: frontendData.client?.prenom || '',
+            clientTelephone: frontendData.client?.telephone?.principal || '',
+            clientTelephoneSecondaire: frontendData.client?.telephone?.secondaire || '',
+            clientAdresseLigne1: frontendData.client?.adresse?.ligne1 || '',
+            clientTypeAdresse: frontendData.client?.adresse?.type || '',
+            clientBatiment: frontendData.client?.adresse?.batiment || '',
+            clientEtage: frontendData.client?.adresse?.etage || '',
+            clientInterphone: frontendData.client?.adresse?.interphone || '',
+            clientAscenseur: frontendData.client?.adresse?.ascenseur || false,
 
-            // ✅ Articles nested
-            articles: {
-                nombre: frontendData.articles?.nombre || 1,
-                details: frontendData.articles?.details || '',
-                categories: frontendData.articles?.categories || []
-                // ❌ PAS de photos ici - géré séparément
-            }
+            // ✅ Articles flat
+            nombreArticles: frontendData.articles?.nombre || 1,
+            detailsArticles: frontendData.articles?.details || '',
+            categoriesArticles: frontendData.articles?.categories || []
         };
     }
 
