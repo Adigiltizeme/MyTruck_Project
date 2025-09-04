@@ -53,7 +53,7 @@ const HomePage: React.FC = () => {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5, duration: 0.8 }}
                     >
-                        My Truck, la solution transport qui roule pour vous !
+                        Partout. Pour vous !
                     </motion.p>
                 </div>
             </section>

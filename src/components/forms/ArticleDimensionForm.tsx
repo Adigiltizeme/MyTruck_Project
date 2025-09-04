@@ -263,6 +263,11 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 </div>
             </div>
 
+            <p className="text-sm text-gray-600 mb-4">
+                Celui avec les plus grandes dimensions nous aide à déterminer le véhicule adapté<br />
+                Le plus lourd (+ conditions spéciales) permet de déterminer le nombre d'équipiers nécessaires.
+            </p>
+
             {/* Avertissement si des dimensions manquent */}
             {shouldShowIncompleteWarning() && (
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">

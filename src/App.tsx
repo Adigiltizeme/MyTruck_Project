@@ -29,6 +29,10 @@ import { MigrationControl } from './components/MigrationControl';
 import TestAuth from './components/TestAuth';
 import { OfflineProvider, useOffline } from './contexts/OfflineContext';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { SlotsManagement } from './components/admin/SlotsManagement';
+import ChauffeurManagement from './pages/admin/ChauffeurManagement';
+import MagasinManagement from './pages/admin/MagasinManagement';
+import ClientManagement from './pages/magasin/ClientManagement';
 
 const App = () => {
 
@@ -248,10 +252,18 @@ const App = () => {
               }
             />
             <Route
-              path="/drivers"
+              path="/chauffeurs"
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
-                  <Drivers />
+                  <ChauffeurManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/magasins"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <MagasinManagement />
                 </ProtectedRoute>
               }
             />
@@ -260,6 +272,14 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <DocumentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/slots"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <SlotsManagement />
                 </ProtectedRoute>
               }
             />
@@ -276,6 +296,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clients"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'magasin']}>
+                  <ClientManagement />
                 </ProtectedRoute>
               }
             />
@@ -299,8 +327,8 @@ const App = () => {
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Route>
         </Routes>
-        <OfflineIndicator />
-        {import.meta.env.DEV && <DevModeToggle />}
+        {/* <OfflineIndicator /> */}
+        {/* {import.meta.env.DEV && <DevModeToggle />} */}
         <ToastContainer
           position="bottom-right"
           autoClose={3000}

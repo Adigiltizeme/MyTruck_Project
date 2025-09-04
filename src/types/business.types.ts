@@ -1,4 +1,5 @@
 import { ArticleDimension } from "../components/forms/ArticleDimensionForm";
+import { VehicleType } from "../services/vehicle-validation.service";
 
 export interface ClientInfo {
     nom: string;
@@ -18,7 +19,36 @@ export interface ClientInfo {
     };
 }
 
-// Interface pour le magasin
+export interface ClientGDPR extends ClientInfo {
+    id: string;
+    consentGiven: boolean;
+    consentDate?: string;
+    dataRetentionUntil: string;
+    lastActivityAt: string;
+    pseudonymized: boolean;
+    deletionRequested: boolean;
+    _count?: {
+        commandes: number;
+    };
+}
+
+export interface ClientFilters {
+    search?: string;
+    typeAdresse?: 'Professionnelle' | 'Domicile';
+    skip?: number;
+    take?: number;
+}
+
+export interface ClientsResponse {
+    data: ClientGDPR[];
+    meta: {
+        total: number;
+        skip: number;
+        take: number;
+        hasMore: boolean;
+    };
+}
+
 export interface MagasinInfo {
     id: string;
     name: string;
@@ -28,6 +58,7 @@ export interface MagasinInfo {
     photo?: string;
     status: string;
     manager?: string;
+    categories?: string[];
 }
 
 export interface FactureInfo {
@@ -94,6 +125,7 @@ export interface ArticlesType {
         file: File
     }>;
     categories: string[];
+    canBeTilted?: boolean;
 }
 
 export interface LivraisonInfo {
@@ -107,10 +139,96 @@ export interface LivraisonInfo {
     reserve: boolean;
     chauffeurs?: PersonnelInfo[];
     remarques?: string;
-    details?: string;
-    // canBeTilted?: boolean;
+    details?: DeliveryDetails;
 }
 
+export interface DeliveryDetails {
+    // Conditions de base
+    hasElevator: boolean;
+    hasStairs: boolean;
+    stairCount: number;
+    parkingDistance: number;
+    needsAssembly: boolean;
+    rueInaccessible: boolean;
+    paletteComplete: boolean;
+    isDuplex: boolean;
+    deliveryToUpperFloor: boolean;
+
+    // Métadonnées
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface DeliveryValidationResult {
+    requiredVehicle: VehicleType | null;
+    requiredCrew: number;
+    largestArticle: {
+        longueur: number;
+        largeur: number;
+        hauteur: number;
+        poids: number;
+    } | null;
+    heaviestArticle: number;
+    totalWeight: number;
+    totalItems: number;
+    effectiveFloor: number;
+    triggeredConditions: string[];
+    needsQuote: boolean;
+    estimatedCost?: {
+        vehicleCost: number;
+        crewCost: number | 'quote';
+        distanceCost: number;
+        totalHT: number | 'quote';
+    };
+}
+
+export interface CrewValidationResult {
+    isValid: boolean;
+    requiredCrewSize: number;
+    selectedCrewSize: number;
+    deficiency: number;
+    triggeredConditions: string[];
+    recommendations: string[];
+    estimatedCost: number | 'quote';
+    needsQuote: boolean;
+}
+
+export interface ValidatedArticle extends ArticleDimension {
+    // Données de validation
+    canFitInVehicles: VehicleType[];
+    restrictedVehicles: VehicleType[];
+    isHeaviest: boolean;
+    isLargest: boolean;
+    contributesToCrewRequirement: boolean;
+
+    // Métadonnées
+    volumeDimensional: number;
+    totalWeightWithQuantity: number;
+}
+
+export enum DeliveryConditionType {
+    HEAVY_INDIVIDUAL_ITEM = 'heavy_individual_item',
+    TOTAL_WEIGHT_WITH_ELEVATOR = 'total_weight_with_elevator',
+    TOTAL_WEIGHT_WITHOUT_ELEVATOR = 'total_weight_without_elevator',
+    MANY_ITEMS = 'many_items',
+    INACCESSIBLE_STREET = 'inaccessible_street',
+    COMPLETE_PALETTE = 'complete_palette',
+    LONG_CARRY_DISTANCE = 'long_carry_distance',
+    HIGH_FLOOR_NO_ELEVATOR = 'high_floor_no_elevator',
+    MANY_STAIRS = 'many_stairs',
+    ASSEMBLY_REQUIRED = 'assembly_required',
+    DUPLEX_UPPER_FLOOR = 'duplex_upper_floor'
+}
+
+export interface DeliveryCondition {
+    type: DeliveryConditionType;
+    isTriggered: boolean;
+    description: string;
+    value?: number | string;
+    threshold?: number;
+    impactOnCrew: number;
+    priority: number;
+}
 
 // Interface pour la commande
 export interface CommandeMetier {
@@ -135,15 +253,70 @@ export interface CommandeMetier {
         categories?: string[];
         dimensions?: ArticleDimension[];
         canBeTilted?: boolean; // Indique si la commande peut être inclinée
+        validationResults?: DeliveryValidationResult;
+        validatedArticles?: ValidatedArticle[];
     };
     financier: {
         tarifHT: number;
         factures?: FactureInfo[];
         devis?: DevisInfo[];
+        devisObligatoire?: boolean;
+        tarifDetails?: {
+            vehicleCost: number;
+            crewCost: number | 'quote';
+            distanceCost: number;
+            breakdown: string[];
+        };
     };
     magasin: MagasinInfo;
     chauffeurs: PersonnelInfo[];
     [key: string]: any;
+}
+
+export interface DeliveryValidationProps {
+    articles: ArticleDimension[];
+    deliveryDetails: DeliveryDetails;
+    clientInfo: {
+        etage: string;
+        ascenseur: boolean;
+    };
+    onValidationChange: (result: DeliveryValidationResult) => void;
+    showDebugInfo?: boolean;
+}
+
+// 🆕 INTERFACE POUR LE SERVICE DE TARIFICATION ÉTENDU
+export interface ExtendedTarificationParams {
+    vehicule: VehicleType;
+    adresseMagasin: string;
+    adresseLivraison: string;
+    equipiers: number;
+
+    // Nouveaux paramètres
+    articles: ArticleDimension[];
+    deliveryDetails: DeliveryDetails;
+    forceQuote?: boolean;
+}
+
+export interface ExtendedTarificationResult {
+    montantHT: number | 'devis';
+    detail: {
+        vehicule: number;
+        distance: number | 'devis';
+        equipiers: number | 'devis';
+        supplements?: number;
+    };
+
+    // Nouvelles informations
+    validationResults: DeliveryValidationResult;
+    recommendations: string[];
+    warnings: string[];
+    isOptimal: boolean;
+    alternativeOptions?: {
+        vehicule: VehicleType;
+        equipiers: number;
+        cost: number;
+        description: string;
+    }[];
 }
 
 export type CommandeMetierKey = keyof CommandeMetier;

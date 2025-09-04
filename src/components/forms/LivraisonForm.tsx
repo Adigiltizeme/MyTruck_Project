@@ -439,6 +439,9 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
 import { AlertTriangle, Info } from "lucide-react";
+import { SlotsService } from "../../services/slots.service";
+import { SlotAvailability } from "../../types/slots.types";
+import { SlotsInfo } from "../SlotsInfo";
 
 export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false }) => {
     const [selectedVehicleLong, setSelectedVehicleLong] = useState('');
@@ -466,10 +469,17 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         stairCount: 0,
         parkingDistance: 0,
         needsAssembly: false,
-        canBeTilted: false,
         rueInaccessible: false,
-        paletteComplete: false
+        paletteComplete: false,
+        isDuplex: false,
+        deliveryToUpperFloor: false
     });
+    const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([]);
+    const [slotsLoading, setSlotsLoading] = useState(false);
+    const [slotsError, setSlotsError] = useState<string | null>(null);
+    const [useDynamicSlots, setUseDynamicSlots] = useState(true);
+
+    const slotsService = new SlotsService();
 
     // Référence pour suivre si nous avons déjà tenté de récupérer l'adresse
     const adressMagasinRecuperee = useRef(false);
@@ -515,9 +525,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         stairCount: livDetails.stairCount || 0,
                         parkingDistance: livDetails.parkingDistance || 0,
                         needsAssembly: livDetails.needsAssembly || false,
-                        canBeTilted: livDetails.canBeTilted || false,
                         rueInaccessible: livDetails.rueInaccessible || false,
-                        paletteComplete: livDetails.paletteComplete || false
+                        paletteComplete: livDetails.paletteComplete || false,
+                        isDuplex: livDetails.isDuplex || false,
+                        deliveryToUpperFloor: livDetails.deliveryToUpperFloor || false
                     };
                     setDeliveryInfo(currentDeliveryInfo);
                 }
@@ -530,9 +541,25 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         const availableVehicles = VehicleValidationService.getAvailableVehicleTypes();
         const restricted: VehicleType[] = [];
 
+        // Déterminer si les articles peuvent être couchés
+        let canBeTilted = false;
+        if (data.articles?.canBeTilted) {
+            if (typeof data.articles.canBeTilted === 'string') {
+                try {
+                    canBeTilted = JSON.parse(data.articles.canBeTilted).canBeTilted || false;
+                } catch {
+                    canBeTilted = false;
+                }
+            } else if (typeof data.articles.canBeTilted === 'object' && data.articles.canBeTilted !== null) {
+                canBeTilted = (data.articles.canBeTilted as any).canBeTilted || false;
+            } else if (typeof data.articles.canBeTilted === 'boolean') {
+                canBeTilted = data.articles.canBeTilted;
+            }
+        }
+
         availableVehicles.forEach(vehicleType => {
             const canFitAll = articleDimensions.every(article => {
-                return VehicleValidationService.canFitInVehicle(article, vehicleType, currentDeliveryInfo.canBeTilted);
+                return VehicleValidationService.canFitInVehicle(article, vehicleType, canBeTilted);
             });
 
             if (!canFitAll) {
@@ -543,11 +570,11 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         setRestrictedVehicles(restricted);
 
         // Recommander un véhicule
-        const recommended = VehicleValidationService.recommendVehicle(articleDimensions, currentDeliveryInfo.canBeTilted);
+        const recommended = VehicleValidationService.recommendVehicle(articleDimensions, canBeTilted);
         setRecommendedVehicle(recommended);
 
         // Calculer les équipiers recommandés
-        const crew = VehicleValidationService.getRecommendedCrewSize(articleDimensions);
+        const crew = VehicleValidationService.getRequiredCrewSize(articleDimensions);
         setRecommendedCrew(crew);
 
         // Vérifier si des équipiers supplémentaires sont nécessaires
@@ -555,20 +582,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         const totalItemCount = articleDimensions.length;
         const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
 
-        const needsAdditionalCrew = VehicleValidationService.needsAdditionalCrew({
-            hasElevator: currentDeliveryInfo.hasElevator,
-            hasStairs: currentDeliveryInfo.hasStairs,
-            stairCount: currentDeliveryInfo.stairCount,
-            floor: floor,
-            heavyItems: hasHeavyItems,
-            totalItemCount,
-            parkingDistance: currentDeliveryInfo.parkingDistance,
-            needsAssembly: currentDeliveryInfo.needsAssembly
-        });
-
         // Générer des avertissements
         const newWarnings: string[] = [];
-        if (needsAdditionalCrew && crew < 1) {
+        // Suggest an additional crew member if there are heavy items or stairs without elevator and not enough crew
+        if ((hasHeavyItems || (currentDeliveryInfo.hasStairs && !currentDeliveryInfo.hasElevator)) && crew < 1) {
             newWarnings.push('Les conditions de livraison suggèrent l\'ajout d\'un équipier.');
         }
         if (hasHeavyItems) {
@@ -592,6 +609,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     }, [data.articles?.dimensions, data.livraison?.details, data.client?.adresse, selectedVehicleShort]);
 
     // Synchroniser l'état local avec les données entrantes
+
     useEffect(() => {
         if (data.magasin?.address && data.magasin.address !== storeAddress) {
             console.log(`Mise à jour de l'adresse du magasin dans l'état local: ${data.magasin.address}`);
@@ -686,9 +704,20 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 const restrictedVehicles: string[] = [];
 
                 // Vérifie si on a des informations sur la possibilité de coucher les articles
-                const canBeTilted = data.livraison?.details ?
-                    JSON.parse(data.livraison.details).canBeTilted || false :
-                    false;
+                let canBeTilted = false;
+                if (data.articles?.canBeTilted) {
+                    if (typeof data.articles.canBeTilted === 'string') {
+                        try {
+                            canBeTilted = JSON.parse(data.articles.canBeTilted).canBeTilted || false;
+                        } catch {
+                            canBeTilted = false;
+                        }
+                    } else if (typeof data.articles.canBeTilted === 'object' && data.articles.canBeTilted !== null) {
+                        canBeTilted = (data.articles.canBeTilted as any).canBeTilted || false;
+                    } else if (typeof data.articles.canBeTilted === 'boolean') {
+                        canBeTilted = data.articles.canBeTilted;
+                    }
+                }
 
                 // Vérifier pour chaque type de véhicule
                 VehicleValidationService.getAvailableVehicleTypes().forEach(vehicleType => {
@@ -839,6 +868,68 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         onChange(e);
     };
 
+    useEffect(() => {
+        const loadAvailableSlots = async () => {
+            if (!data.dates?.livraison || !useDynamicSlots) {
+                console.log('📅 Pas de date ou mode statique, utilisation créneaux classiques');
+                return;
+            }
+
+            setSlotsLoading(true);
+            setSlotsError(null);
+
+            try {
+                const date = data.dates.livraison.split('T')[0];
+                console.log('🕐 Chargement créneaux dynamiques pour:', date);
+
+                const availability = await slotsService.getAvailabilityForDate(date);
+
+                // Filtrer les créneaux disponibles uniquement
+                const availableOnly = availability.filter(slot => slot.isAvailable);
+
+                setAvailableSlots(availableOnly);
+                console.log(`✅ ${availableOnly.length} créneaux disponibles chargés`);
+
+                // Si aucun créneau dynamique disponible, passer en mode fallback
+                if (availableOnly.length === 0) {
+                    console.log('⚠️ Aucun créneau dynamique disponible, fallback vers statique');
+                    setUseDynamicSlots(false);
+                    setSlotsError('Aucun créneau disponible pour cette date');
+                }
+
+            } catch (error) {
+                console.error('❌ Erreur chargement créneaux dynamiques:', error);
+
+                let errorMessage = 'Erreur chargement créneaux';
+
+                if (error instanceof Error) {
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMessage = 'Connexion API indisponible';
+                    } else if (error.message.includes('401')) {
+                        errorMessage = 'Non autorisé';
+                    } else if (error.message.includes('404')) {
+                        errorMessage = 'Service créneaux non trouvé';
+                    }
+                }
+
+                setSlotsError(errorMessage);
+                setUseDynamicSlots(false);
+                console.log('🔄 Basculement automatique vers créneaux statiques');
+
+            } finally {
+                setSlotsLoading(false);
+            }
+        };
+
+        loadAvailableSlots();
+    }, [data.dates?.livraison, useDynamicSlots]);
+
+    const toggleSlotsMode = () => {
+        setUseDynamicSlots(!useDynamicSlots);
+        setSlotsError(null);
+        setAvailableSlots([]);
+    };
+
     const isCreneauPasse = useCallback((creneau: string) => {
         if (data.dates?.livraison === minDate) {
             const [heureFin] = creneau.split('-')[1].split('h');
@@ -870,8 +961,6 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     // ========== VALIDATION DES ÉQUIPIERS ==========
     // ========== VALIDATION COMPLÈTE DES ÉQUIPIERS SELON CRITÈRES MYTRUCK ==========
     const validateCrewSize = (crewSize: number): { isRestricted: boolean, reasons: string[] } => {
-        const reasons: string[] = [];
-
         if (!hasDimensionsData) {
             return { isRestricted: false, reasons: [] };
         }
@@ -881,95 +970,60 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             return { isRestricted: false, reasons: [] };
         }
 
-        // 1. Vérifier si au moins un article pèse 30kg ou plus individuellement
-        const hasHeavyIndividualItems = articleDimensions.some(article => (article.poids || 0) >= 30);
-        if (hasHeavyIndividualItems && crewSize === 0) {
-            const heavyItems = articleDimensions.filter(article => (article.poids || 0) >= 30);
-            reasons.push(`Articles lourds individuellement : ${heavyItems.map(item => `${item.nom} (${item.poids}kg)`).join(', ')}`);
+        console.log(' [LIVRAISON] VALIDATION ÉQUIPIERS - Nouvelle logique');
+
+        // Préparer les conditions de livraison
+        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+        // Calculer l'étage effectif avec duplex/maison
+        let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
+        const isDuplex = deliveryInfo?.isDuplex || false;
+        const deliveryToUpperFloor = deliveryInfo?.deliveryToUpperFloor || false;
+
+        if (isDuplex && deliveryToUpperFloor) {
+            effectiveFloor += 1;
+            console.log(`🏠 Duplex/Maison détecté: ${effectiveFloor} étages effectifs`);
         }
 
-        // 2. Calculer le poids total
-        const totalWeight = articleDimensions.reduce((sum, article) =>
-            sum + ((article.poids || 0) * (article.quantite || 1)), 0
+        const deliveryConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount,
+            rueInaccessible: deliveryInfo?.rueInaccessible || false,
+            paletteComplete: deliveryInfo?.paletteComplete || false,
+            parkingDistance: deliveryInfo?.parkingDistance || 0,
+            hasStairs: deliveryInfo?.hasStairs || false,
+            stairCount: deliveryInfo?.stairCount || 0,
+            needsAssembly: deliveryInfo?.needsAssembly || false,
+            floor: effectiveFloor,
+            isDuplex,
+            deliveryToUpperFloor
+        };
+
+        // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION
+        const validation = VehicleValidationService.validateCrewSize(
+            crewSize,
+            articleDimensions,
+            deliveryConditions
         );
 
-        // 3. Vérifier les conditions de poids selon la présence d'ascenseur
-        const hasElevator = data.client?.adresse?.ascenseur || deliveryInfo?.hasElevator || false;
+        console.log('📊 [LIVRAISON] Résultat validation:', validation);
 
-        if (hasElevator) {
-            // Avec ascenseur : 300kg ou plus nécessite équipiers
-            if (totalWeight >= 300 && crewSize === 0) {
-                reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg avec ascenseur (≥300kg requis)`);
-            }
-        } else {
-            // Sans ascenseur : 200kg ou plus nécessite équipiers
-            if (totalWeight >= 200 && crewSize === 0) {
-                reasons.push(`Charge totale de ${totalWeight.toFixed(1)}kg sans ascenseur (≥200kg requis)`);
-            }
-        }
-
-        // 4. Vérifier le nombre de produits (plus de 20)
-        const totalItems = articleDimensions.reduce((sum, article) =>
-            sum + (article.quantite || 1), 0
-        );
-        if (totalItems > 20 && crewSize === 0) {
-            reasons.push(`Plus de 20 produits (${totalItems} articles au total)`);
-        }
-
-        // 5. Vérifier l'accessibilité de la rue
-        if (deliveryInfo?.rueInaccessible && crewSize === 0) {
-            reasons.push("Rue inaccessible pour véhicule 4 roues - portage nécessaire");
-        }
-
-        // 6. Vérifier s'il s'agit d'une palette complète
-        if (deliveryInfo?.paletteComplete && crewSize === 0) {
-            reasons.push("Palette complète à dépalettiser et décharger");
-        }
-
-        // 7. Conditions additionnelles existantes
-        const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
-        if (floor > 2 && !hasElevator && crewSize === 0) {
-            reasons.push(`Livraison au ${floor}ème étage sans ascenseur`);
-        }
-
-        if (deliveryInfo?.hasStairs && deliveryInfo?.stairCount > 10 && crewSize === 0) {
-            reasons.push(`Nombreuses marches (${deliveryInfo.stairCount} marches)`);
-        }
-
-        if (deliveryInfo?.parkingDistance > 50 && crewSize === 0) {
-            reasons.push(`Distance de portage importante (${deliveryInfo.parkingDistance}m)`);
-        }
-
-        if (deliveryInfo?.needsAssembly && crewSize === 0) {
-            reasons.push("Montage ou installation nécessaire");
-        }
-
-        // Critères pour 2+ équipiers
-        if (crewSize < 2) {
-            if (totalWeight >= 500) {
-                reasons.push(`Très grosse charge (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
-            }
-            if (totalWeight >= 400 && !hasElevator) {
-                reasons.push(`Grosse charge sans ascenseur (${totalWeight.toFixed(1)}kg) - 2+ équipiers recommandés`);
-            }
-            if (totalItems > 50) {
-                reasons.push(`Très nombreux articles (${totalItems}) - 2+ équipiers recommandés`);
-            }
-        }
-
-        // Critères pour 3+ équipiers
-        if (crewSize < 3) {
-            if (totalWeight >= 800) {
-                reasons.push(`Charge exceptionnelle (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
-            }
-            if (totalWeight >= 600 && !hasElevator) {
-                reasons.push(`Charge très lourde sans ascenseur (${totalWeight.toFixed(1)}kg) - 3+ équipiers requis`);
-            }
-        }
+        // 🔍 DÉBOGAGE DÉTAILLÉ si restriction
+    if (!validation.isValid) {
+        console.log('🚨 [LIVRAISON] RESTRICTION DÉTECTÉE:');
+        console.log(`   - Sélectionné: ${crewSize} équipiers`);
+        console.log(`   - Requis: ${validation.requiredCrewSize} équipiers`);
+        console.log(`   - Manque: ${validation.deficiency} équipiers`);
+        console.log('📋 Conditions déclenchées:', validation.triggeredConditions);
+    }
 
         return {
-            isRestricted: reasons.length > 0,
-            reasons: reasons
+            isRestricted: !validation.isValid,
+            reasons: validation.isValid ? [] : [
+                `⚠️ Équipiers insuffisants (${crewSize}/${validation.requiredCrewSize})`,
+                ...validation.triggeredConditions.map(condition => `• ${condition}`),
+                ...validation.recommendations.map(rec => `➜ ${rec}`)
+            ]
         };
     };
 
@@ -989,47 +1043,78 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         const articleDimensions = data.articles?.dimensions || [];
         if (articleDimensions.length === 0) return 0;
 
-        const totalWeight = articleDimensions.reduce((sum, article) =>
-            sum + ((article.poids || 0) * (article.quantite || 1)), 0
+        console.log('🎯 [LIVRAISON-FORM] CALCUL ÉQUIPIERS RECOMMANDÉS - Nouvelle logique');
+
+        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+        // Calculer l'étage effectif avec duplex/maison
+        let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
+        if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
+            effectiveFloor += 1;
+        }
+
+        const deliveryConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount,
+            rueInaccessible: deliveryInfo?.rueInaccessible || false,
+            paletteComplete: deliveryInfo?.paletteComplete || false,
+            parkingDistance: deliveryInfo?.parkingDistance || 0,
+            hasStairs: deliveryInfo?.hasStairs || false,
+            stairCount: deliveryInfo?.stairCount || 0,
+            needsAssembly: deliveryInfo?.needsAssembly || false,
+            floor: effectiveFloor,
+            isDuplex: deliveryInfo?.isDuplex || false,
+            deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false
+        };
+
+        // ✅ UTILISER LA NOUVELLE MÉTHODE
+        const requiredCrew = VehicleValidationService.getRequiredCrewSize(
+            articleDimensions,
+            deliveryConditions
         );
-        const totalItems = articleDimensions.reduce((sum, article) =>
-            sum + (article.quantite || 1), 0
-        );
-        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) >= 30);
-        const hasElevator = data.client?.adresse?.ascenseur || deliveryInfo?.hasElevator || false;
-        const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
 
-        let recommendedCrew = 0;
+        console.log(`👥 [LIVRAISON] Équipiers recommandés: ${requiredCrew}`);
 
-        // Critères pour 1 équipier minimum
-        if (hasHeavyItems ||
-            (hasElevator && totalWeight >= 300) ||
-            (!hasElevator && totalWeight >= 200) ||
-            totalItems > 20 ||
-            deliveryInfo?.rueInaccessible ||
-            deliveryInfo?.paletteComplete ||
-            (floor > 2 && !hasElevator) ||
-            deliveryInfo?.needsAssembly) {
-            recommendedCrew = 1;
+        // 🔍 VÉRIFICATION : Comparer avec les conditions visibles
+        if (requiredCrew !== (data.livraison?.equipiers || 0)) {
+            console.log('⚠️ [LIVRAISON] DÉSYNCHRONISATION DÉTECTÉE:');
+            console.log(`   - Calculé: ${requiredCrew} équipiers`);
+            console.log(`   - Sélectionné: ${data.livraison?.equipiers || 0} équipiers`);
+            console.log('📋 Conditions actives:', deliveryConditions);
         }
 
-        // Critères pour 2 équipiers
-        if (totalWeight >= 500 ||
-            (totalWeight >= 400 && !hasElevator) ||
-            totalItems > 50 ||
-            (hasHeavyItems && floor > 3) ||
-            deliveryInfo?.stairCount > 20) {
-            recommendedCrew = 2;
+        return requiredCrew;
+    };
+
+    // 🆕 NOUVELLE FONCTION : Obtenir les détails complets de validation
+    const getValidationSummary = () => {
+        if (!hasDimensionsData) return null;
+
+        const articleDimensions = data.articles?.dimensions || [];
+        if (articleDimensions.length === 0) return null;
+
+        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+        let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
+        if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
+            effectiveFloor += 1;
         }
 
-        // Critères pour 3+ équipiers
-        if (totalWeight >= 800 ||
-            totalItems > 100 ||
-            (totalWeight >= 600 && !hasElevator)) {
-            recommendedCrew = 3;
-        }
+        const deliveryConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount,
+            rueInaccessible: deliveryInfo?.rueInaccessible || false,
+            paletteComplete: deliveryInfo?.paletteComplete || false,
+            parkingDistance: deliveryInfo?.parkingDistance || 0,
+            hasStairs: deliveryInfo?.hasStairs || false,
+            stairCount: deliveryInfo?.stairCount || 0,
+            needsAssembly: deliveryInfo?.needsAssembly || false,
+            floor: effectiveFloor,
+            isDuplex: deliveryInfo?.isDuplex || false,
+            deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false,
+        };
 
-        return recommendedCrew;
+        return VehicleValidationService.getValidationDetails(articleDimensions, deliveryConditions);
     };
 
     const getCrewSizeStatus = (crewSize: number): 'recommended' | 'compatible' | 'restricted' => {
@@ -1082,20 +1167,6 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 </div>
             )}
 
-            {hasDimensionsData && warnings.length > 0 && (
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex items-start">
-                    <Info className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
-                    <div>
-                        <p className="font-medium">Recommandations</p>
-                        <ul className="list-disc pl-5 mt-1">
-                            {warnings.map((warning, index) => (
-                                <li key={index} className="text-sm">{warning}</li>
-                            ))}
-                        </ul>
-                    </div>
-                </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">
@@ -1112,21 +1183,128 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="block text-sm font-bold text-gray-700">
-                        Créneau de livraison <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        name="livraison.creneau"
-                        value={data.livraison?.creneau || ''}
-                        onChange={onChange}
-                        className="mt-1 block w-full rounded-md border border-gray-300"
-                        required
-                    >
-                        <option value="">Sélectionner un créneau</option>
-                        {creneauxDisponibles.map(creneau => (
-                            <option key={creneau} value={creneau}>{creneau}</option>
-                        ))}
-                    </select>
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700">
+                            Créneau de livraison <span className="text-red-500">*</span>
+                        </label>
+
+                        {/* 🔄 Bouton de basculement mode */}
+                        <button
+                            type="button"
+                            onClick={toggleSlotsMode}
+                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                            title={useDynamicSlots ? 'Passer aux créneaux classiques' : 'Passer aux créneaux dynamiques'}
+                        >
+                            {useDynamicSlots ? '📋 -> Classique' : '📊 -> Dynamique'}
+                        </button>
+
+                        {slotsLoading && (
+                            <div className="flex items-center text-sm text-gray-600 mt-1">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                                Chargement des créneaux...
+                            </div>
+                        )}
+
+                        {/* ⚠️ Message d'erreur */}
+                        {slotsError && !slotsLoading && (
+                            <div className="bg-orange-100 border border-orange-300 text-orange-700 px-3 py-2 rounded text-sm">
+                                ⚠️ {slotsError}
+                                {!useDynamicSlots && (
+                                    <span className="ml-2">
+                                        - <button
+                                            type="button"
+                                            onClick={toggleSlotsMode}
+                                            className="underline hover:no-underline"
+                                        >
+                                            Réessayer mode dynamique
+                                        </button>
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* 📊 Info disponibilité */}
+                        {useDynamicSlots && availableSlots.length > 0 && !slotsLoading && (
+                            <div className="bg-blue-50 border border-blue-200 rounded px-3 py-2 text-sm text-blue-800">
+                                📊 {availableSlots.length} créneaux disponibles pour cette date
+                            </div>
+                        )}
+
+                        {useDynamicSlots && availableSlots.length > 0 && !slotsLoading && (
+                            <SlotsInfo availability={availableSlots} />
+                        )}
+
+                        {/* 🎛️ Sélecteur principal */}
+                        <select
+                            name="livraison.creneau"
+                            value={data.livraison?.creneau || ''}
+                            onChange={onChange}
+                            className={`mt-1 block w-full rounded-md border px-3 py-2 ${errors.livraison?.creneau ? 'border-red-500' : 'border-gray-300'
+                                }`}
+                            required
+                            disabled={slotsLoading}
+                        >
+                            <option value="">
+                                {slotsLoading
+                                    ? 'Chargement...'
+                                    : 'Sélectionner un créneau'
+                                }
+                            </option>
+
+                            {/* ✅ MODE DYNAMIQUE */}
+                            {useDynamicSlots && availableSlots.length > 0 &&
+                                availableSlots.map((slotAvailability) => (
+                                    <option
+                                        key={slotAvailability.slot.id}
+                                        value={slotAvailability.slot.displayName}
+                                    >
+                                        {slotAvailability.slot.displayName}
+                                        {slotAvailability.maxCapacity > 0 && (
+                                            ` (${slotAvailability.bookingsCount}/${slotAvailability.maxCapacity})`
+                                        )}
+                                    </option>
+                                ))
+                            }
+
+                            {/* 🔄 MODE FALLBACK STATIQUE */}
+                            {(!useDynamicSlots || (useDynamicSlots && availableSlots.length === 0 && !slotsLoading)) &&
+                                creneauxDisponibles.map(creneau => (
+                                    <option key={creneau} value={creneau}>
+                                        {creneau}
+                                    </option>
+                                ))
+                            }
+                        </select>
+
+                        {/* ❌ Erreurs de validation */}
+                        {errors.livraison?.creneau && (
+                            <p className="text-red-500 text-sm mt-1">
+                                {errors.livraison.creneau}
+                            </p>
+                        )}
+
+                        {/* ⚠️ Avertissements spéciaux */}
+                        {useDynamicSlots && availableSlots.length === 0 && !slotsLoading && !slotsError && (
+                            <p className="text-orange-600 text-sm mt-1">
+                                ⚠️ Tous les créneaux sont complets ou bloqués pour cette date.
+                                Veuillez choisir une autre date ou
+                                <button
+                                    type="button"
+                                    onClick={toggleSlotsMode}
+                                    className="underline hover:no-underline ml-1"
+                                >
+                                    utiliser les créneaux classiques
+                                </button>.
+                            </p>
+                        )}
+
+                        {/* 📋 Mode classique actif */}
+                        {!useDynamicSlots && (
+                            <p className="text-gray-600 text-sm mt-1">
+                                📋 Mode créneaux classiques actif
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 {/* ========== SÉLECTION DE VÉHICULE AVEC VALIDATION ========== */}
@@ -1197,14 +1375,16 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                             </span>
                         )}
                     </label>
+
                     <span className="ml-1 text-sm text-gray-500" title={ERROR_MESSAGES.equipiers.contact}>
                         {ERROR_MESSAGES.equipiers.info}
                     </span>
+
                     <select
                         name="livraison.equipiers"
                         value={data.livraison?.equipiers || 0}
                         onChange={onChange}
-                        className={`mt-1 block w-full rounded-md border ${hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0)
+                        className={`mt-1 block w-full rounded-md border px-3 py-2 ${hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0)
                             ? 'border-red-500 bg-red-50'
                             : errors.livraison?.equipiers
                                 ? 'border-red-500'
@@ -1215,6 +1395,9 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                             const status = getCrewSizeStatus(crewSize);
                             const isRecommended = status === 'recommended';
                             const isRestricted = status === 'restricted';
+
+                            // 🆕 CALCUL DU COÛT DYNAMIQUE
+                            const cost = crewSize === 3 ? 'Sur devis' : crewSize > 0 ? `+${crewSize * 22}€` : 'Inclus';
 
                             return (
                                 <option
@@ -1232,9 +1415,9 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                                     {crewSize === 0
                                         ? 'Aucun équipier'
                                         : crewSize === 3
-                                            ? '3 équipiers ou plus (sur devis)'
-                                            : `${crewSize} équipier${crewSize > 1 ? 's' : ''} (+${crewSize * 22}€)`
-                                    }
+                                            ? '3+ équipiers (sur devis)'
+                                            : `${crewSize} équipier${crewSize > 1 ? 's' : ''}`
+                                    } - {cost}
                                     {isRecommended ? ' ✅ (Recommandé)' : ''}
                                     {isRestricted ? ' ❌ (Insuffisant)' : ''}
                                 </option>
@@ -1250,13 +1433,34 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
                     {/* Message d'erreur si choix insuffisant */}
                     {hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0) && (
-                        <div className="text-sm text-red-600 mt-1">
-                            <p className="font-medium">⚠️ Ce nombre d'équipiers est insuffisant :</p>
-                            <ul className="list-disc pl-5 mt-1">
+                        <div className="text-sm text-red-600 mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <div className="font-medium mb-2">⚠️ Configuration insuffisante :</div>
+                            <ul className="list-none space-y-1 text-xs">
                                 {getCrewValidationReasons(data.livraison?.equipiers || 0).map((reason, index) => (
-                                    <li key={index}>{reason}</li>
+                                    <li key={index} className="flex items-start">
+                                        <span className="mr-2 text-red-500">•</span>
+                                        <span>{reason}</span>
+                                    </li>
                                 ))}
                             </ul>
+
+                            <div className="mt-3 pt-2 border-t border-red-200">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const recommendedCrew = calculateRecommendedCrewSize();
+                                        onChange({
+                                            target: {
+                                                name: 'livraison.equipiers',
+                                                value: recommendedCrew
+                                            }
+                                        });
+                                    }}
+                                    className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
+                                >
+                                    Appliquer la recommandation ({calculateRecommendedCrewSize()} équipier{calculateRecommendedCrewSize() > 1 ? 's' : ''})
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1307,7 +1511,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                                         // onClick={() => navigate('/devis')}
                                         className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
                                     >
-                                        Contacter le service commercial
+                                        Ou demandez votre devis ici
                                     </button>
                                 </div>
                             )}

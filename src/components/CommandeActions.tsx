@@ -208,6 +208,12 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                     categoriesArticles: editData.articles.categories || [],
                     dimensionsArticles: editData.articles.dimensions || [],
                     canBeTiltedArticles: editData.articles.canBeTilted || false,
+                }),
+
+                ...(editData.livraison && {
+                    deliveryConditions: typeof editData.livraison.details === 'string'
+                        ? JSON.parse(editData.livraison.details)
+                        : editData.livraison.details
                 })
             };
 

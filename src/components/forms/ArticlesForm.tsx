@@ -148,7 +148,7 @@
 //     );
 // };
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CloudinaryService } from "../../services/cloudinary.service";
 import { ArticlesFormProps } from "../../types/form.types";
 import PhotoUploader from "../PhotoUploader";
@@ -156,14 +156,17 @@ import FormInput from "./FormInput";
 import { XCircle } from "lucide-react";
 import ArticleDimensionsForm, { ArticleDimension } from "./ArticleDimensionForm";
 import VehicleSelector from "../VehicleSelector";
-import { VehicleType } from "../../services/vehicle-validation.service";
+import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
 import { CommandeMetier } from "../../types/business.types";
-import { ru } from "date-fns/locale";
 
-export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange, isEditing = true }) => {
+export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true }) => {
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
+    // ========== ÉTAT POUR CONTRÔLER L'AFFICHAGE DES VALIDATIONS ==========
+    const [hasUserInteracted, setHasUserInteracted] = useState(false);
+    const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
 
     const deliveryInfo = useMemo(() => {
         const baseInfo = {
@@ -173,9 +176,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             stairCount: 0,
             parkingDistance: 0,
             needsAssembly: false,
-            canBeTilted: false,
             rueInaccessible: false,
             paletteComplete: false,
+            isDuplex: false,
+            deliveryToUpperFloor: false
         };
 
         if (data.livraison?.details) {
@@ -191,7 +195,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         stairCount: livDetails.stairCount ?? baseInfo.stairCount,
                         parkingDistance: livDetails.parkingDistance ?? baseInfo.parkingDistance,
                         needsAssembly: livDetails.needsAssembly ?? baseInfo.needsAssembly,
-                        canBeTilted: livDetails.canBeTilted ?? baseInfo.canBeTilted
+                        rueInaccessible: livDetails.rueInaccessible ?? baseInfo.rueInaccessible,
+                        paletteComplete: livDetails.paletteComplete ?? baseInfo.paletteComplete,
+                        isDuplex: livDetails.isDuplex ?? baseInfo.isDuplex,
+                        deliveryToUpperFloor: livDetails.deliveryToUpperFloor ?? baseInfo.deliveryToUpperFloor
                     };
                 }
             } catch (e) {
@@ -206,15 +213,14 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         data.livraison?.details
     ]);
 
-    // ========== ÉTAT POUR CONTRÔLER L'AFFICHAGE DES VALIDATIONS ==========
-    const [hasUserInteracted, setHasUserInteracted] = useState(false);
-    const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
-    const [currentStep, setCurrentStep] = useState(1);
-
     const [localDeliveryInfo, setLocalDeliveryInfo] = useState(deliveryInfo);
 
+    const isUpdatingRef = useRef(false);
+
     useEffect(() => {
-        setLocalDeliveryInfo(deliveryInfo);
+        if (deliveryInfo && JSON.stringify(deliveryInfo) !== JSON.stringify(localDeliveryInfo)) {
+            setLocalDeliveryInfo(deliveryInfo);
+        }
     }, [deliveryInfo]);
 
     // Initialiser les photos existantes
@@ -279,9 +285,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             stairCount: 0,
             parkingDistance: 0,
             needsAssembly: false,
-            canBeTilted: false,
             rueInaccessible: false,
-            paletteComplete: false
+            paletteComplete: false,
+            isDuplex: false,
+            deliveryToUpperFloor: false
         };
 
         if (data.livraison?.details) {
@@ -295,7 +302,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     if (livDetails.stairCount !== undefined) newDeliveryInfo.stairCount = livDetails.stairCount;
                     if (livDetails.parkingDistance !== undefined) newDeliveryInfo.parkingDistance = livDetails.parkingDistance;
                     if (livDetails.needsAssembly !== undefined) newDeliveryInfo.needsAssembly = livDetails.needsAssembly;
-                    if (livDetails.canBeTilted !== undefined) newDeliveryInfo.canBeTilted = livDetails.canBeTilted;
+                    if (livDetails.rueInaccessible !== undefined) newDeliveryInfo.rueInaccessible = livDetails.rueInaccessible;
+                    if (livDetails.paletteComplete !== undefined) newDeliveryInfo.paletteComplete = livDetails.paletteComplete;
+                    if (livDetails.isDuplex !== undefined) newDeliveryInfo.isDuplex = livDetails.isDuplex;
+                    if (livDetails.deliveryToUpperFloor !== undefined) newDeliveryInfo.deliveryToUpperFloor = livDetails.deliveryToUpperFloor;
                 }
             } catch (e) {
                 // Ignorer les erreurs de parsing JSON
@@ -304,7 +314,14 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         }
 
         setLocalDeliveryInfo(newDeliveryInfo);
-    }, [data.client?.adresse, data.livraison?.details]);
+    }, [data.client?.adresse, data.livraison?.details, data.articles?.canBeTilted]);
+
+    useEffect(() => {
+        console.log('=== DEBUG ARTICLES FORM ===');
+        console.log('data.articles?.canBeTilted:', data.articles?.canBeTilted);
+        console.log('deliveryInfo.canBeTilted:');
+        console.log('localDeliveryInfo.canBeTilted:');
+    }, [data.articles?.canBeTilted]);
 
     const totalPhotos = photos.length;
     const remainingPhotos = 5 - totalPhotos;
@@ -328,7 +345,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             setPhotos(updatedPhotos);
 
             // Mise à jour du formulaire avec les URLs Cloudinary
-            onChange({
+            onFormChange({
                 target: {
                     name: 'articles.photos',
                     value: updatedPhotos.map(photo => ({
@@ -345,7 +362,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         const updatedPhotos = photos.filter((_, i) => i !== index);
         setPhotos(updatedPhotos);
 
-        onChange({
+        onFormChange({
             target: {
                 name: 'articles.photos',
                 value: updatedPhotos
@@ -366,7 +383,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             console.log("📄 [ARTICLES-FORM] Dimensions modifiées:", dimensions.length);
             setArticleDimensions(dimensions);
 
-            onChange({
+            onFormChange({
                 target: {
                     name: 'articles.dimensions',
                     value: dimensions
@@ -377,7 +394,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             const currentQuantity = data.articles?.nombre || 0;
 
             if (newTotalQuantity !== currentQuantity) {
-                onChange({
+                onFormChange({
                     target: {
                         name: 'articles.nombre',
                         value: newTotalQuantity
@@ -385,7 +402,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 });
             }
         }
-    }, [onChange, articleDimensions, data.articles?.nombre, hasUserInteracted]);
+    }, [onFormChange, articleDimensions, data.articles?.nombre, hasUserInteracted]);
 
     useEffect(() => {
         console.log("📄 [ARTICLES-FORM] Rendu avec données:", {
@@ -414,37 +431,16 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         return typeof crew === 'number' ? crew : 0;
     }, [data.livraison?.equipiers]);
 
-    // Gérer la sélection du véhicule
-    // const handleVehicleSelect = useCallback((vehicleType: "" | VehicleType) => {
-    //     console.log("📄 [ARTICLES-FORM] handleVehicleSelect:", vehicleType);
-
-    //     onChange({
-    //         target: {
-    //             name: 'livraison.vehicule',
-    //             value: vehicleType
-    //         }
-    //     });
-    // }, [onChange]);
-
-    // const handleCrewSelect = useCallback((crewSize: number) => {
-    //     onChange({
-    //         target: {
-    //             name: 'livraison.equipiers',
-    //             value: crewSize
-    //         }
-    //     });
-    // }, [onChange]);
-
     const handleVehicleSelect = (vehicleType: "" | VehicleType) => {
         if (vehicleType === "") {
-            onChange({
+            onFormChange({
                 target: {
                     name: 'livraison.vehicule',
                     value: null
                 }
             });
         } else {
-            onChange({
+            onFormChange({
                 target: {
                     name: 'livraison.vehicule',
                     value: vehicleType
@@ -455,7 +451,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     // Gérer la sélection des équipiers
     const handleCrewSelect = (crewSize: number) => {
-        onChange({
+        onFormChange({
             target: {
                 name: 'livraison.equipiers',
                 value: crewSize
@@ -463,32 +459,123 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         });
     };
 
-    // Gérer les changements d'informations de livraison supplémentaires
-    const handleDeliveryInfoChange = (field: string, value: any) => {
-        const updatedInfo = { ...deliveryInfo, [field]: value };
-        setLocalDeliveryInfo(updatedInfo);
+    const calculateRequiredCrew = (): number => {
+        if (!articleDimensions || articleDimensions.length === 0) return 0;
 
-        // Mise à jour du formulaire
-        onChange({
-            target: {
-                name: 'livraison.details',
-                value: JSON.stringify(updatedInfo)
-            }
-        });
+        console.log('🎯 [ARTICLES-FORM] CALCUL ÉQUIPIERS - Version corrigée');
+        console.log('📦 Articles:', articleDimensions.length);
+        console.log('🏠 Conditions livraison:', localDeliveryInfo);
+
+        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+        // Calculer l'étage effectif avec duplex/maison
+        let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
+        if (localDeliveryInfo.isDuplex && localDeliveryInfo.deliveryToUpperFloor) {
+            effectiveFloor += 1;
+            console.log(`🏠 Duplex détecté: ${effectiveFloor} étages effectifs`);
+        }
+
+        // 🔥 CORRECTION : Préparer TOUTES les conditions pour le calcul
+        const deliveryConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount,
+            rueInaccessible: localDeliveryInfo.rueInaccessible || false,
+            paletteComplete: localDeliveryInfo.paletteComplete || false,
+            parkingDistance: localDeliveryInfo.parkingDistance || 0,
+            hasStairs: localDeliveryInfo.hasStairs || false,
+            stairCount: localDeliveryInfo.stairCount || 0,
+            needsAssembly: localDeliveryInfo.needsAssembly || false,
+            floor: effectiveFloor,
+            isDuplex: localDeliveryInfo.isDuplex || false,
+            deliveryToUpperFloor: localDeliveryInfo.deliveryToUpperFloor || false
+        };
+
+        console.log('📋 Conditions préparées:', deliveryConditions);
+
+        // ✅ UTILISER LA MÉTHODE CORRIGÉE
+        const requiredCrew = VehicleValidationService.getRequiredCrewSize(
+            articleDimensions,
+            deliveryConditions
+        );
+
+        console.log(`👥 [ARTICLES-FORM] Équipiers calculés: ${requiredCrew}`);
+
+        // 🔥 DÉBOGAGE : Afficher détail des conditions
+        if (requiredCrew > 1) {
+            console.log('🔍 DÉBOGAGE - Conditions qui devraient ajouter des équipiers:');
+
+            // Identifier l'article le plus lourd
+            const heaviestWeight = Math.max(...articleDimensions.map(a => a.poids || 0));
+            const totalWeight = articleDimensions.reduce((sum, article) =>
+                sum + ((article.poids || 0) * (article.quantite || 1)), 0
+            );
+
+            console.log(`⚖️ Article le plus lourd: ${heaviestWeight}kg`);
+            console.log(`⚖️ Poids total: ${totalWeight}kg`);
+
+            if (heaviestWeight >= 30) console.log('✅ Article ≥30kg → +1 équipier');
+            if (deliveryConditions.hasElevator && totalWeight > 300) console.log('✅ Charge >300kg avec ascenseur → +1 équipier');
+            if (!deliveryConditions.hasElevator && totalWeight > 200) console.log('✅ Charge >200kg sans ascenseur → +1 équipier');
+            if (totalItemCount > 20) console.log('✅ Plus de 20 articles → +1 équipier');
+            if (deliveryConditions.rueInaccessible) console.log('✅ Rue inaccessible → +1 équipier');
+            if (deliveryConditions.paletteComplete) console.log('✅ Palette complète → +1 équipier');
+            if (deliveryConditions.parkingDistance > 50) console.log('✅ Distance >50m → +1 équipier');
+            if (effectiveFloor > 2 && !deliveryConditions.hasElevator) console.log('✅ Étage élevé sans ascenseur → +1 équipier');
+            if (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20) console.log('✅ Nombreuses marches → +1 équipier');
+            if (deliveryConditions.needsAssembly) console.log('✅ Montage nécessaire → +1 équipier');
+        }
+
+        return requiredCrew;
     };
+
+
+    const handleDeliveryChange = useCallback((field: string, value: any) => {
+        if (isUpdatingRef.current) return;
+
+        isUpdatingRef.current = true;
+        setHasUserInteracted(true);
+
+        console.log(`🔄 [ARTICLES-FORM] Condition modifiée: ${field} = ${value}`);
+
+        setLocalDeliveryInfo(prev => {
+            const updated = { ...prev, [field]: value };
+
+            console.log('🔄 Nouvelles conditions:', updated);
+
+            // Mise à jour asynchrone pour éviter les conflits
+            setTimeout(() => {
+                onFormChange({
+                    target: {
+                        name: 'livraison.details',
+                        value: JSON.stringify(updated)
+                    }
+                });
+                isUpdatingRef.current = false;
+
+                // 🔥 FORCER LE RECALCUL APRÈS CHAQUE MODIFICATION
+                setTimeout(() => {
+                    const newCrewCount = calculateRequiredCrew();
+                    console.log(`🔄 Recalcul après modification: ${newCrewCount} équipiers`);
+                }, 100);
+
+            }, 0);
+
+            return updated;
+        });
+    }, [onFormChange]);
 
     const handleDeliveryDetailsChange = useCallback((details: any) => {
         console.log("📄 [ARTICLES-FORM] Détails de livraison changés:", details);
 
         setLocalDeliveryInfo(details);
 
-        onChange({
+        onFormChange({
             target: {
                 name: 'livraison.details',
                 value: JSON.stringify(details)
             }
         });
-    }, [onChange]);
+    }, [onFormChange]);
 
     const shouldShowValidationWarning = () => {
         // Ne pas afficher d'avertissement si :
@@ -526,13 +613,13 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         console.log('📦 [ARTICLES] CanBeTilted changé:', canBeTilted);
 
         // Mettre à jour les données du formulaire
-        onChange({
+        onFormChange({
             target: {
                 name: 'articles.canBeTilted',
                 value: canBeTilted
             }
         });
-    }, [onChange]);
+    }, [onFormChange]);
 
     return (
         <div className="space-y-6 mb-6">
@@ -585,20 +672,66 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             <div className="bg-white rounded-lg shadow p-4 mb-6">
                 <h4 className="text-lg font-medium mb-3">Conditions spéciales de livraison</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                    Ces informations nous aident à déterminer le nombre d'équipiers nécessaires et à calculer un tarif précis.
+                    Ces informations nous aident à déterminer le nombre d'équipiers nécessaires et à calculer un<br />tarif précis.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 🆕 TYPE DE LOGEMENT - NOUVEAU */}
+                    <div className="col-span-2 border-t pt-4">
+                        <h5 className="font-medium text-gray-800 mb-3">Type de logement</h5>
+
+                        <div className="space-y-3">
+                            <label className="flex items-center text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={localDeliveryInfo.isDuplex || false}
+                                    onChange={(e) => {
+                                        handleDeliveryChange('isDuplex', e.target.checked)
+                                        if (e.target.checked) {
+                                            handleDeliveryChange('deliveryToUpperFloor', false)
+                                        }
+                                    }}
+                                    className="mr-2 h-4 w-4"
+                                />
+                                <span className="font-medium">Appartement duplex ou maison avec étage(s)</span>
+                            </label>
+                            <p className="text-xs text-gray-500 ml-6">
+                                Le lieu de livraison comporte plusieurs niveaux (duplex, maison à étages, etc.)
+                            </p>
+
+                            {/* 🆕 LIVRAISON À L'ÉTAGE - CONDITIONNEL */}
+                            {localDeliveryInfo.isDuplex && (
+                                <div className="ml-6 pl-4 border-l-2 border-blue-200 bg-blue-50 p-3 rounded">
+                                    <label className="flex items-center text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={localDeliveryInfo.deliveryToUpperFloor || false}
+                                            onChange={(e) => handleDeliveryChange('deliveryToUpperFloor', e.target.checked)}
+                                            className="mr-2 h-4 w-4"
+                                        />
+                                        <span className="font-medium">Livraison à l'étage supérieur</span>
+                                    </label>
+                                    <p className="text-xs text-gray-500 ml-6 mt-1">
+                                        Les articles doivent être livrés à un étage autre que le rez-de-chaussée
+                                    </p>
+                                    {localDeliveryInfo.deliveryToUpperFloor && (
+                                        <div className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                                            💡 <strong>Information :</strong> Cette option ajoute automatiquement +1 étage
+                                            au calcul final pour déterminer<br />le nombre d'équipiers nécessaires.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Rue inaccessible */}
                     <div className="col-span-2">
                         <label className="flex items-center text-sm mb-1">
                             <input
                                 type="checkbox"
-                                checked={deliveryInfo.rueInaccessible || false}
-                                onChange={(e) => {
-                                    setHasUserInteracted(true);
-                                    handleDeliveryInfoChange('rueInaccessible', e.target.checked);
-                                }}
+                                checked={localDeliveryInfo.rueInaccessible || false}
+                                onChange={(e) => handleDeliveryChange('rueInaccessible', e.target.checked)}
                                 className="mr-2 h-4 w-4"
                             />
                             <span className="font-medium">Rue inaccessible pour véhicule 4 roues</span>
@@ -613,11 +746,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         <label className="flex items-center text-sm mb-1">
                             <input
                                 type="checkbox"
-                                checked={deliveryInfo.paletteComplete || false}
-                                onChange={(e) => {
-                                    setHasUserInteracted(true);
-                                    handleDeliveryInfoChange('paletteComplete', e.target.checked);
-                                }}
+                                checked={localDeliveryInfo.paletteComplete || false}
+                                onChange={(e) => handleDeliveryChange('paletteComplete', e.target.checked)}
                                 className="mr-2 h-4 w-4"
                             />
                             <span className="font-medium">Palette complète à dépalettiser et décharger</span>
@@ -634,11 +764,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         </label>
                         <input
                             type="number"
-                            value={deliveryInfo.parkingDistance || 0}
-                            onChange={(e) => {
-                                setHasUserInteracted(true);
-                                handleDeliveryInfoChange('parkingDistance', parseInt(e.target.value) || 0);
-                            }}
+                            value={localDeliveryInfo.parkingDistance || 0}
+                            onChange={(e) => handleDeliveryChange('parkingDistance', parseInt(e.target.value) || 0)}
                             className="w-full border border-gray-300 rounded-md px-3 py-2"
                             min="0"
                             placeholder="0"
@@ -646,9 +773,9 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         <p className="text-xs text-gray-500 mt-1">
                             Distance entre le stationnement du véhicule et l'entrée du bâtiment
                         </p>
-                        {deliveryInfo.parkingDistance > 50 && (
+                        {(localDeliveryInfo.parkingDistance || 0) >= 50 && (
                             <p className="text-xs text-orange-600 mt-1">
-                                ⚠️ Distance importante - équipiers supplémentaires recommandés
+                                ⚠️ Distance importante - Équipiers supplémentaires recommandés
                             </p>
                         )}
                     </div>
@@ -658,28 +785,27 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         <label className="flex items-center text-sm mb-2">
                             <input
                                 type="checkbox"
-                                checked={deliveryInfo.hasStairs}
+                                checked={localDeliveryInfo.hasStairs}
                                 onChange={(e) => {
-                                    setHasUserInteracted(true);
-                                    handleDeliveryInfoChange('hasStairs', e.target.checked);
+                                    handleDeliveryChange('hasStairs', e.target.checked);
+                                    if (!e.target.checked) {
+                                        handleDeliveryChange('stairCount', 0);
+                                    }
                                 }}
                                 className="mr-2 h-4 w-4"
                             />
                             Y a-t-il des marches ou escaliers ?
                         </label>
 
-                        {deliveryInfo.hasStairs && (
+                        {localDeliveryInfo.hasStairs && (
                             <div className="ml-6">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Nombre total de marches
                                 </label>
                                 <input
                                     type="number"
-                                    value={deliveryInfo.stairCount || 0}
-                                    onChange={(e) => {
-                                        setHasUserInteracted(true);
-                                        handleDeliveryInfoChange('stairCount', parseInt(e.target.value) || 0);
-                                    }}
+                                    value={localDeliveryInfo.stairCount || 0}
+                                    onChange={(e) => handleDeliveryChange('stairCount', parseInt(e.target.value) || 0)}
                                     className="w-full border border-gray-300 rounded-md px-3 py-2"
                                     min="0"
                                     placeholder="0"
@@ -687,7 +813,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                                 <p className="text-xs text-gray-500 mt-1">
                                     Incluant tous les escaliers jusqu'au point de livraison
                                 </p>
-                                {deliveryInfo.stairCount > 20 && (
+                                {(localDeliveryInfo.stairCount || 0) > 20 && (
                                     <p className="text-xs text-orange-600 mt-1">
                                         ⚠️ Nombreuses marches - 2+ équipiers recommandés
                                     </p>
@@ -701,11 +827,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         <label className="flex items-center text-sm mb-1">
                             <input
                                 type="checkbox"
-                                checked={deliveryInfo.needsAssembly}
-                                onChange={(e) => {
-                                    setHasUserInteracted(true);
-                                    handleDeliveryInfoChange('needsAssembly', e.target.checked);
-                                }}
+                                checked={localDeliveryInfo.needsAssembly}
+                                onChange={(e) => handleDeliveryChange('needsAssembly', e.target.checked)}
                                 className="mr-2 h-4 w-4"
                             />
                             <span className="font-medium">Montage ou installation nécessaire</span>
@@ -714,53 +837,81 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                             Assemblage de meubles, installation d'arbres, plantes, d'équipements, etc.
                         </p>
                     </div>
-
-                    {/* Articles pouvant être couchés */}
-                    {/* <div>
-                            <label className="flex items-center text-sm mb-1">
-                                <input
-                                    type="checkbox"
-                                    checked={deliveryInfo.canBeTilted || false}
-                                    onChange={(e) => {
-                                        setHasUserInteracted(true);
-                                        handleDeliveryInfoChange('canBeTilted', e.target.checked);
-                                    }}
-                                    className="mr-2 h-4 w-4"
-                                />
-                                <span className="font-medium">Les articles peuvent être couchés/inclinés</span>
-                            </label>
-                            <p className="text-xs text-gray-500 ml-6">
-                                Permet d'optimiser le choix du véhicule pour les articles longs
-                            </p>
-                        </div> */}
                 </div>
 
                 {/* Résumé automatique des conditions détectées */}
                 {hasUserInteracted && (
                     <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
                         <h5 className="text-sm font-medium text-blue-800 mb-2">Conditions de livraison détectées :</h5>
-                        <ul className="text-xs text-blue-700 space-y-1">
-                            {deliveryInfo.rueInaccessible && (
-                                <li>• Rue inaccessible - portage nécessaire</li>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-700">
+                            {/* Logement */}
+                            {localDeliveryInfo.isDuplex && (
+                                <div>• Duplex/Maison {localDeliveryInfo.deliveryToUpperFloor ? '(livraison étage)' : '(rez-de-chaussée)'}</div>
                             )}
-                            {deliveryInfo.paletteComplete && (
-                                <li>• Palette complète à dépalettiser</li>
+
+                            {/* Conditions principales */}
+                            {localDeliveryInfo.rueInaccessible && (
+                                <div>• Rue inaccessible - portage nécessaire</div>
                             )}
-                            {deliveryInfo.parkingDistance > 50 && (
-                                <li>• Distance de portage importante ({deliveryInfo.parkingDistance}m)</li>
+                            {localDeliveryInfo.paletteComplete && (
+                                <div>• Palette complète à dépalettiser</div>
                             )}
-                            {deliveryInfo.hasStairs && deliveryInfo.stairCount > 10 && (
-                                <li>• Nombreuses marches ({deliveryInfo.stairCount})</li>
+                            {(localDeliveryInfo.parkingDistance || 0) >= 50 && (
+                                <div>• Distance portage importante ({localDeliveryInfo.parkingDistance}m)</div>
                             )}
-                            {deliveryInfo.needsAssembly && (
-                                <li>• Montage ou installation requis</li>
+                            {localDeliveryInfo.hasStairs && (localDeliveryInfo.stairCount || 0) >= 10 && (
+                                <div>• Nombreuses marches ({localDeliveryInfo.stairCount})</div>
                             )}
-                            {(!deliveryInfo.rueInaccessible && !deliveryInfo.paletteComplete &&
-                                deliveryInfo.parkingDistance <= 50 && deliveryInfo.stairCount <= 10 &&
-                                !deliveryInfo.needsAssembly) && (
-                                    <li>• Conditions de livraison standard</li>
+                            {localDeliveryInfo.needsAssembly && (
+                                <div>• Montage/installation requis</div>
+                            )}
+
+                            {/* Message par défaut */}
+                            {(!localDeliveryInfo.isDuplex && !localDeliveryInfo.rueInaccessible &&
+                                !localDeliveryInfo.paletteComplete && (localDeliveryInfo.parkingDistance || 0) <= 50 &&
+                                (localDeliveryInfo.stairCount || 0) <= 10 && !localDeliveryInfo.needsAssembly) && (
+                                    <div>• Conditions de livraison standard</div>
                                 )}
-                        </ul>
+                        </div>
+
+                        {/* 🆕 CALCUL AUTOMATIQUE DES ÉQUIPIERS */}
+                        {hasUserInteracted && articleDimensions.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-blue-300">
+                                <p className="text-sm font-medium text-blue-800">
+                                    📊 Estimation automatique : <span className="font-bold text-lg">{calculateRequiredCrew()}</span> équipier(s) requis
+                                </p>
+                                <p className="text-xs text-blue-600 mt-1">
+                                    Basé sur l'article le plus lourd et les conditions de livraison
+                                </p>
+
+                                {/* 🔥 DÉBOGAGE VISUEL */}
+                                {calculateRequiredCrew() > 1 && (
+                                    <div className="mt-2 text-xs text-blue-700">
+                                        <p>🔍 Conditions détectées qui nécessitent des équipiers :</p>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                            {localDeliveryInfo.rueInaccessible && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">Rue inaccessible</span>
+                                            )}
+                                            {localDeliveryInfo.paletteComplete && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">Palette complète</span>
+                                            )}
+                                            {(localDeliveryInfo.parkingDistance || 0) > 50 && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">Distance {localDeliveryInfo.parkingDistance}m</span>
+                                            )}
+                                            {localDeliveryInfo.needsAssembly && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">Montage requis</span>
+                                            )}
+                                            {localDeliveryInfo.isDuplex && localDeliveryInfo.deliveryToUpperFloor && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">Duplex étage</span>
+                                            )}
+                                            {localDeliveryInfo.hasStairs && (localDeliveryInfo.stairCount || 0) > 20 && (
+                                                <span className="px-2 py-1 bg-red-100 rounded text-red-700">{localDeliveryInfo.stairCount} marches</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -794,7 +945,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     min={0}
                     onChange={(e) => {
                         setHasUserInteracted(true);
-                        onChange(e);
+                        onFormChange(e);
                     }}
                     error={errors.articles?.nombre}
                     required
@@ -814,7 +965,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         value={data.articles?.details || ''}
                         onChange={(e) => {
                             setHasUserInteracted(true);
-                            onChange(e as any);
+                            onFormChange(e as any);
                         }}
                         className="mt-1 block w-full rounded-md border border-gray-300"
                         rows={4}

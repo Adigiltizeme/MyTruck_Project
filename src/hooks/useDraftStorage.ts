@@ -50,7 +50,6 @@ export const useDraftStorage = () => {
 
             // Vérifier si c'est un utilisateur magasin avec un store ID valide
             if (user?.role !== 'magasin' || !user.storeId) {
-                console.log("[SÉCURITÉ] Utilisateur non-magasin ou sans storeId - pas de brouillon");
                 setHasDraft(false);
                 setDraftData(null);
                 setLoading(false);

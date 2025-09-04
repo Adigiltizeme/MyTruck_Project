@@ -13,6 +13,7 @@ interface AuthUser {
     storePhone?: string;
     storeStatus?: string;
     driverId?: string;
+    driverName?: string;
     token: string;
     lastLogin: Date;
     magasin?: {
@@ -32,6 +33,7 @@ interface AuthContextType {
         storeName?: string;
         storeAddress?: string;
         driverId?: string
+        driverName?: string;
     }) => void;
     refreshToken: () => Promise<void>;
     resetActivityTimer: () => void;
@@ -87,7 +89,7 @@ class ApiAuthService {
             console.log('🔍 Debug stockage localStorage:');
             console.log('- authToken:', !!localStorage.getItem('authToken'));
             console.log('- user:', !!localStorage.getItem('user'));
-            console.log('- Toutes les clés:', Object.keys(localStorage));
+            // console.log('- Toutes les clés:', Object.keys(localStorage));
 
             const token = localStorage.getItem('authToken');
             const userData = localStorage.getItem('user');
@@ -119,7 +121,6 @@ class ApiAuthService {
             }
 
             const user = JSON.parse(userData);
-            console.log('👤 User parsé:', user);
 
             const authUser = {
                 id: user.id,
@@ -132,9 +133,13 @@ class ApiAuthService {
                 storeId: user.magasin?.id,
                 storeName: user.magasin?.nom,
                 storeAddress: user.magasin?.adresse,
+                // Si c'est un chauffeur, définir driverId et driverName
+                driverId: user.role?.toLowerCase() === 'chauffeur' ? user.id : undefined,
+                driverName: user.role?.toLowerCase() === 'chauffeur' 
+                    ? user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim()
+                    : undefined,
             };
 
-            console.log('✅ AuthUser créé:', authUser);
             return authUser;
         } catch (error) {
             console.error('❌ Erreur récupération utilisateur stocké:', error);
@@ -182,7 +187,10 @@ class ApiAuthService {
 
             const response = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true'
+                },
                 body: JSON.stringify({
                     email: email.toLowerCase().trim(),
                     password: password
@@ -216,6 +224,11 @@ class ApiAuthService {
                 storeId: data.user.magasin?.id,
                 storeName: data.user.magasin?.nom,
                 storeAddress: data.user.magasin?.adresse,
+                // Si c'est un chauffeur, définir driverId et driverName
+                driverId: data.user.role?.toLowerCase() === 'chauffeur' ? data.user.id : undefined,
+                driverName: data.user.role?.toLowerCase() === 'chauffeur' 
+                    ? `${data.user.prenom || ''} ${data.user.nom || ''}`.trim() 
+                    : undefined,
             };
 
             console.log('✅ Connexion réussie:', authUser.email);
@@ -232,6 +245,7 @@ class ApiAuthService {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
             },
         });
 
@@ -363,7 +377,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         storeId?: string;
         storeName?: string;
         storeAddress?: string;
-        driverId?: string
+        driverId?: string;
+        driverName?: string;
     }) => {
         if (!user) return;
 
@@ -374,9 +389,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             storeName: options?.storeName || user.storeName,
             storeAddress: options?.storeAddress || user.storeAddress,
             driverId: options?.driverId || user.driverId,
+            driverName: options?.driverName || user.driverName,
         };
 
         setUser(updatedUser);
+
+        if (typeof window !== 'undefined') {
+            window.currentAuthUser = updatedUser;
+        }
     };
 
     const updateUserRole = async (role: UserRole, options?: any) => {

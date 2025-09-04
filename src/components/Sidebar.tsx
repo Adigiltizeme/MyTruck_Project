@@ -8,11 +8,17 @@ import {
   ChartBarIcon,
   CogIcon,
   ShoppingBagIcon,
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  ClockIcon,
+  BuildingStorefrontIcon
 } from '@heroicons/react/24/outline';
-import { LogOutIcon } from 'lucide-react';
+import { Clock, LogOutIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { SlotsManagement } from './admin/SlotsManagement';
+import { useOffline } from '../contexts/OfflineContext';
+import { useState, useEffect } from 'react';
+import { normalizeMagasin, normalizeChauffeur } from '../utils/data-normalization';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -21,7 +27,50 @@ interface SidebarProps {
 
 const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   const { user, logout } = useAuth();
+  const { dataService } = useOffline();
   const navigate = useNavigate();
+  const [displayUserData, setDisplayUserData] = useState<any>(null);
+
+  // Charger les données réelles selon le rôle sélectionné
+  useEffect(() => {
+    const loadDisplayUserData = async () => {
+      if (!user) return;
+
+      try {
+        if (user.role === 'magasin' && user.storeId) {
+          const magasins = await dataService.getMagasins();
+          const magasin = magasins.find(m => m.id === user.storeId);
+          if (magasin) {
+            const normalized = normalizeMagasin(magasin);
+            setDisplayUserData({
+              name: normalized.name,
+              storeName: normalized.name,
+              email: normalized.email,
+              phone: normalized.phone
+            });
+          }
+        } else if (user.role === 'chauffeur' && user.driverId) {
+          const personnel = await dataService.getPersonnel();
+          const chauffeur = personnel.find(p => p.id === user.driverId);
+          if (chauffeur) {
+            const normalized = normalizeChauffeur(chauffeur);
+            setDisplayUserData({
+              name: normalized.fullName,
+              email: normalized.email,
+              phone: normalized.telephone
+            });
+          }
+        } else {
+          setDisplayUserData(null); // Mode admin normal
+        }
+      } catch (error) {
+        console.error('Erreur chargement données sidebar:', error);
+        setDisplayUserData(null);
+      }
+    };
+
+    loadDisplayUserData();
+  }, [user?.role, user?.storeId, user?.driverId, dataService]);
 
   const baseNavItems = [
     {
@@ -49,10 +98,28 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['magasin', 'admin'],
     },
     {
-      name: 'Chauffeurs',
+      name: 'Gestion Créneaux',
+      icon: ClockIcon,
+      href: '/slots',
+      roles: ['admin']
+    },
+    {
+      name: 'Gestion Chauffeurs',
       icon: UsersIcon,
-      href: '/drivers',
+      href: '/chauffeurs',
       roles: ['admin'],
+    },
+    {
+      name: 'Gestion Magasins',
+      icon: BuildingStorefrontIcon,
+      href: '/magasins',
+      roles: ['admin'],
+    },
+    {
+      name: 'Gestion Clients',
+      icon: UsersIcon,
+      href: '/clients',
+      roles: ['admin', 'magasin'],
     },
     {
       name: 'Profil',
@@ -148,17 +215,21 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
             <span className="text-sm font-medium text-gray-600">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {displayUserData?.name ? displayUserData.name.charAt(0).toUpperCase() : 
+               user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.name || 'Utilisateur'}
+              {displayUserData?.name || user?.name || 'Utilisateur'}
+              {user?.role === 'admin' && displayUserData ? ' (test)' : ''}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              {user?.role === 'admin' ? 'Administrateur' :
-                user?.role === 'magasin' ? `${user.storeName || 'Magasin'}` :
-                  'Chauffeur'}
+              {user?.role === 'admin' && !displayUserData ? 'Administrateur' :
+                user?.role === 'magasin' ? `${displayUserData?.storeName || displayUserData?.name || user.storeName || 'Magasin'}` :
+                user?.role === 'chauffeur' ? `Chauffeur` :
+                  'Administrateur'
+              }
             </p>
           </div>
         </div>

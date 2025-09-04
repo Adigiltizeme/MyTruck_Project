@@ -60,7 +60,6 @@ const Deliveries = () => {
         }
 
         // Par défaut, retourner toutes les données
-        // (ce cas ne devrait pas arriver souvent)
         return data;
     }, [data, user?.role, user?.storeId, user?.driverId]);
 
@@ -115,11 +114,9 @@ const Deliveries = () => {
                 setLoading(true);
                 setError(null);
 
-                console.log('🔄 Chargement commandes depuis Backend API...');
                 const commandes = await simpleBackendService.getCommandes();
 
                 console.log('✅ Commandes chargées:', commandes.length);
-                console.log('📋 Exemple commande:', commandes[0]);
 
                 setData(commandes);
             } catch (err) {
@@ -142,7 +139,6 @@ const Deliveries = () => {
     // Réagir aux changements de rôle/magasin
     useEffect(() => {
         const handleRoleChange = (event: Event) => {
-            console.log('Changement de rôle détecté, rechargement des commandes...');
             // Recharger les données
             fetchData();
             // Réinitialiser la pagination
@@ -173,9 +169,7 @@ const Deliveries = () => {
     }) => {
         setLoading(true);
         try {
-            console.log('🔄 fetchData: Chargement commandes depuis Backend...');
             const records = await simpleBackendService.getCommandes();
-            console.log('✅ fetchData: Commandes reçues:', records.length);
             setData(records);
 
             // ✅ Restaurer contexte après chargement SI fourni
@@ -369,11 +363,11 @@ const Deliveries = () => {
     return (
         <div className="p-6">
             {/* Indicateur de mode hors ligne - sans l'OfflineIndicator qui est déjà dans App */}
-            {!isOnline && (
+            {/* {!isOnline && (
                 <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
                     Vous êtes en mode hors ligne. Les données seront synchronisées lorsque vous serez à nouveau connecté.
                 </div>
-            )}
+            )} */}
 
             <div className="mb-6">
                 <RoleSelector />
@@ -383,7 +377,7 @@ const Deliveries = () => {
                 <h1 className="text-2xl font-bold">
                     {user?.role === 'admin' && 'Direction My Truck - Toutes les commandes'}
                     {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
-                    {user?.role === 'chauffeur' && 'Mes Livraisons'}
+                    {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
                 </h1>
                 <select
                     className="border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
@@ -423,12 +417,14 @@ const Deliveries = () => {
                         )}
                     </div>
 
-                    <button
-                        onClick={() => setShowNewCommandeModal(true)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                    >
-                        Nouvelle commande
-                    </button>
+                    {user?.role !== 'chauffeur' && (
+                        <button
+                            onClick={() => setShowNewCommandeModal(true)}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                        >
+                            Nouvelle commande
+                        </button>
+                    )}
 
                     <Modal
                         isOpen={showNewCommandeModal}
@@ -577,7 +573,7 @@ const Deliveries = () => {
                             <div>
                                 Affichage de {filteredByRoleData.length} commandes
                                 {user?.role === 'magasin' && ` pour ${user.storeName || 'ce magasin'}`}
-                                {user?.role === 'chauffeur' && ` assignées à ce chauffeur`}
+                                {user?.role === 'chauffeur' && ` assignées à ${user.driverName || 'ce chauffeur'}`}
                             </div>
                         )}
                     </div>
@@ -603,12 +599,10 @@ const Deliveries = () => {
                                     {user?.role === 'admin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tarif HT</th>
                                     )}
-                                    {user?.role === 'admin' && (
+                                    {user?.role !== 'magasin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
-                                    {(user?.role === 'admin' || user?.role === 'magasin') && (
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
-                                    )}
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -651,21 +645,21 @@ const Deliveries = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 {/* ✅ Affichage intelligent de la réserve */}
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${(commande.reserve || commande.livraison?.reserve)
-                                                        ? 'bg-red-100 text-red-800'
-                                                        : 'bg-green-100 text-green-800'
+                                                    ? 'bg-red-100 text-red-800'
+                                                    : 'bg-green-100 text-green-800'
                                                     }`}>
                                                     {(commande.reserve || commande.livraison?.reserve) ? 'OUI' : 'NON'}
                                                 </span>
                                             </td>
                                             {user?.role === 'admin' && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-right">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-left">
                                                     {commande.financier?.tarifHT
                                                         ? `${commande.financier.tarifHT}€`
                                                         : 'N/A'
                                                     }
                                                 </td>
                                             )}
-                                            {user?.role === 'admin' && (
+                                            {user?.role !== 'magasin' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>

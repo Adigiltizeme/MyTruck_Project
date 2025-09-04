@@ -2,18 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types/roles';
 import { useOffline } from '../contexts/OfflineContext';
-import { storeService } from '../services/store.service';
 import { useDraftStorage } from '../hooks/useDraftStorage';
+import { normalizeMagasin } from '../utils/data-normalization';
 
 
-const STORES = [
-    { id: 'recc1nE9KB0WVIuF2', name: 'Truffaut Bry-Sur-Marne', address: '19 bis Boulevard Jean Monnet, Bry-sur-Marne' },
-    { id: 'recBNwZhysFhXstCN', name: 'Truffaut Boulogne', address: '33 Av. Edouard Vaillant, 92100 Boulogne-Billancourt' },
-    { id: 'recZDxpbQfUw8HYNH', name: 'Truffaut Ivry', address: '36 Rue Ernest Renan, 94200 Ivry-sur-Seine' },
-    { id: 'recxf8YHVGGmcvbkL', name: 'Truffaut Arcueil', address: '232 Avenue Aristide Briand, 94230 Cachan' },
-    { id: 'recQNm5vFPfAWW2jA', name: 'Truffaut Paris Rive Gauche', address: '85 Quai d\'Austerlitz, 75013 Paris' },
-    { id: 'recHw72XGm8PfUkV8', name: 'Truffaut Batignolles', address: '65 boulevard de Courcelles, 75008 Paris' }
-];
 
 export const RoleSelector = () => {
     const { user, setRole } = useAuth();
@@ -22,6 +14,8 @@ export const RoleSelector = () => {
     const [selectedStore, setSelectedStore] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [chauffeurs, setChauffeurs] = useState<any[]>([]);
+    const [selectedChauffeur, setSelectedChauffeur] = useState<any>(null);
 
     // Mettre à jour le brouillon si existant
     const { updateDraftStoreInfo } = useDraftStorage();
@@ -45,19 +39,26 @@ export const RoleSelector = () => {
             try {
                 setLoading(true);
 
+                // ✅ VÉRIFICATION DES PERMISSIONS : Ne charger les magasins que si l'utilisateur en a le droit
+                if (user?.role !== 'admin' && user?.role !== 'magasin') {
+                    setLoading(false);
+                    return;
+                }
+
                 // ✅ CORRECTION : Utiliser getMagasins() du Backend
                 const magasins = await dataService.getMagasins();
-                console.log('🏪 Magasins chargés depuis Backend:', magasins);
 
                 if (magasins && magasins.length > 0) {
                     // ✅ TRANSFORMATION : Adapter la structure si nécessaire
-                    const storesFormatted = magasins.map(m => ({
-                        id: m.id,
-                        name: m.nom || m.name,
-                        address: m.adresse || m.address || 'Adresse non renseignée'
-                    }));
+                    const storesFormatted = magasins.map(m => {
+                        const normalized = normalizeMagasin(m);
+                        return {
+                            id: m.id,
+                            name: normalized.name,
+                            address: normalized.address || 'Adresse non renseignée'
+                        };
+                    });
 
-                    console.log('🏪 Magasins formatés:', storesFormatted);
                     setStores(storesFormatted);
 
                     // Sélectionner le magasin de l'utilisateur ou le premier
@@ -71,6 +72,13 @@ export const RoleSelector = () => {
                     console.warn('⚠️ Aucun magasin trouvé dans le Backend');
                     setError('Aucun magasin disponible');
                 }
+
+                if (user?.role === 'admin') {
+                    const personnelData = await dataService.getPersonnel();
+                    const driversData = personnelData.filter((p: any) => p.role === 'Chauffeur');
+                    setChauffeurs(driversData);
+                }
+
             } catch (error) {
                 console.error('❌ Erreur chargement magasins:', error);
                 setError('Impossible de charger la liste des magasins depuis le Backend');
@@ -80,45 +88,54 @@ export const RoleSelector = () => {
         };
 
         loadStores();
-    }, [dataService, user?.storeId, user?.role]);
+    }, [dataService, user?.storeId, user?.role, user?.driverId]);
 
-    // useEffect(() => {
-    //     const loadStores = async () => {
-    //         try {
-    //             setLoading(true);
-    //             const magasins = await dataService.getMagasins();
+    useEffect(() => {
+        const loadChauffeurs = async () => {
+            // ✅ VÉRIFICATION DES PERMISSIONS : Seuls les admins peuvent charger la liste complète des chauffeurs
+            if (user?.role === 'admin') {
+                try {
+                    const personnelData = await dataService.getPersonnel();
+                    const chauffeursData = personnelData.filter((p: any) => 
+                        p.role === 'Chauffeur' || p.role === 'chauffeur'
+                    );
+                    setChauffeurs(chauffeursData);
 
-    //             if (magasins && magasins.length > 0) {
-    //                 setStores(magasins);
+                    // Sélectionner le chauffeur actuel si en mode chauffeur
+                    if (user?.driverId) {
+                        const currentChauffeur = chauffeursData.find(c => c.id === user.driverId);
+                        // Adapt status to match Personnel type
+                        if (currentChauffeur) {
+                            setSelectedChauffeur({
+                                ...currentChauffeur,
+                                status: currentChauffeur.status === 'Actif' || currentChauffeur.status === 'Inactif'
+                                    ? currentChauffeur.status
+                                    : 'Actif' // or 'Inactif', depending on your logic
+                            });
+                        } else {
+                            setSelectedChauffeur(null);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur chargement chauffeurs:', error);
+                }
+            } else if (user?.role === 'chauffeur' && user?.driverId) {
+                // ✅ CAS SPÉCIAL : Si c'est un chauffeur connecté, créer son propre profil dans la liste
+                const chauffeurProfile = {
+                    id: user.driverId,
+                    nom: user.name.split(' ').pop() || user.name,
+                    prenom: user.name.split(' ').shift() || '',
+                    email: user.email,
+                    role: 'Chauffeur',
+                    status: 'Actif'
+                };
+                setChauffeurs([chauffeurProfile]);
+                setSelectedChauffeur(chauffeurProfile);
+            }
+        };
 
-    //                 // Si l'utilisateur a un storeId, sélectionner le magasin correspondant
-    //                 if (user?.role === 'magasin' && user.storeId) {
-    //                     const userStore = magasins.find(m => m.id === user.storeId);
-    //                     if (userStore) {
-    //                         setSelectedStore(userStore);
-    //                     } else {
-    //                         // Si le magasin n'est pas trouvé, sélectionner le premier
-    //                         setSelectedStore(magasins[0]);
-    //                     }
-    //                 } else {
-    //                     // Par défaut, sélectionner le premier magasin
-    //                     setSelectedStore(magasins[0]);
-    //                 }
-    //             }
-    //         } catch (error) {
-    //             console.error('Erreur lors du chargement des magasins:', error);
-    //             setError('Impossible de charger la liste des magasins');
-    //         } finally {
-    //             setLoading(false);
-    //         }
-    //     };
-
-    //     loadStores();
-    // }, [dataService, user?.storeId, user?.role]);
-
-    // useEffect(() => {
-    //     refreshUserContext();
-    // }, []);
+        loadChauffeurs();
+    }, [dataService, user?.role, user?.driverId]);
 
     const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const role = e.target.value as UserRole;
@@ -145,7 +162,29 @@ export const RoleSelector = () => {
                 }
                 break;
             case 'chauffeur':
-                setRole(role, { driverId: 'recOJXIE0zjz0nqP9' });
+                const chauffeurToSelect = selectedChauffeur || (chauffeurs.length > 0 ? chauffeurs[0] : null);
+
+                if (chauffeurToSelect) {
+                    console.log('Changement vers rôle chauffeur:', chauffeurToSelect.nom);
+
+                    // Mettre à jour la sélection locale
+                    setSelectedChauffeur(chauffeurToSelect);
+
+                    // Appliquer le rôle
+                    setRole(role, {
+                        driverId: chauffeurToSelect.id,
+                        driverName: `${chauffeurToSelect.prenom} ${chauffeurToSelect.nom}`,
+                    });
+
+                    // Déclencher événement
+                    window.dispatchEvent(new CustomEvent('rolechange', {
+                        detail: { role, driverId: chauffeurToSelect.id }
+                    }));
+                } else {
+                    console.warn('Aucun chauffeur disponible');
+                    // Rester en admin si pas de chauffeur
+                    return;
+                }
                 break;
             default:
                 setRole('admin');
@@ -195,6 +234,23 @@ export const RoleSelector = () => {
         }
     };
 
+    const handleChauffeurChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const chauffeurId = e.target.value;
+        const chauffeur = chauffeurs.find(c => c.id === chauffeurId);
+
+        if (chauffeur) {
+            setSelectedChauffeur(chauffeur);
+
+            // Si déjà en rôle chauffeur, mettre à jour
+            if (user?.role === 'chauffeur') {
+                setRole('chauffeur', {
+                    driverId: chauffeur.id,
+                    driverName: `${chauffeur.prenom} ${chauffeur.nom}`,
+                });
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="mb-4 flex items-center">
@@ -219,11 +275,18 @@ export const RoleSelector = () => {
                 <select
                     value={user?.role || 'admin'}
                     onChange={handleRoleChange}
-                    className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                    disabled={user?.role === 'chauffeur'} // ✅ Empêcher les chauffeurs de changer de rôle
+                    className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <option value="admin">Admin</option>
-                    <option value="magasin">Magasin</option>
-                    <option value="chauffeur">Chauffeur</option>
+                    {user?.role === 'chauffeur' ? (
+                        <option value="chauffeur">Chauffeur</option>
+                    ) : (
+                        <>
+                            <option value="admin">Admin</option>
+                            <option value="magasin">Magasin</option>
+                            <option value="chauffeur">Chauffeur</option>
+                        </>
+                    )}
                 </select>
             </div>
 
@@ -244,9 +307,28 @@ export const RoleSelector = () => {
                 </div>
             )}
 
+            {user?.role === 'chauffeur' && (
+                <div>
+                    <label className="text-sm font-medium mr-2">Chauffeur :</label>
+                    <select
+                        value={selectedChauffeur?.id || ''}
+                        onChange={handleChauffeurChange}
+                        disabled={true} // ✅ Les chauffeurs ne peuvent pas changer d'identité
+                        className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {chauffeurs.map(chauffeur => (
+                            <option key={chauffeur.id} value={chauffeur.id}>
+                                {chauffeur.prenom} {chauffeur.nom} ({chauffeur.status})
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+
+
             <span className="text-sm text-gray-500">
                 {user?.role === 'magasin' && `(${selectedStore.address})`}
-                {user?.role === 'chauffeur' && `(Driver ID: ${user.driverId})`}
+                {user?.role === 'chauffeur' && user?.driverName && `(${user.driverName})`}
             </span>
         </div>
     );

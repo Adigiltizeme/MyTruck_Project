@@ -11,7 +11,7 @@ import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/r
 import { Fragment } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { NotificationService } from '../services/notificationService';
-import { useOffline } from '../contexts/OfflineContext';
+// import { useOffline } from '../contexts/OfflineContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { NotificationPanel } from './NotificationPanel';
 import { ThemeToggle } from './ThemeToggle';
@@ -28,7 +28,8 @@ const Header = () => {
     localStorage.getItem('darkMode') === 'true'
   );
 
-  const { isOnline, isOfflineForced } = useOffline();
+  // const { isOnline, isOfflineForced } = useOffline();
+  const isOnline = true; // Forcer le mode en ligne
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -76,7 +77,7 @@ const Header = () => {
     <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
       {/* Recherche */}
       <div className="flex-1 max-w-md">
-        <form onSubmit={handleSearch} className="relative">
+        {/* <form onSubmit={handleSearch} className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
           </div>
@@ -87,16 +88,16 @@ const Header = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </form>
+        </form> */}
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium">
+        {/* <div className="hidden md:flex items-center gap-1 px-2 py-1 rounded-full border border-gray-200 text-xs font-medium">
           <span className={`inline-block h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}></span>
           <span className="text-gray-600">
             {isOfflineForced ? 'Mode hors ligne forcé' : isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
-        </div>
+        </div> */}
         {/* Bouton de bascule du thème dans la div des contrôles */}
         <ThemeToggle />
 

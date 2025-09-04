@@ -3,6 +3,175 @@ import { RecapitulatifFormProps } from "../../types/form.types";
 import FormInput from "./FormInput";
 
 export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, errors, onChange, showErrors = false }) => {
+    const getDeliveryConditions = () => {
+        // Extraire les conditions de livraison des données
+        let deliveryConditions = null;
+
+        try {
+            if (typeof data.livraison?.details === 'string') {
+                deliveryConditions = JSON.parse(data.livraison.details);
+            } else if (data.livraison?.details) {
+                deliveryConditions = data.livraison.details;
+            }
+        } catch (e) {
+            console.warn('Impossible de parser les détails de livraison');
+        }
+
+        // Vérifier s'il y a des conditions spéciales
+        const hasSpecialConditions = deliveryConditions && (
+            deliveryConditions.rueInaccessible ||
+            deliveryConditions.paletteComplete ||
+            (deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50) ||
+            deliveryConditions.needsAssembly ||
+            (deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor) ||
+            (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20)
+        );
+
+        // Calculer l'étage effectif
+        const baseFloor = parseInt(data.client?.adresse?.etage || '0');
+        const effectiveFloor = baseFloor +
+            (deliveryConditions?.isDuplex && deliveryConditions?.deliveryToUpperFloor ? 1 : 0);
+
+        if (!hasSpecialConditions) return null;
+
+        return (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <h3 className="text-lg font-medium text-orange-800 mb-3">
+                    ⚠️ Conditions spéciales de livraison
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {/* Type de logement */}
+                    {deliveryConditions.isDuplex && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">🏠</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Duplex/Maison avec étages</p>
+                                <p className="text-orange-700">
+                                    {deliveryConditions.deliveryToUpperFloor
+                                        ? `Livraison à l'étage supérieur (${effectiveFloor} étages effectifs)`
+                                        : 'Livraison au rez-de-chaussée uniquement'
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Rue inaccessible */}
+                    {deliveryConditions.rueInaccessible && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">🚫</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Rue inaccessible</p>
+                                <p className="text-orange-700">Véhicule ne peut pas accéder directement</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Palette complète */}
+                    {deliveryConditions.paletteComplete && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">📦</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Palette complète</p>
+                                <p className="text-orange-700">Dépalettisation et déchargement requis</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Distance de portage */}
+                    {deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50 && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">📏</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Distance de portage</p>
+                                <p className="text-orange-700">{deliveryConditions.parkingDistance}m depuis le stationnement</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Escaliers */}
+                    {deliveryConditions.hasStairs && deliveryConditions.stairCount > 0 && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">🪜</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Escaliers présents</p>
+                                <p className="text-orange-700">
+                                    {deliveryConditions.stairCount} marches
+                                    {deliveryConditions.stairCount > 20 && ' (nombreuses marches)'}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Montage nécessaire */}
+                    {deliveryConditions.needsAssembly && (
+                        <div className="flex items-start">
+                            <span className="text-orange-600 mr-2">🔧</span>
+                            <div>
+                                <p className="font-medium text-orange-800">Montage/Installation</p>
+                                <p className="text-orange-700">Assemblage ou installation nécessaire</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* 🎯 CALCUL AUTOMATIQUE DES ÉQUIPIERS REQUIS */}
+                {getRequiredCrew(deliveryConditions, effectiveFloor)}
+            </div>
+        );
+    }
+
+    // Définir la fonction getRequiredCrew en dehors du JSX
+    const getRequiredCrew = (deliveryConditions: any, effectiveFloor: number) => {
+        const articles = data.articles?.dimensions || [];
+        if (articles.length === 0) return null;
+
+        const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+        // Simuler le calcul côté frontend pour affichage
+        let requiredCrew = 0;
+        const heaviestWeight = Math.max(...articles.map(a => a.poids || 0));
+        const totalWeight = articles.reduce((sum, article) =>
+            sum + ((article.poids || 0) * (article.quantite || 1)), 0
+        );
+
+        // Compter les conditions (logique simplifiée pour affichage)
+        if (heaviestWeight >= 30) requiredCrew++;
+        if (data.client?.adresse?.ascenseur && totalWeight > 300) requiredCrew++;
+        if (!data.client?.adresse?.ascenseur && totalWeight > 200) requiredCrew++;
+        if (totalItemCount > 20) requiredCrew++;
+        if (deliveryConditions?.rueInaccessible) requiredCrew++;
+        if (deliveryConditions?.isDuplex && deliveryConditions.deliveryToUpperFloor) requiredCrew++;
+        if (deliveryConditions?.paletteComplete) requiredCrew++;
+        if (deliveryConditions?.parkingDistance > 50) requiredCrew++;
+        // if (effectiveFloor > 2 && !data.client?.adresse?.ascenseur) requiredCrew++;
+        if (deliveryConditions?.hasStairs && deliveryConditions?.stairCount > 20) requiredCrew++;
+        if (deliveryConditions?.needsAssembly) requiredCrew++;
+
+        return (
+            <div className="mt-3 pt-3 border-t border-orange-300">
+                <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-orange-800">
+                        📊 Équipiers requis selon conditions :
+                    </span>
+                    <span className="font-bold text-orange-900 text-lg">
+                        {requiredCrew} équipier{requiredCrew > 1 ? 's' : ''}
+                    </span>
+                </div>
+                <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-orange-700">Équipiers sélectionnés :</span>
+                    <span className={`font-medium ${(data.livraison?.equipiers || 0) >= requiredCrew
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                        }`}>
+                        {data.livraison?.equipiers || 0} équipier{(data.livraison?.equipiers || 0) > 1 ? 's' : ''}
+                        {(data.livraison?.equipiers || 0) >= requiredCrew ? ' ✅' : ' ⚠️'}
+                    </span>
+                </div>
+            </div>
+        );
+    };
     return (
         <div className="space-y-4 bg-gray-50 p-6 rounded-lg">
             <h3 className="text-xl font-medium secondary">Récapitulatif de la commande</h3>
@@ -71,12 +240,14 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                 </div>
             </div>
 
+            {getDeliveryConditions()}
+            
             <div className="mt-4 text-sm text-gray-500">
                 Veuillez vérifier ces informations avant de confirmer la commande.
             </div>
             <div className="mt-6 p-4 py-4 bg-white flex justify-between">
                 <FormInput
-                    label="Manager magasin"
+                    label="Nom du vendeur"
                     name="magasin.manager"
                     value={data.magasin?.manager || ''}
                     onChange={onChange}

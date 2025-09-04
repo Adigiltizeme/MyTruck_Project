@@ -411,7 +411,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
             )}
 
             {/* Bouton modification avancée */}
-            {(canModifyCommandeStatus() || canModifyLivraisonStatus()) && (
+            {user?.role === 'admin' && (
                 <button
                     onClick={() => {
                         setSelectedStatutCommande(commande.statuts?.commande || '');
@@ -430,7 +430,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                     || commande.statuts?.livraison === 'ANNULEE'
                     || commande.statuts?.livraison === 'EN COURS DE LIVRAISON'
                     || commande.statuts?.livraison === 'LIVREE') && (
-                        <p>⚠️ Modification limitée : livraison {commande.statuts?.livraison} par My Truck</p>
+                        <p>⚠️ Modification limitée : livraison {commande.statuts?.livraison}</p>
                     )}
                 {user?.role === 'chauffeur' && (
                     <p>🚛 Vous pouvez gérer les statuts de livraison</p>

@@ -14,7 +14,9 @@ export const DataSourceIndicator: React.FC = () => {
 
         const checkBackendHealth = async () => {
             try {
-                const response = await fetch('http://localhost:3000/api/v1/health');
+                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1'}/health`, {
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
                 setIsBackendAvailable(response.ok);
             } catch {
                 setIsBackendAvailable(false);

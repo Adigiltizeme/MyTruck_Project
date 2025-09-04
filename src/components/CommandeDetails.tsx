@@ -3,7 +3,7 @@ import { CommandeMetier } from '../types/business.types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
-import { dateFormatter } from '../utils/formatters';
+import { dateFormatter, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import CommandeActions from './CommandeActions';
 import AdminActions from './AdminActions';
@@ -33,7 +33,11 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         return <div className="p-4 bg-red-100 text-red-700 rounded">Données de commande indisponibles.</div>;
     }
 
-    const [activeTab, setActiveTab] = useState('informations');
+    const [activeTab, setActiveTab] = useState(() => {
+        // Restaurer l'onglet sauvegardé pour cette commande spécifique
+        const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
+        return savedTab || 'informations';
+    });
     const [chauffeurs, setChauffeurs] = useState<Personnel[]>([]);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
@@ -56,6 +60,14 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         loadChauffeurs();
     }, [user]);
 
+    useEffect(() => {
+        console.log('🖥️ ===== DEBUG COMMANDEDETAILS RENDU =====');
+        console.log('🖥️ Commande reçue:', commande);
+        console.log('🖥️ Client affiché:', commande?.client);
+        console.log('🖥️ Statuts affichés:', commande?.statuts);
+        console.log('🖥️ Magasin affiché:', commande?.magasin);
+    }, [commande]);
+
     // Vérification sécurisée des dates
     const timelineEvents = [
         {
@@ -71,14 +83,14 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
     // Helper pour formatter les dates de manière sécurisée
-    const formatDate = (date: Date | string | undefined) => {
-        if (!date) return 'Non spécifiée';
-        try {
-            return format(new Date(date), 'Pp', { locale: fr });
-        } catch {
-            return 'Date invalide';
-        }
-    };
+    // const formatDate = (date: Date | string | undefined) => {
+    //     if (!date) return 'Non spécifiée';
+    //     try {
+    //         return format(new Date(date), 'Pp', { locale: fr });
+    //     } catch {
+    //         return 'Date invalide';
+    //     }
+    // };
 
     const showImageInSameWindow = (url: string) => {
         window.open(url, '_blank', 'toolbar=0,location=0,menubar=0')
@@ -90,14 +102,64 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     }
 
     const tabs = [
-        { id: 'informations', label: 'Informations' },
-        { id: 'photos-articles', label: 'Photos articles' },
-        { id: 'photos-commentaires', label: 'Photos commentaires' },
-        { id: 'chronologie', label: 'Chronologie' },
-        { id: 'historique', label: 'Historique' },
-        { id: 'documents', label: 'Documents' },
-        ...(user?.role === 'magasin' || user?.role === 'admin' ? [{ id: 'actions', label: 'Actions' }] : []),
+        { id: 'informations', label: 'Informations', icon: '📋' },
+        { id: 'conditions-speciales', label: 'Conditions spéciales', icon: '⚠️' },
+        { id: 'photos-articles', label: 'Photos articles', icon: '📸' },
+        { id: 'photos-commentaires', label: 'Photos commentaires', icon: '🖼️' },
+        { id: 'chronologie', label: 'Chronologie', icon: '⏱️' },
+        { id: 'historique', label: 'Historique', icon: '📊' },
+        ...(user?.role !== 'chauffeur' ? [{ id: 'documents', label: 'Documents', icon: '📄' }] : []),
+        { id: 'actions', label: 'Actions', icon: '⚡' },
     ];
+
+    // ✅ SAUVEGARDER l'onglet actif à chaque changement
+    const handleTabChange = (newTab: string) => {
+        setActiveTab(newTab);
+        localStorage.setItem(`commandeDetails_tab_${commande.id}`, newTab);
+    };
+
+    // ✅ FONCTION REFRESH PERSONNALISÉE qui préserve l'onglet
+    const handleRefreshWithTabPreservation = async () => {
+        console.log('🔄 Refresh avec préservation onglet:', activeTab);
+
+        // Sauvegarder l'onglet actuel
+        const currentTab = activeTab;
+        localStorage.setItem(`commandeDetails_tab_${commande.id}`, currentTab);
+
+        // Exécuter le refresh original
+        if (onRefresh && typeof onRefresh === 'function') {
+            await onRefresh();
+        }
+
+        // Restaurer l'onglet après le refresh
+        setTimeout(() => {
+            const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
+            if (savedTab && savedTab !== activeTab) {
+                setActiveTab(savedTab);
+            }
+        }, 100);
+
+        console.log('✅ Refresh terminé, onglet préservé:', currentTab);
+    };
+
+    // ✅ NETTOYAGE : Supprimer la sauvegarde si la commande change
+    useEffect(() => {
+        return () => {
+            // Optionnel : nettoyer les anciennes sauvegardes
+            const allKeys = Object.keys(localStorage);
+            const oldCommandeTabs = allKeys.filter(key =>
+                key.startsWith('commandeDetails_tab_') &&
+                key !== `commandeDetails_tab_${commande.id}`
+            );
+
+            // Garder seulement les 10 plus récentes pour éviter l'accumulation
+            if (oldCommandeTabs.length > 10) {
+                oldCommandeTabs.slice(0, oldCommandeTabs.length - 10).forEach(key => {
+                    localStorage.removeItem(key);
+                });
+            }
+        };
+    }, [commande.id]);
 
     // Gestion des photos
     const handlePhotoUpload = async (uploadedPhotos: Array<{ url: string }>) => {
@@ -164,385 +226,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         }
     };
 
-    // const renderContent = () => {
-    //     // Vérification des propriétés nécessaires avant le switch
-    //     if (!commande) {
-    //         return <div>Données manquantes</div>;
-    //     }
-    //     const safeDimensions = Array.isArray(commande.articles?.dimensions)
-    //         ? commande.articles.dimensions
-    //         : [];
-
-    //     console.log('🔍 CommandeDetails - Dimensions safe:', safeDimensions);
-
-    //     switch (activeTab) {
-    //         case 'informations':
-    //             return (
-    //                 // Section Informations existante
-    //                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    //                     {/* Magasin */}
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Magasin</h3>
-    //                         <div className="space-y-2">
-    //                             <p><span className="text-gray-500">Nom:</span> {commande.magasin?.name || 'Non spécifié'}</p>
-    //                             {/* <p><span className="text-gray-500">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
-    //                                 <p><span className="text-gray-500">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p> */}
-    //                         </div>
-    //                     </div>
-
-    //                     {/* Client */}
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Client</h3>
-    //                         <div className="space-y-2">
-    //                             <p><span className="text-gray-500">Nom:</span> {commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom}</p>
-    //                             {/* <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p> */}
-    //                             <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
-    //                             <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
-    //                         </div>
-    //                     </div>
-
-    //                     {/* Livraison */}
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Livraison</h3>
-    //                         <div className="space-y-2">
-    //                             <p><span className="text-gray-500">Date:</span> {dateFormatter.forDisplay(commande.dates?.livraison)}</p>
-    //                             <p><span className="text-gray-500">Créneau:</span> {commande.livraison?.creneau || 'Non spécifié'}</p>
-    //                             <p><span className="text-gray-500">Véhicule:</span> {commande.livraison?.vehicule || 'Non spécifié'}</p>
-    //                             <p><span className="text-gray-500">Équipiers:</span> {commande.livraison?.equipiers || '0'}</p>
-    //                         </div>
-    //                     </div>
-
-    //                     {/* Articles */}
-    //                     {commande.articles && (
-    //                         <div className="space-y-4">
-    //                             <h3 className="font-medium text-lg">Articles</h3>
-    //                             <div className="space-y-2">
-    //                                 <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
-    //                                 <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
-    //                             </div>
-    //                             {(commande.articles?.photos && Array.isArray(commande.articles.photos)) && (
-    //                                 <div className="grid grid-cols-2 gap-2 mt-2">
-    //                                     {commande.articles.photos.map((photo: string | { url: string }, index) => {
-    //                                         // Vérifier si l'URL de la photo est un URL valide
-    //                                         const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-    //                                         return (
-    //                                             <div key={index} className="relative group">
-    //                                                 {photoUrl && (
-    //                                                     <SecureImage
-    //                                                         src={photoUrl}
-    //                                                         alt={`Photo ${index + 1}`}
-    //                                                         className="rounded-lg w-full h-48 object-cover"
-    //                                                     />
-    //                                                 )}
-    //                                             </div>
-    //                                         );
-    //                                     })}
-    //                                 </div>
-    //                             )}
-    //                             {safeDimensions.length > 0 && (
-    //                                 <div>
-    //                                     <h4>Dimensions des articles</h4>
-    //                                     {safeDimensions.map((dimension, index) => (
-    //                                         <div key={dimension.id || index}>
-    //                                             <p><strong>{dimension.nom}</strong></p>
-    //                                             <p>Dimensions: {dimension.longueur}x{dimension.largeur}x{dimension.hauteur}cm</p>
-    //                                             <p>Poids: {dimension.poids}kg - Quantité: {dimension.quantite}</p>
-    //                                         </div>
-    //                                     ))}
-    //                                 </div>
-    //                             )}
-    //                         </div>
-    //                     )}
-
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Chauffeur(s)</h3>
-    //                         {commande?.chauffeurs?.length ?? 0 > 0 ? (
-    //                             commande.chauffeurs.map((chauffeur, index) => (
-    //                                 <div key={index} className="bg-gray-50 p-3 rounded">
-    //                                     <p>{chauffeur.prenom} {chauffeur.nom}</p>
-    //                                     <p className="text-sm text-gray-600">{chauffeur.telephone}</p>
-    //                                 </div>
-    //                             ))
-    //                         ) : (
-    //                             <p className="text-gray-500">Aucun chauffeur assigné</p>
-    //                         )}
-    //                     </div>
-
-    //                     {/* Autres remarques */}
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Autres remarques</h3>
-
-    //                         {commande.livraison?.remarques ? (
-    //                             <div className="space-y-2">
-    //                                 <p>{commande.livraison.remarques}</p>
-    //                             </div>
-    //                         ) : (
-    //                             <p className="text-gray-500">Aucune remarque</p>
-    //                         )}
-    //                     </div>
-
-    //                     {/* Commentaires */}
-    //                     <div className="space-y-4">
-    //                         <h3 className="font-medium text-lg">Commentaires</h3>
-    //                         <div className="space-y-2">
-    //                             {(commande.livraison?.commentaireEnlevement || commande.livraison?.commentaireLivraison) ? (
-    //                                 <>
-    //                                     {commande.livraison?.commentaireEnlevement && (
-    //                                         <div className="bg-gray-50 p-3 rounded-lg">
-    //                                             <p className="text-sm font-medium text-gray-700">À l'enlèvement:</p>
-    //                                             <p className="text-sm mt-1">{commande.livraison.commentaireEnlevement}</p>
-    //                                         </div>
-    //                                     )}
-
-    //                                     {commande.livraison?.commentaireLivraison && (
-    //                                         <div className="bg-gray-50 p-3 rounded-lg">
-    //                                             <p className="text-sm font-medium text-gray-700">À la livraison:</p>
-    //                                             <p className="text-sm mt-1">{commande.livraison.commentaireLivraison}</p>
-    //                                         </div>
-    //                                     )}
-    //                                 </>
-    //                             ) : (
-    //                                 <p className="text-gray-500">Aucun commentaire</p>
-    //                             )}
-    //                         </div>
-    //                     </div>
-    //                 </div>
-    //             );
-    //         case 'photos-articles':
-    //             // Calcul sécurisé des photos existantes
-    //             const articles = commande.articles || {};
-    //             const photos = Array.isArray(articles.photos) ? articles.photos : [];
-    //             const totalPhotos = photos.length;
-    //             const remainingPhotos = 5 - totalPhotos;
-
-    //             return (
-    //                 <div className="space-y-4">
-    //                     {/* Photos existantes */}
-    //                     {totalPhotos > 0 ? (
-    //                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    //                             {photos.map((photo, index) => {
-    //                                 // Vérification et extraction sécurisée de l'URL
-    //                                 const photoUrl = typeof photo === 'string'
-    //                                     ? photo
-    //                                     : (photo && typeof photo === 'object' && 'url' in photo)
-    //                                         ? photo.url
-    //                                         : null;
-
-    //                                 if (!photoUrl) return null;
-
-    //                                 return (
-    //                                     <div key={index} className="relative group">
-    //                                         <SecureImage
-    //                                             src={photoUrl}
-    //                                             alt={`Photo ${index + 1}`}
-    //                                             className="rounded-lg w-full h-48 object-cover"
-    //                                         />
-    //                                         <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-    //                                             <button
-    //                                                 className="text-white bg-red-600 px-4 py-2 rounded-lg"
-    //                                                 onClick={() => typeof showImageInSameWindow === 'function' && showImageInSameWindow(photoUrl)}
-    //                                             >
-    //                                                 Voir
-    //                                             </button>
-    //                                             <button
-    //                                                 onClick={() => typeof handlePhotoDelete === 'function' && handlePhotoDelete(index)}
-    //                                                 className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-    //                                             >
-    //                                                 <XCircle className="w-5 h-5" />
-    //                                             </button>
-    //                                         </div>
-    //                                     </div>
-    //                                 );
-    //                             }).filter(Boolean)} {/* Filtrer les photos nulles */}
-    //                         </div>
-    //                     ) : (
-    //                         <p className="text-center text-gray-500">Aucune photo d'article disponible</p>
-    //                     )}
-
-    //                     {/* Zone d'upload */}
-    //                     <div className="flex flex-col items-center">
-    //                         <PhotoUploader
-    //                             onUpload={handlePhotoUpload}
-    //                             maxPhotos={remainingPhotos}
-    //                             existingPhotos={photos.map(photo => ({ url: photo.url, file: new File([], '') }))}
-    //                             MAX_SIZE={10 * 1024 * 1024}
-    //                         />
-    //                     </div>
-    //                 </div>
-    //             );
-    //         case 'photos-commentaires':
-    //             return (
-    //                 <div className="space-y-4">
-    //                     {(commande.livraison?.photosEnlevement && Array.isArray(commande.livraison?.photosEnlevement) && (commande?.livraison?.photosEnlevement?.length ?? 0) > 0)
-    //                         || (commande.livraison?.photosLivraison && Array.isArray(commande.livraison?.photosLivraison) && (commande?.livraison?.photosLivraison?.length ?? 0) > 0) ? (
-    //                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    //                             {commande.livraison?.photosEnlevement && commande.livraison.photosEnlevement.map((photo: string | { url: string }, index) => {
-    //                                 // Vérifier si l'URL de la photo est un URL valide
-    //                                 const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-    //                                 return (
-    //                                     <div key={`enlèvement-${index}`}>
-    //                                         <p className="text-sm font-medium text-gray-700">Photo(s) à l'enlèvement :</p>
-    //                                         <div className="relative group">
-
-    //                                             {photoUrl && (
-    //                                                 <SecureImage
-    //                                                     src={photoUrl}
-    //                                                     alt={`Photo ${index + 1}`}
-    //                                                     className="rounded-lg w-full h-48 object-cover"
-    //                                                 />
-    //                                             )}
-    //                                             <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-    //                                                 <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-    //                                                     onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-    //                                                 >
-    //                                                     Voir
-    //                                                 </button>
-    //                                             </div>
-    //                                         </div>
-    //                                     </div>
-    //                                 );
-    //                             })}
-    //                             {commande.livraison?.photosLivraison?.map((photo: string | { url: string }, index) => {
-    //                                 // Vérifier si l'URL de la photo est un URL valide
-    //                                 const photoUrl = typeof photo === 'string' ? photo : photo?.url;
-    //                                 return (
-    //                                     <div key={`livraison-${index}`}>
-    //                                         <p className="text-sm font-medium text-gray-700">Photo(s) à la livraison :</p>
-    //                                         <div className="relative group">
-
-    //                                             {photoUrl && (
-    //                                                 <SecureImage
-    //                                                     src={photoUrl}
-    //                                                     alt={`Photo ${index + 1}`}
-    //                                                     className="rounded-lg w-full h-48 object-cover"
-    //                                                 />
-    //                                             )}
-    //                                             <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-    //                                                 <button className="text-white bg-red-600 px-4 py-2 rounded-lg"
-    //                                                     onClick={() => showImageInSameWindow(typeof photo === 'string' ? photo : photo.url)}
-    //                                                 >
-    //                                                     Voir
-    //                                                 </button>
-    //                                             </div>
-    //                                         </div>
-    //                                     </div>
-    //                                 );
-    //                             })}
-    //                         </div>
-    //                     ) : (
-    //                         <p className="text-center text-gray-500">Aucune photo de commentaire disponible</p>
-    //                     )}
-    //                     {user?.role === 'admin' && (
-    //                         <div className="flex justify-center mt-4">
-    //                             <button className="bg-red-600 text-white px-4 py-2 rounded-lg">
-    //                                 Ajouter photo
-    //                             </button>
-    //                         </div>
-    //                     )}
-    //                 </div>
-    //             );
-    //         case 'chronologie':
-    //             return (
-    //                 <div className="max-w-3xl mx-auto">
-    //                     <div className="flow-root">
-    //                         <ul className="-mb-8">
-    //                             {timelineEvents.map((event, index) => (
-    //                                 <li key={index}>
-    //                                     <div className="relative pb-8">
-    //                                         {index !== (timelineEvents?.length ?? 0) - 1 && (
-    //                                             <span
-    //                                                 className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-    //                                                 aria-hidden="true"
-    //                                             />
-    //                                         )}
-    //                                         <div className="relative flex space-x-3">
-    //                                             <div>
-    //                                                 <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white
-    //                                                         ${event.type === 'commande' ? 'bg-blue-500' : 'bg-green-500'}`}>
-    //                                                     {/* Icon based on type */}
-    //                                                 </span>
-    //                                             </div>
-    //                                             <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-    //                                                 <div>
-    //                                                     <p className="text-sm text-gray-500">
-    //                                                         {event.type === 'commande' ? 'Commande' : 'Livraison'} : {event.status}
-    //                                                     </p>
-    //                                                 </div>
-    //                                                 <div className="whitespace-nowrap text-right text-sm text-gray-500">
-    //                                                     {formatDate(event.date)}
-    //                                                 </div>
-    //                                             </div>
-    //                                         </div>
-    //                                     </div>
-    //                                 </li>
-    //                             ))}
-    //                         </ul>
-    //                     </div>
-    //                 </div>
-    //             );
-    //         case 'historique':
-    //             return (
-    //                 <div className="space-y-4">
-    //                     {commande.dates?.misAJour ? (
-    //                         <div className="flow-root">
-    //                             <ul className="-mb-8">
-    //                                 <li>
-    //                                     <div className="relative pb-8">
-    //                                         <div className="relative flex space-x-3">
-    //                                             <div>
-    //                                                 <span className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white">
-    //                                                     {/* Icon */}
-    //                                                 </span>
-    //                                             </div>
-    //                                             <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-    //                                                 <div>
-    //                                                     <p className="text-sm text-gray-500">
-    //                                                         Dernière modification
-    //                                                     </p>
-    //                                                 </div>
-    //                                                 <div className="whitespace-nowrap text-right text-sm text-gray-500">
-    //                                                     {formatDate(commande.dates.misAJour)}
-    //                                                 </div>
-    //                                             </div>
-    //                                         </div>
-    //                                     </div>
-    //                                 </li>
-    //                             </ul>
-    //                         </div>
-    //                     ) : (
-    //                         <p className="text-center text-gray-500">Aucun historique disponible</p>
-    //                     )}
-    //                 </div>
-    //             );
-    //         case 'documents':
-    //             return (
-    //                 <DocumentViewer
-    //                     commande={commande}
-    //                     onUpdate={onUpdate}
-    //                 />
-    //             );
-    //         case 'actions':
-    //             return (
-    //                 <div className="p-4 bg-white rounded-lg shadow-sm">
-    //                     {user?.role === 'magasin' && (
-    //                         <CommandeActions
-    //                             commande={commande}
-    //                             onUpdate={onUpdate}
-    //                         />
-    //                     )}
-    //                     {user?.role === 'admin' && (
-    //                         <AdminActions
-    //                             commande={commande}
-    //                             chauffeurs={chauffeurs}
-    //                             onUpdate={onUpdate}
-    //                         />
-    //                     )}
-    //                 </div>
-    //             );
-    //         default:
-    //             return null;
-    //     }
-    // };
     const renderContent = () => {
         // Vérification des propriétés nécessaires avant le switch
         if (!commande) {
@@ -697,9 +380,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Autres remarques</h3>
 
-                            {(commande.livraison?.remarques || commande.remarques) ? (
+                            {(commande?.livraison?.remarques || commande?.remarques) ? (
                                 <div className="space-y-2">
-                                    <p>{commande.livraison.remarques || commande.remarques}</p>
+                                    <p>{commande?.livraison?.remarques || commande?.remarques}</p>
                                 </div>
                             ) : (
                                 <p className="text-gray-500">Aucune remarque</p>
@@ -711,9 +394,329 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             <RapportManager
                                 commande={commande}
                                 onUpdate={onUpdate}
-                                onRefresh={onRefresh}
+                                onRefresh={handleRefreshWithTabPreservation}
                             />
                         </div>
+                    </div>
+                );
+            case 'conditions-speciales':
+                return (
+                    <div className="space-y-4">
+                        {(() => {
+                            // Extraire les conditions de livraison
+                            let deliveryConditions = null;
+
+                            try {
+                                if (typeof commande.livraison?.details === 'string') {
+                                    deliveryConditions = JSON.parse(commande.livraison.details);
+                                } else if (commande.livraison?.details) {
+                                    deliveryConditions = commande.livraison.details;
+                                }
+                            } catch (e) {
+                                console.warn('Impossible de parser les détails de livraison');
+                            }
+
+                            // 🎯 VÉRIFIER S'IL Y A DES CONDITIONS SPÉCIALES
+                            const hasSpecialConditions = deliveryConditions && (
+                                deliveryConditions.rueInaccessible ||
+                                deliveryConditions.paletteComplete ||
+                                (deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50) ||
+                                deliveryConditions.needsAssembly ||
+                                (deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor) ||
+                                (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20)
+                            );
+
+                            if (!hasSpecialConditions) {
+                                return (
+                                    <div className="text-center py-8">
+                                        <div className="max-w-md mx-auto">
+                                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <span className="text-2xl">✅</span>
+                                            </div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                                Livraison standard
+                                            </h3>
+                                            <p className="text-gray-600">
+                                                Cette commande ne présente aucune condition spéciale de livraison.
+                                                Les équipiers peuvent procéder selon les procédures normales.
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Calculer l'étage effectif
+                            const baseFloor = parseInt(commande.client?.adresse?.etage || '0');
+                            const effectiveFloor = baseFloor +
+                                (deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor ? 1 : 0);
+
+                            return (
+                                <div className="space-y-6">
+                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                                        <h3 className="text-lg font-medium text-orange-800 mb-4 flex items-center">
+                                            <span className="mr-2">⚠️</span>
+                                            Conditions spéciales détectées
+                                        </h3>
+                                        <p className="text-orange-700 text-sm mb-4">
+                                            Cette livraison présente des conditions particulières qui nécessitent une attention spéciale.
+                                        </p>
+
+                                        <div className="space-y-4">
+                                            {/* 🏠 DUPLEX/MAISON - Seulement si présent */}
+                                            {deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor && (
+                                                <div className="bg-blue-100 border border-blue-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-blue-600 text-2xl mr-3">🏠</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-blue-800 mb-2">
+                                                                Duplex/Maison - Livraison à l'étage
+                                                            </h4>
+                                                            <div className="text-blue-700 space-y-1">
+                                                                <p><strong>Étage de base :</strong> {baseFloor}ème</p>
+                                                                <p><strong>Étage effectif :</strong> {effectiveFloor}ème (+1 duplex/maison)</p>
+                                                                <p className="text-sm mt-2 p-2 bg-blue-200 rounded">
+                                                                    💡 <strong>Note :</strong> Les articles doivent être montés à l'étage supérieur dans un logement duplex/maison.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 🚫 RUE INACCESSIBLE - Seulement si présent */}
+                                            {deliveryConditions.rueInaccessible && (
+                                                <div className="bg-red-100 border border-red-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-red-600 text-2xl mr-3">🚫</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-red-800 mb-2">
+                                                                Rue inaccessible pour véhicule 4 roues
+                                                            </h4>
+                                                            <div className="text-red-700">
+                                                                <p>Le véhicule ne peut pas accéder directement devant l'adresse.</p>
+                                                                <p className="text-sm mt-2 p-2 bg-red-200 rounded">
+                                                                    ⚠️ <strong>Action requise :</strong> Stationnement à distance + portage nécessaire
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 📦 PALETTE COMPLÈTE - Seulement si présent */}
+                                            {deliveryConditions.paletteComplete && (
+                                                <div className="bg-orange-100 border border-orange-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-orange-600 text-2xl mr-3">📦</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-orange-800 mb-2">
+                                                                Palette complète à dépalettiser
+                                                            </h4>
+                                                            <div className="text-orange-700">
+                                                                <p>Déchargement complet d'une palette et manutention article par article.</p>
+                                                                <p className="text-sm mt-2 p-2 bg-orange-200 rounded">
+                                                                    🔧 <strong>Équipement :</strong> Outils de dépalettisation nécessaires
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 📏 DISTANCE PORTAGE - Seulement si >50m */}
+                                            {deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50 && (
+                                                <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-yellow-600 text-2xl mr-3">📏</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-yellow-800 mb-2">
+                                                                Distance de portage importante
+                                                            </h4>
+                                                            <div className="text-yellow-700">
+                                                                <p><strong>Distance :</strong> {deliveryConditions.parkingDistance} mètres</p>
+                                                                <p>Entre le stationnement du véhicule et l'entrée du bâtiment.</p>
+                                                                <p className="text-sm mt-2 p-2 bg-yellow-200 rounded">
+                                                                    💪 <strong>Impact :</strong> Effort physique supplémentaire requis
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 🪜 NOMBREUSES MARCHES - Seulement si >20 */}
+                                            {deliveryConditions.hasStairs && deliveryConditions.stairCount > 20 && (
+                                                <div className="bg-purple-100 border border-purple-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-purple-600 text-2xl mr-3">🪜</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-purple-800 mb-2">
+                                                                Nombreuses marches d'escaliers
+                                                            </h4>
+                                                            <div className="text-purple-700">
+                                                                <p><strong>Nombre de marches :</strong> {deliveryConditions.stairCount}</p>
+                                                                <p>Jusqu'au point de livraison final.</p>
+                                                                <p className="text-sm mt-2 p-2 bg-purple-200 rounded">
+                                                                    ⚠️ <strong>Précaution :</strong> Risque de fatigue, pauses recommandées
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 🔧 MONTAGE NÉCESSAIRE - Seulement si présent */}
+                                            {deliveryConditions.needsAssembly && (
+                                                <div className="bg-red-100 border border-red-300 rounded-lg p-4">
+                                                    <div className="flex items-start">
+                                                        <span className="text-red-600 text-2xl mr-3">🔧</span>
+                                                        <div className="flex-1">
+                                                            <h4 className="font-semibold text-red-800 mb-2">
+                                                                Montage ou installation nécessaire
+                                                            </h4>
+                                                            <div className="text-red-700">
+                                                                <p>Assemblage de meubles, installation d'arbres, plantes ou équipements.</p>
+                                                                {user?.role === 'admin' || user?.role === 'chauffeur' ? (
+                                                                    <p className="text-sm mt-2 p-2 bg-red-200 rounded">
+                                                                        🛠️ <strong>Préparation :</strong> Vérifier les outils nécessaires avant départ
+                                                                    </p>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* 📊 CALCUL DES ÉQUIPIERS - Toujours affiché si conditions présentes */}
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                        <h4 className="font-medium text-green-800 mb-3 flex items-center">
+                                            <span className="mr-2">📊</span>
+                                            Impact sur les équipiers requis
+                                        </h4>
+
+                                        {(() => {
+                                            const articles = commande.articles?.dimensions || [];
+
+                                            // Calculs de base
+                                            const heaviestWeight = articles.length > 0 ? Math.max(...articles.map(a => a.poids || 0)) : 0;
+                                            const totalWeight = articles.reduce((sum, article) =>
+                                                sum + ((article.poids || 0) * (article.quantite || 1)), 0
+                                            );
+                                            const totalItems = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
+
+                                            // Conditions qui ajoutent des équipiers
+                                            const activeConditions = [];
+                                            let requiredCrew = 0;
+
+                                            if (heaviestWeight >= 30) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Article lourd : ${heaviestWeight}kg`);
+                                            }
+
+                                            const hasElevator = commande.client?.adresse?.ascenseur;
+                                            if (hasElevator && totalWeight > 300) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Charge lourde avec ascenseur : ${totalWeight}kg`);
+                                            } else if (!hasElevator && totalWeight > 200) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Charge lourde sans ascenseur : ${totalWeight}kg`);
+                                            }
+
+                                            if (totalItems > 20) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Nombreux articles : ${totalItems}`);
+                                            }
+
+                                            // Ajouter les conditions spéciales présentes
+                                            if (deliveryConditions.rueInaccessible) {
+                                                requiredCrew++;
+                                                activeConditions.push('Rue inaccessible');
+                                            }
+
+                                            if (deliveryConditions.paletteComplete) {
+                                                requiredCrew++;
+                                                activeConditions.push('Palette complète');
+                                            }
+
+                                            if (deliveryConditions.parkingDistance > 50) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Distance portage : ${deliveryConditions.parkingDistance}m`);
+                                            }
+
+                                            if (effectiveFloor > 2 && !hasElevator) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Étage élevé : ${effectiveFloor}ème`);
+                                            }
+
+                                            if (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20) {
+                                                requiredCrew++;
+                                                activeConditions.push(`Nombreuses marches : ${deliveryConditions.stairCount}`);
+                                            }
+
+                                            if (deliveryConditions.needsAssembly) {
+                                                requiredCrew++;
+                                                activeConditions.push('Montage nécessaire');
+                                            }
+
+                                            return (
+                                                <div className="space-y-3">
+                                                    {/* Résultat final */}
+                                                    <div className="flex items-center justify-between p-3 bg-white rounded border-2 border-green-300">
+                                                        <div>
+                                                            <p className="font-medium text-green-800">
+                                                                Équipiers requis avec ces conditions :
+                                                            </p>
+                                                            <p className="text-sm text-green-700">
+                                                                {activeConditions.length} condition{activeConditions.length > 1 ? 's' : ''} détectée{activeConditions.length > 1 ? 's' : ''}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-2xl font-bold text-green-600">{requiredCrew}</p>
+                                                            <p className="text-sm text-green-700">équipier{requiredCrew > 1 ? 's' : ''}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Comparaison avec sélection */}
+                                                    <div className={`p-3 rounded border ${(commande.livraison?.equipiers || 0) >= requiredCrew
+                                                        ? 'bg-green-100 border-green-300'
+                                                        : 'bg-red-100 border-red-300'
+                                                        }`}>
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="font-medium">
+                                                                Équipiers assignés : {commande.livraison?.equipiers || 0}
+                                                            </span>
+                                                            <span className={`font-bold ${(commande.livraison?.equipiers || 0) >= requiredCrew
+                                                                ? 'text-green-600'
+                                                                : 'text-red-600'
+                                                                }`}>
+                                                                {(commande.livraison?.equipiers || 0) >= requiredCrew ? '✅ Suffisant' : '⚠️ Insuffisant'}
+                                                            </span>
+                                                        </div>
+                                                        {(commande.livraison?.equipiers || 0) < requiredCrew && (
+                                                            <p className="text-red-700 text-sm mt-1 font-medium">
+                                                                ⚠️ ATTENTION : Il manque {requiredCrew - (commande.livraison?.equipiers || 0)} équipier{requiredCrew - (commande.livraison?.equipiers || 0) > 1 ? 's' : ''} !
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Message devis si nécessaire */}
+                                                    {requiredCrew >= 3 && (
+                                                        <div className="p-3 bg-yellow-100 border border-yellow-300 rounded">
+                                                            <p className="font-medium text-yellow-800">💰 Devis obligatoire</p>
+                                                            <p className="text-yellow-700 text-sm">
+                                                                Cette livraison nécessite {requiredCrew} équipiers, un devis spécial est requis.
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
                 );
             case 'photos-articles':
@@ -770,14 +773,16 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         )}
 
                         {/* Zone d'upload */}
-                        <div className="flex flex-col items-center">
-                            <PhotoUploader
-                                onUpload={handlePhotoUpload}
-                                maxPhotos={remainingPhotos}
-                                existingPhotos={photos.map(photo => ({ url: photo.url, file: new File([], '') }))}
-                                MAX_SIZE={10 * 1024 * 1024}
-                            />
-                        </div>
+                        {user?.role !== 'chauffeur' && (
+                            <div className="flex flex-col items-center">
+                                <PhotoUploader
+                                    onUpload={handlePhotoUpload}
+                                    maxPhotos={remainingPhotos}
+                                    existingPhotos={photos.map(photo => ({ url: photo.url, file: new File([], '') }))}
+                                    MAX_SIZE={10 * 1024 * 1024}
+                                />
+                            </div>
+                        )}
                     </div>
                 );
             case 'photos-commentaires':
@@ -786,7 +791,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         {/* ✅ Photos des rapports via Backend */}
                         <PhotosCommentaires
                             commande={commande}
-                            onRefresh={onRefresh}
+                            onUpdate={onUpdate}
+                            onRefresh={handleRefreshWithTabPreservation}
                         />
                     </div>
                 );
@@ -865,10 +871,15 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                 );
             case 'documents':
                 return (
-                    <DocumentViewer
-                        commande={commande}
-                        onUpdate={onUpdate}
-                    />
+                    <>
+                        {user?.role !== 'chauffeur' && (
+                            <DocumentViewer
+                                commande={commande}
+                                onUpdate={onUpdate}
+                                onRefresh={handleRefreshWithTabPreservation}
+                            />)
+                        }
+                    </>
                 );
             case 'actions':
                 return (
@@ -877,21 +888,41 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             <CommandeActions
                                 commande={commande}
                                 onUpdate={onUpdate}
-                                onRefresh={onRefresh}
+                                onRefresh={handleRefreshWithTabPreservation}
                             />
                         )}
-                        {user?.role === 'admin' && (
+                        {user?.role !== 'magasin' && (
                             <AdminActions
                                 commande={commande}
                                 chauffeurs={chauffeurs}
                                 onUpdate={onUpdate}
-                                onRefresh={onRefresh}
+                                onRefresh={handleRefreshWithTabPreservation}
                             />
                         )}
+                        {/* {user?.role === 'chauffeur' && (
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-gray-800">👨‍💼 Espace Chauffeur</h3>
+                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                    <div className="flex items-center">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <p className="text-sm text-blue-700">
+                                                <strong>Commande assignée à vous.</strong><br />
+                                                Consultez tous les détails de livraison dans les onglets ci-dessus.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )} */}
                     </div>
                 );
             default:
-                return null;
+                return <div>Onglet non trouvé</div>;
         }
     };
 
@@ -918,13 +949,13 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            onClick={() => handleTabChange(tab.id)}
                             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors
                                 ${activeTab === tab.id
                                     ? 'border-red-600 text-red-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700'}`}
                         >
-                            {tab.label}
+                            {tab.icon} {tab.label}
                         </button>
                     ))}
                 </nav>

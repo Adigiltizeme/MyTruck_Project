@@ -11,6 +11,13 @@ import { DbMonitor } from '../utils/db-repair';
 import { PendingChange } from './offline-db.service';
 import { SimpleBackendService } from './simple-backend.service';
 
+// Ajout pour permettre l'accès à window.currentAuthUser sans erreur TypeScript
+declare global {
+    interface Window {
+        currentAuthUser?: any;
+    }
+}
+
 export enum DataSource {
     AIRTABLE = 'airtable',
     BACKEND_API = 'backend_api',
@@ -31,15 +38,12 @@ export class DataServiceAdapter {
         this.simpleBackendService = new SimpleBackendService();
         this.isApiAvailable = false;
 
-        console.log('🚀 DataServiceAdapter: Backend API par DÉFAUT');
-
         // Initialisation immédiate et synchrone
         this.initializeDataSourceImmediate();
 
     }
 
     private initializeDataSourceImmediate(): void {
-        console.log('⚡ Initialisation IMMÉDIATE - Backend API prioritaire');
 
         // 1. TOUJOURS essayer Backend API en premier
         this.dataSource = DataSource.BACKEND_API;
@@ -47,13 +51,10 @@ export class DataServiceAdapter {
         // 2. Test asynchone en arrière-plan, mais on commence par Backend
         this.testBackendAndFallback();
 
-        console.log('✅ Source par défaut: Backend API');
     }
 
     private async testBackendAndFallback(): Promise<void> {
         try {
-            console.log('🧪 Test Backend API en arrière-plan...');
-
             // Test simple et rapide
             const response = await fetch('http://localhost:3000/api/v1/health', {
                 method: 'GET',
@@ -64,7 +65,6 @@ export class DataServiceAdapter {
             if (response.ok) {
                 this.isApiAvailable = true;
                 this.dataSource = DataSource.BACKEND_API;
-                console.log('✅ Backend API confirmé disponible');
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -161,7 +161,6 @@ export class DataServiceAdapter {
         );
 
         if (shouldForce) {
-            console.log('🔒 FORÇAGE Backend détecté via marqueurs');
             this.dataSource = DataSource.BACKEND_API;
         }
 
@@ -171,13 +170,11 @@ export class DataServiceAdapter {
     async getCommande(id: string): Promise<CommandeMetier | null> {
         try {
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
-                console.log(`🚀 Récupération commande ${id} via Backend API`);
                 const commande = await this.apiService.getCommande(id);
 
                 // Mettre à jour la base locale
                 await SafeDbService.put('commandes', commande);
 
-                console.log(`✅ Commande ${id} récupérée via Backend API`);
                 return commande;
             } else {
                 return await this.dataService.getCommande(id);
@@ -305,15 +302,13 @@ export class DataServiceAdapter {
         }
     ): Promise<any> {
         try {
-            console.log('📝 updateRapport:', { commandeId, rapportType });
-
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 const result = await this.apiService.patch(
                     `/commandes/${commandeId}/rapports/${rapportType}`,
                     updateData
                 );
 
-                console.log('✅ Rapport mis à jour');
+                console.log('✅ Rapport mis à jour', { commandeId, rapportType });
 
                 // ✅ REFRESH CONTEXTE
                 await this.invalidateCache();
@@ -333,12 +328,10 @@ export class DataServiceAdapter {
         rapportType: 'ENLEVEMENT' | 'LIVRAISON'
     ): Promise<void> {
         try {
-            console.log('📝 deleteRapport:', { commandeId, rapportType });
-
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 await this.apiService.delete(`/commandes/${commandeId}/rapports/${rapportType}`);
 
-                console.log('✅ Rapport supprimé');
+                console.log('✅ Rapport supprimé', { commandeId, rapportType });
 
                 // ✅ REFRESH CONTEXTE
                 await this.invalidateCache();
@@ -354,17 +347,11 @@ export class DataServiceAdapter {
 
     public async assignChauffeursToCommande(commandeId: string, chauffeurIds: string[]): Promise<CommandeMetier> {
         try {
-            console.log('🚛 assignChauffeursToCommande:', { commandeId, chauffeurIds });
-
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 // ✅ UTILISER L'ENDPOINT DÉDIÉ /assign-chauffeurs (comme /photos)
-                const result = await this.apiService.patch<CommandeMetier>(`/commandes/${commandeId}/assign-chauffeurs`, {
+                await this.apiService.patch<CommandeMetier>(`/commandes/${commandeId}/assign-chauffeurs`, {
                     chauffeurIds: chauffeurIds
                 });
-
-                console.log('✅ Chauffeurs assignés via endpoint dédié');
-                console.log('🔍 Résultat brut Backend:', result);
-
                 await this.invalidateCache();
 
                 // ✅ SOLUTION SIMPLE : Récupérer la commande fraîche (comme photos)
@@ -373,11 +360,6 @@ export class DataServiceAdapter {
                 if (!freshCommande) {
                     throw new Error(`Commande ${commandeId} non trouvée après assignation`);
                 }
-
-                console.log('🔍 Commande fraîche transformée:', {
-                    id: freshCommande.id,
-                    chauffeurs: freshCommande.chauffeurs?.length || 0
-                });
 
                 return freshCommande;
             } else {
@@ -419,52 +401,6 @@ export class DataServiceAdapter {
         }
     }
 
-    // async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
-    //     if (!commande.id) {
-    //         throw new Error('ID de commande requis pour la mise à jour');
-    //     }
-
-    //     try {
-    //         if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
-    //             console.log('📝 updateCommande via Backend API, commande:', commande);
-
-    //             // ✅ VÉRIFIER : Le champ chauffeurIds est-il passé correctement ?
-    //             if (commande.chauffeurIds) {
-    //                 console.log('🚛 Détection chauffeurIds dans updateCommande:', commande.chauffeurIds);
-    //             }
-
-    //             const result = await this.apiService.updateCommande(commande.id, commande);
-
-    //             // Synchroniser avec la base locale
-    //             await SafeDbService.update('commandes', commande.id, result);
-
-    //             return result;
-    //         } else {
-    //             return await this.dataService.updateCommande(commande);
-    //         }
-    //     } catch (error) {
-    //         console.error('Erreur updateCommande, mise à jour locale:', error);
-
-    //         // Mise à jour locale et ajout aux changements en attente
-    //         const existingCommande = await SafeDbService.getById<CommandeMetier>('commandes', commande.id);
-    //         if (!existingCommande) throw new Error('Commande non trouvée');
-
-    //         const updatedCommande = { ...existingCommande, ...commande };
-    //         await SafeDbService.update('commandes', commande.id, updatedCommande);
-
-    //         // Ajouter aux changements en attente
-    //         await SafeDbService.add('pendingChanges', {
-    //             id: uuidv4(),
-    //             entityType: 'commande',
-    //             entityId: commande.id,
-    //             action: 'update',
-    //             data: commande,
-    //             timestamp: Date.now()
-    //         });
-
-    //         return updatedCommande;
-    //     }
-    // }
     async updateCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
         if (!commande.id) {
             throw new Error('ID de commande requis pour la mise à jour');
@@ -550,6 +486,21 @@ export class DataServiceAdapter {
                     updateData.statutLivraison = commande.statuts.livraison;
                 }
 
+                // ✅ CONDITIONS DE LIVRAISON NESTED
+                if (commande.livraison?.details) {
+                    updateData.deliveryDetails = {
+                        hasElevator: commande.livraison.details?.hasElevator || false,
+                        hasStairs: commande.livraison.details?.hasStairs || false,
+                        stairCount: commande.livraison.details?.stairCount || 0,
+                        parkingDistance: commande.livraison.details?.parkingDistance || 0,
+                        needsAssembly: commande.livraison.details?.needsAssembly || false,
+                        rueInaccessible: commande.livraison.details?.rueInaccessible || false,
+                        paletteComplete: commande.livraison.details?.paletteComplete || false,
+                        isDuplex: commande.livraison.details?.isDuplex || false,
+                        deliveryToUpperFloor: commande.livraison.details?.deliveryToUpperFloor || false
+                    };
+                }
+
                 console.log('📝 Données modification (structure nested):', updateData);
 
                 // ✅ APPEL DIRECT PATCH sans transformation
@@ -573,14 +524,11 @@ export class DataServiceAdapter {
         updateData: any
     ): Promise<CommandeMetier> {
         try {
-            console.log('📝 updateCommandeSimple - Bypass transformation');
-            console.log('📝 Données directes:', updateData);
-
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 // ✅ APPEL DIRECT sans transformation
                 const result = await this.apiService.patch<CommandeMetier>(`/commandes/${commandeId}`, updateData);
 
-                console.log('✅ Modification directe réussie');
+                console.log('✅ Modification directe réussie - Bypass transformation', updateData);
 
                 const freshCommande = await this.getCommande(commandeId);
                 return freshCommande || result;
@@ -614,20 +562,17 @@ export class DataServiceAdapter {
     // =====================================
 
     async getMagasins(): Promise<MagasinInfo[]> {
-        console.log(`🏪 getMagasins() - Source: ${this.dataSource}`);
+        // console.log(`🏪 getMagasins() - Source: ${this.dataSource}`);
 
         if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
             try {
-                console.log('🏪 Récupération magasins depuis Backend API...');
                 const magasins = await this.apiService.getMagasins();
-                console.log('✅ Magasins Backend récupérés:', magasins);
                 await this.syncToLocalDb('magasins', magasins);
                 return magasins;
             } catch (error) {
                 console.error('❌ Erreur récupération magasins Backend:', error);
 
                 // ✅ FALLBACK avec les VRAIS IDs créés
-                console.log('🔄 Utilisation des données fallback avec vrais IDs...');
                 return [
                     {
                         id: '76997d1d-2cc9-4144-96b9-4f3b181af0fc',
@@ -658,32 +603,148 @@ export class DataServiceAdapter {
     // =====================================
 
     async getPersonnel(): Promise<PersonnelInfo[]> {
-        console.log(`👥 getPersonnel() - Source: ${this.dataSource}`);
-
         try {
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
-                console.log('🚀 EXCLUSIF: Personnel via Backend API');
                 const personnel = await this.apiService.getPersonnel();
-
-                console.log('📊 Personnel Backend brut:', personnel);
-                console.log('📊 Premier personnel:', personnel[0]);
-
-                if (personnel.length > 0) {
-                    console.log('📊 Structure premier personnel:', Object.keys(personnel[0]));
-                    console.log('📊 Rôle premier personnel:', personnel[0].role);
-                }
 
                 await this.syncToLocalDb('personnel', personnel);
 
-                console.log(`✅ ${personnel.length} personnels récupérés via Backend API`);
                 return personnel;
             } else {
-                console.log('📊 EXCLUSIF: Personnel via Airtable');
                 return await this.dataService.getPersonnel();
             }
         } catch (error) {
             console.error('❌ Erreur getPersonnel:', error);
             return await SafeDbService.getAll<PersonnelInfo>('personnel');
+        }
+    }
+
+    // =====================================
+    // DOCUMENTS
+    // =====================================
+
+    // ✅ Ces méthodes doivent être ajoutées à la classe DataServiceAdapter
+
+    public async generateBonCommande(commandeId: string): Promise<any> {
+        try {
+            console.log('📄 Génération bon de commande:', commandeId);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/bon-commande`, {});
+
+                console.log('✅ Bon de commande généré:', result);
+                return result;
+            } else {
+                throw new Error('Génération documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur génération bon commande:', error);
+            throw error;
+        }
+    }
+
+    public async generateBonCommandeWithRefresh(commandeId: string): Promise<CommandeMetier> {
+        try {
+            console.log('📄 generateBonCommandeWithRefresh - Pattern chauffeurs');
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                // 1. Générer le document
+                const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/bon-commande`, {});
+
+                console.log('✅ Bon de commande généré:', result);
+
+                // 2. Invalider cache (pattern chauffeurs)
+                await this.invalidateCache();
+
+                // 3. Récupérer commande fraîche (pattern éprouvé)
+                const freshCommande = await this.getCommande(commandeId);
+
+                if (!freshCommande) {
+                    throw new Error(`Commande ${commandeId} non trouvée après génération document`);
+                }
+
+                return freshCommande;
+            } else {
+                throw new Error('Génération documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur generateBonCommandeWithRefresh:', error);
+            throw error;
+        }
+    }
+
+    public async generateDevis(commandeId: string, devisData: any): Promise<any> {
+        try {
+            console.log('📄 Génération devis:', commandeId, devisData);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/devis`, devisData);
+
+                console.log('✅ Devis généré:', result);
+                return result;
+            } else {
+                throw new Error('Génération documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur génération devis:', error);
+            throw error;
+        }
+    }
+
+    public async generateFacture(commandeId: string, factureData: any): Promise<any> {
+        try {
+            console.log('📄 Génération facture:', commandeId, factureData);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/facture`, factureData);
+
+                console.log('✅ Facture générée:', result);
+                return result;
+            } else {
+                throw new Error('Génération documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur génération facture:', error);
+            throw error;
+        }
+    }
+
+    public async downloadDocument(documentId: string): Promise<void> {
+        try {
+            console.log('📄 Téléchargement document:', documentId);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const response = await this.apiService.get<any>(`/documents/${documentId}/download`);
+
+                // Pour l'instant, ouvrir l'URL (en attendant Cloudinary)
+                if (response.downloadUrl) {
+                    window.open(response.downloadUrl, '_blank');
+                }
+
+                console.log('✅ Document téléchargé');
+            } else {
+                throw new Error('Téléchargement documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur téléchargement document:', error);
+            throw error;
+        }
+    }
+
+    public async deleteDocument(documentId: string): Promise<void> {
+        try {
+            console.log('🗑️ Suppression document:', documentId);
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                await this.apiService.delete(`/documents/${documentId}`);
+
+                console.log('✅ Document supprimé avec succès');
+            } else {
+                throw new Error('Suppression documents impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur suppression document:', error);
+            throw error;
         }
     }
 
@@ -797,7 +858,13 @@ export class DataServiceAdapter {
             // ✅ Articles flat
             nombreArticles: frontendData.articles?.nombre || 1,
             detailsArticles: frontendData.articles?.details || '',
-            categoriesArticles: frontendData.articles?.categories || []
+            categoriesArticles: frontendData.articles?.categories || [],
+
+            // ✅ Conditions de livraison
+            rueInaccessible: frontendData.livraison?.conditions?.rueInaccessible || false,
+            isDuplex: frontendData.livraison?.conditions?.isDuplex || false,
+            deliveryToUpperFloor: frontendData.livraison?.conditions?.deliveryToUpperFloor || false,
+            paletteComplete: frontendData.livraison?.conditions?.paletteComplete || false,
         };
     }
 
@@ -896,13 +963,9 @@ export class DataServiceAdapter {
                 // ✅ SOLUTION SIMPLE : Récupérer la commande fraîche
                 const freshCommande = await this.getCommande(commandeId);
 
-                console.log('📸 Commande fraîche récupérée:', freshCommande?.articles?.photos?.length || 0, 'photos');
-
                 if (!freshCommande) {
                     throw new Error(`Commande fraîche non trouvée pour l'id: ${commandeId}`);
                 }
-
-                console.log('📸 Commande fraîche récupérée:', freshCommande.articles?.photos?.length || 0, 'photos');
 
                 return freshCommande!;
             } else {
@@ -916,19 +979,13 @@ export class DataServiceAdapter {
 
     public async deletePhotoFromCommande(commandeId: string, updatedPhotos: Array<{ url: string }>): Promise<CommandeMetier> {
         try {
-            console.log('🗑️ deletePhotoFromCommande:', { commandeId, remainingCount: updatedPhotos.length });
-
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 await this.apiService.patch(`/commandes/${commandeId}/photos`, {
                     photos: updatedPhotos
                 });
 
-                console.log('✅ Photo supprimée via endpoint dédié');
-
                 // ✅ SOLUTION SIMPLE : Récupérer la commande fraîche
                 const freshCommande = await this.getCommande(commandeId);
-
-                console.log('📸 Commande fraîche récupérée:', freshCommande?.articles?.photos?.length || 0, 'photos');
 
                 if (!freshCommande) {
                     throw new Error(`Commande fraîche non trouvée pour l'id: ${commandeId}`);
@@ -1184,18 +1241,21 @@ export class DataServiceAdapter {
                 case 'chauffeur':
                     const driverId = this.extractDriverId(user);
                     if (!driverId) {
-                        console.error(`❌ Chauffeur sans driverId:`, user);
+                        console.warn('⚠️ Chauffeur sans ID - retour liste vide');
                         return [];
                     }
 
-                    const driverCommandes = allCommandes.filter(cmd =>
-                        cmd.chauffeurs?.some(chauffeur =>
-                            chauffeur.id === driverId || chauffeur.id === driverId
-                        )
-                    );
+                    console.log(`🚛 Récupération commandes pour chauffeur: ${driverId}`);
 
-                    console.log(`🚛 Chauffeur ${driverId}: ${driverCommandes.length}/${allCommandes.length} commandes`);
-                    return driverCommandes;
+                    if (this.shouldForceBackend()) {
+                        return await this.simpleBackendService.getCommandesByChauffeur(driverId);
+                    } else {
+                        const allCommandes = await this.dataService.getCommandes();
+                        return allCommandes.filter(commande =>
+                            commande.chauffeurs &&
+                            commande.chauffeurs.some(chauffeur => chauffeur.id === driverId)
+                        );
+                    }
 
                 default:
                     console.error(`❌ Rôle non reconnu: ${user.role}`);
@@ -1214,6 +1274,7 @@ export class DataServiceAdapter {
             if (typeof window !== 'undefined' && (window as any).currentAuthUser) {
                 const contextUser = (window as any).currentAuthUser;
                 console.log('✅ Utilisateur via contexte React');
+                window.currentAuthUser = contextUser;
                 return contextUser;
             }
 

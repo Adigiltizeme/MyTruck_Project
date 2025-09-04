@@ -135,7 +135,7 @@ const Layout = () => {
 
         {/* Contenu */}
         <main className="flex-1 overflow-auto bg-theme">
-          <div className={`${isPublicRoute ? 'max-w-7xl' : 'max-w-[90%]'} mx-auto py-6 px-4 sm:px-6 lg:px-8`}>
+          <div className={`${isPublicRoute ? 'max-w-7xl' : 'max-w-[100%]'} mx-auto py-6 px-4 sm:px-6 lg:px-8`}>
             {isAuthenticated && !isPublicRoute && <Breadcrumbs />}
             <Outlet />
           </div>

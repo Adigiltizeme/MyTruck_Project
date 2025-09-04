@@ -48,7 +48,12 @@ export default defineConfig({
     global: 'globalThis',
   },
   server: {
-    port: 3001
+    port: 3001,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      '63597cd8120c.ngrok-free.app',
+    ],
   },
   optimizeDeps: {
     include: ['react', 'react-dom']

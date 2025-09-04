@@ -71,12 +71,12 @@ export class ApiService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         }
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Backend API accessible:', data);
+        await response.json();
       } else {
         console.error('❌ Backend API erreur HTTP:', response.status, response.statusText);
       }
@@ -96,6 +96,7 @@ export class ApiService {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
         },
         // ✅ AJOUT: Options pour éviter les problèmes de cache/CORS
         cache: 'no-cache',
@@ -164,27 +165,22 @@ export class ApiService {
   }
 
   getToken(): string | null {
-    const token = this.token || this.getStoredToken();
-    console.log('🔍 getToken appelé:', {
-      hasToken: !!token,
-      tokenLength: token?.length,
-      source: this.token ? 'memory' : 'localStorage'
-    });
-    return token;
+    return this.token || this.getStoredToken();
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
-    // ✅ CORRECTION: Récupérer le token à chaque requête
+    // ✅ Récupérer le token à chaque requête
     const currentToken = this.getToken();
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
       ...(options.headers as Record<string, string> | undefined)
     };
 
-    // ✅ CORRECTION: Vérifier et ajouter le token
+    // ✅ Vérifier et ajouter le token
     if (currentToken) {
       headers['Authorization'] = `Bearer ${currentToken}`;
     } else {
@@ -206,10 +202,38 @@ export class ApiService {
           this.clearToken();
           throw new Error('Token invalide ou expiré');
         }
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        let errorMessage = `Erreur ${response.status}: ${response.statusText}`;
+
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message; // Message du serveur
+          }
+        } catch (parseError) {
+          // Si impossible de parser JSON, garder le message générique
+          console.warn('⚠️ Impossible de parser le message d\'erreur JSON:', parseError);
+        }
+
+        throw new Error(errorMessage);
       }
 
-      return response.json();
+      // ✅ Vérifier si réponse a du contenu
+      const contentType = response.headers.get('content-type');
+      const contentLength = response.headers.get('content-length');
+
+      // Si pas de contenu ou contenu vide, retourner objet vide
+      if (!contentType?.includes('application/json') || contentLength === '0') {
+        console.log('✅ Réponse sans contenu JSON (DELETE successful)');
+        return {} as T;
+      }
+
+      const text = await response.text();
+      if (!text) {
+        console.log('✅ Réponse vide (DELETE successful)');
+        return {} as T;
+      }
+
+      return JSON.parse(text);
     } catch (error) {
       console.error(`❌ ${options.method || 'GET'} ${endpoint}:`, error);
       throw error;
@@ -302,7 +326,10 @@ export class ApiService {
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    const response = await this.request<T>(endpoint, {
+      method: 'DELETE'
+    });
+    return response;
   }
 
   // =====================================
@@ -403,7 +430,7 @@ export class ApiService {
     const allPhotos = [...existingPhotos, ...newPhotos];
     const response = await fetch(`/api/commandes/${commandeId}/photos`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify({ photos: allPhotos }),
     });
     if (!response.ok) {
@@ -415,7 +442,7 @@ export class ApiService {
   async deletePhotoFromCommande(commandeId: string, updatedPhotos: Array<{ url: string }>) {
     const response = await fetch(`/api/commandes/${commandeId}/photos`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
       body: JSON.stringify({ photos: updatedPhotos }),
     });
     if (!response.ok) {
@@ -502,14 +529,11 @@ export class ApiService {
   // =====================================
 
   async getPersonnel(): Promise<PersonnelInfo[]> {
-    console.log('🔍 API getPersonnel appelé');
-
     try {
       // ✅ CORRECTION : Utiliser l'endpoint chauffeurs
       const response = await this.get<ApiResponse<PersonnelInfo[]>>('/chauffeurs');
       const personnel = response.data || response as any;
 
-      console.log('📊 Réponse Backend getPersonnel:', personnel);
       return personnel;
     } catch (error) {
       console.error('❌ Erreur API getPersonnel:', error);
@@ -616,113 +640,22 @@ export class ApiService {
   // TRANSFORMATIONS DE DONNÉES
   // =====================================
 
-  // private transformCommandeToApi(commande: Partial<CommandeMetier>): any {
-  //   console.log('🔄 Transformation Frontend → API...');
-  //   console.log('🔄 ===== TRANSFORMATION DISPATCH =====');
-  //   console.log('🔄 Commande Frontend reçue:', commande);
-  //   console.log('🔄 Chauffeurs Frontend:', commande.chauffeurs);
-
-  //   const apiData: any = {};
-
-  //   if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
-  //     apiData.chauffeurIds = commande.chauffeurIds;
-  //     console.log('🔄 ChauffeurIds ajoutés:', apiData.chauffeurIds);
-  //   }
-
-  //   if (commande.statutCommande) {
-  //     apiData.statutCommande = commande.statutCommande;
-  //   }
-  //   if (commande.statutLivraison) {
-  //     apiData.statutLivraison = commande.statutLivraison;
-  //   }
-  //   // ✅ Gérer tarifHT
-  //   if (commande.tarifHT !== undefined) {
-  //     apiData.tarifHT = Number(commande.tarifHT);
-  //     console.log('💰 TarifHT ajouté:', apiData.tarifHT);
-  //   }
-
-  //   // ✅ GESTION FINANCIER OBJECT (structure alternative)
-  //   if (commande.financier?.tarifHT !== undefined) {
-  //     apiData.tarifHT = Number(commande.financier.tarifHT);
-  //     console.log('💰 TarifHT depuis financier:', apiData.tarifHT);
-  //   }
-
-  //   // ✅ Champs de base
-  //   if (commande.numeroCommande) apiData.numeroCommande = commande.numeroCommande;
-  //   if (commande.dates?.livraison) apiData.dateLivraison = commande.dates.livraison;
-  //   if (commande.livraison?.creneau) apiData.creneauLivraison = commande.livraison.creneau;
-  //   if (commande.livraison?.vehicule) apiData.categorieVehicule = commande.livraison.vehicule;
-  //   if (commande.livraison?.equipiers !== undefined) apiData.optionEquipier = parseInt(String(commande.livraison.equipiers), 10);
-  //   if (commande.livraison?.reserve !== undefined) apiData.reserveTransport = commande.livraison.reserve;
-  //   if (commande.livraison?.remarques !== undefined) apiData.remarques = commande.livraison.remarques || '';
-
-  //   // ✅ STATUTS
-  //   if (commande.statuts?.commande) apiData.statutCommande = commande.statuts.commande;
-  //   if (commande.statuts?.livraison) apiData.statutLivraison = commande.statuts.livraison;
-  //   if (commande.statutCommande) apiData.statutCommande = commande.statutCommande;
-  //   if (commande.statutLivraison) apiData.statutLivraison = commande.statutLivraison;
-
-  //   // ✅ CHAUFFEURS
-  //   if (commande.chauffeurIds && Array.isArray(commande.chauffeurIds)) {
-  //     apiData.chauffeurIds = commande.chauffeurIds;
-  //     console.log('🚛 ChauffeurIds ajoutés:', apiData.chauffeurIds);
-  //   }
-
-  //   // ✅ Remarques
-  //   if (commande.remarques) {
-  //     apiData.remarques = commande.remarques;
-  //     console.log('📝 Remarques ajoutées:', apiData.remarques);
-  //   }
-
-  //   console.log('🔄 Output API final:', apiData);
-
-  //   return {
-  //     // ✅ Champs de base
-  //     numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
-  //     dateLivraison: commande.dates?.livraison || new Date().toISOString(),
-  //     creneauLivraison: commande.livraison?.creneau,
-  //     categorieVehicule: commande.livraison?.vehicule,
-  //     optionEquipier: parseInt(String(commande.livraison?.equipiers || 0), 10),
-  //     tarifHT: parseFloat(String(commande.financier?.tarifHT || 0)),
-  //     reserveTransport: commande.livraison?.reserve || false,
-  //     prenomVendeur: commande.vendeur?.prenom || null, // ✅ null au lieu d'undefined
-  //     remarques: commande.livraison?.remarques || '',
-  //     // ✅ Magasin
-  //     magasinId: commande.magasin?.id,
-
-  //     // ✅ STRUCTURE NESTED pour client
-  //     client: {
-  //       nom: commande.client?.nom,
-  //       prenom: commande.client?.prenom,
-  //       telephone: commande.client?.telephone?.principal || commande.client?.telephone,
-  //       telephoneSecondaire: commande.client?.telephone?.secondaire || '',
-  //       adresseLigne1: commande.client?.adresse?.ligne1,
-  //       batiment: commande.client?.adresse?.batiment || '',
-  //       etage: commande.client?.adresse?.etage || '',
-  //       interphone: commande.client?.adresse?.interphone || '',
-  //       ascenseur: commande.client?.adresse?.ascenseur || false,
-  //       typeAdresse: commande.client?.adresse?.type || 'Domicile',
-  //     },
-
-  //     // ✅ STRUCTURE NESTED pour articles
-  //     articles: {
-  //       nombre: parseInt(String(commande.articles?.nombre || 1), 10),
-  //       details: commande.articles?.details || '',
-  //       dimensions: commande.articles?.dimensions || [],
-  //       photos: commande.articles?.photos || [],
-  //       newPhotos: commande.articles?.newPhotos || [],
-  //       canBeTilted: commande.articles?.canBeTilted || false,
-  //     },
-  //     // ✅ STRUCTURE NESTED pour statuts
-  //     statuts: {
-  //       livraison: commande.statuts?.livraison || 'EN ATTENTE',
-  //       commande: commande.statuts?.commande || 'En attente',
-  //     },
-  //   };
-  // }
   private transformCommandeToApi(commande: Partial<CommandeMetier>): any {
     console.log('🔄 Transformation Frontend → API...');
     console.log('🔄 Commande Frontend reçue:', commande);
+
+    let deliveryConditions = null;
+    try {
+      if (typeof commande.livraison?.details === 'string') {
+        deliveryConditions = JSON.parse(commande.livraison.details);
+      } else if (commande.livraison?.details) {
+        deliveryConditions = commande.livraison.details;
+      }
+    } catch (e) {
+      console.warn('Impossible de parser les détails de livraison:', e);
+    }
+
+    console.log('🔍 Conditions de livraison extraites:', deliveryConditions);
 
     // ✅ DÉTECTION : Création vs Modification
     const isModification = !!commande.id;
@@ -782,6 +715,15 @@ export class ApiService {
         ...(commande.chauffeurs && {
           chauffeurIds: commande.chauffeurs.map(ch => ch.id)
         }),
+
+        // Documents nested
+        ...(commande.documents && {
+          documents: commande.documents.map((doc: { id: string; type: string; url: string }) => ({
+            id: doc.id,
+            type: doc.type,
+            url: doc.url
+          }))
+        }),
       };
     } else {
       console.log('🔄 Mode CRÉATION - Structure flat');
@@ -827,6 +769,31 @@ export class ApiService {
 
         // Chauffeurs flat
         chauffeurIds: commande.chauffeurs ? commande.chauffeurs.map(ch => ch.id) : [],
+
+        // Documents flat
+        documents: commande.documents ? commande.documents.map((doc: { id: string; type: string; url: string }) => ({
+          id: doc.id,
+          type: doc.type,
+          url: doc.url
+        })) : [],
+        ...(deliveryConditions && {
+          // Conditions de base
+          rueInaccessible: deliveryConditions.rueInaccessible || false,
+          paletteComplete: deliveryConditions.paletteComplete || false,
+          parkingDistance: deliveryConditions.parkingDistance || 0,
+          needsAssembly: deliveryConditions.needsAssembly || false,
+
+          // Escaliers
+          hasStairs: deliveryConditions.hasStairs || false,
+          stairCount: deliveryConditions.stairCount || 0,
+
+          // Duplex/Maison
+          isDuplex: deliveryConditions.isDuplex || false,
+          deliveryToUpperFloor: deliveryConditions.deliveryToUpperFloor || false,
+
+          // Autres conditions existantes
+          // canBeTiltedFromDetails: deliveryConditions.canBeTilted || false // Pour éviter conflit avec canBeTilted articles
+        })
       };
     }
   }
@@ -857,7 +824,7 @@ export class ApiService {
       });
     }
 
-    const headers: HeadersInit = {};
+    const headers: HeadersInit = { 'ngrok-skip-browser-warning': 'true' };
     const currentToken = this.getToken();
     if (currentToken) {
       headers['Authorization'] = `Bearer ${currentToken}`;
@@ -888,6 +855,7 @@ export class ApiService {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
         ...options.headers
       },
       body: JSON.stringify(data),

@@ -7,6 +7,7 @@ import { Marker } from 'react-map-gl';
 import { Modal } from './Modal';
 import { useOffline } from '../contexts/OfflineContext';
 import { StatusManager } from './StatusManager';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AdminActionsProps {
     commande: CommandeMetier;
@@ -35,6 +36,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     const [currentChauffeurs, setCurrentChauffeurs] = useState<string[]>([]);
 
     const { dataService, isOnline } = useOffline();
+    const { user } = useAuth();
 
     // Suivi en temps réel
     useEffect(() => {
@@ -341,56 +343,60 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     return (
         <div className="space-y-4">
             {/* Section Attribution des chauffeurs */}
-            <div className="p-4 border rounded-lg">
-                <h3 className="text-lg font-medium mb-4">🚛 Gestion des chauffeurs</h3>
+            {user?.role === 'admin' && (commande.statuts.livraison === 'EN ATTENTE'
+                || commande.statuts.livraison === 'CONFIRMEE')
+                && (
+                    <div className="p-4 border rounded-lg">
+                        <h3 className="text-lg font-medium mb-4">🚛 Gestion dispatching</h3>
 
-                {/* Chauffeurs actuels */}
-                <div className="mb-4">
-                    <h4 className="font-medium text-gray-700 mb-2">Chauffeurs assignés :</h4>
-                    {commande.chauffeurs && commande.chauffeurs.length > 0 ? (
-                        <div className="space-y-2">
-                            {commande.chauffeurs.map((chauffeur, index) => (
-                                <div key={chauffeur.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                    <div>
-                                        <span className="font-medium">{chauffeur.prenom} {chauffeur.nom}</span>
-                                        <span className="text-sm text-gray-500 ml-2">{chauffeur.telephone}</span>
-                                    </div>
-                                    <button
-                                        onClick={() => handleRemoveChauffeur(chauffeur.id)}
-                                        className="text-gray-600 hover:text-gray-800 text-sm"
-                                    >
-                                        Retirer
-                                    </button>
+                        {/* Chauffeurs actuels */}
+                        <div className="mb-4">
+                            <h4 className="font-medium text-gray-700 mb-2">Chauffeurs assignés :</h4>
+                            {commande.chauffeurs && commande.chauffeurs.length > 0 ? (
+                                <div className="space-y-2">
+                                    {commande.chauffeurs.map((chauffeur, index) => (
+                                        <div key={chauffeur.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                            <div>
+                                                <span className="font-medium">{chauffeur.prenom} {chauffeur.nom}</span>
+                                                <span className="text-sm text-gray-500 ml-2">{chauffeur.telephone}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => handleRemoveChauffeur(chauffeur.id)}
+                                                className="text-gray-600 hover:text-gray-800 text-sm"
+                                            >
+                                                Retirer
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
+                            ) : (
+                                <p className="text-gray-500">Aucun chauffeur assigné</p>
+                            )}
                         </div>
-                    ) : (
-                        <p className="text-gray-500">Aucun chauffeur assigné</p>
-                    )}
-                </div>
 
-                {/* Boutons d'actions */}
-                <div className="flex space-x-2">
-                    <button
-                        onClick={handleManageChauffeurs}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                    >
-                        {commande.chauffeurs && commande.chauffeurs.length > 0
-                            ? "Modifier les chauffeurs"
-                            : "Dispatcher"
-                        }
-                    </button>
+                        {/* Boutons d'actions */}
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={handleManageChauffeurs}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                            >
+                                {commande.chauffeurs && commande.chauffeurs.length > 0
+                                    ? "Modifier les chauffeurs"
+                                    : "Dispatcher"
+                                }
+                            </button>
 
-                    {commande.chauffeurs && commande.chauffeurs.length > 0 && (
-                        <button
-                            onClick={handleRemoveAllChauffeurs}
-                            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                        >
-                            Retirer tous
-                        </button>
-                    )}
-                </div>
-            </div>
+                            {commande.chauffeurs && commande.chauffeurs.length > 0 && (
+                                <button
+                                    onClick={handleRemoveAllChauffeurs}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                                >
+                                    Retirer tous
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
 
             {/* Modal de gestion complète */}
             {showManageChauffeursModal && (
@@ -505,110 +511,115 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             )}
 
             {/* Section Tarification */}
-            <div className="p-4 border rounded-lg">
-                <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
-                <div className="space-y-4 space-x-2">
-                    <button
-                        onClick={() => setShowTarifModal(true)}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                        Définir le tarif
-                    </button>
+            {user?.role === 'admin' && (
+                <>
+                    <div className="p-4 border rounded-lg">
+                        <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
+                        <div className="space-y-4 space-x-2">
+                            <button
+                                onClick={() => setShowTarifModal(true)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                                Définir le tarif
+                            </button>
 
-                    {besoinDevis ? (
-                        <button
-                            onClick={genererDevis}
-                            disabled={loading || !tarif}
-                            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
-                        >
-                            Générer un devis
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => setShowFactureModal(true)}
-                            disabled={loading || !tarif || commande?.statuts?.livraison !== 'LIVREE'}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                            Générer une facture
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Modal Tarif */}
-            <AnimatePresence>
-                {showTarifModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-                    >
-                        <div className="bg-white p-6 rounded-lg w-96">
-                            <h3 className="text-lg font-medium mb-4">Définir le tarif</h3>
-                            <input
-                                type="number"
-                                value={tarif}
-                                onChange={(e) => setTarif(Number(e.target.value))}
-                                className="w-full border rounded-lg px-3 py-2 mb-4"
-                                placeholder="Montant HT"
-                            />
-                            <div className="flex justify-end space-x-2">
+                            {besoinDevis ? (
                                 <button
-                                    onClick={() => setShowTarifModal(false)}
-                                    className="px-4 py-2 border rounded-lg"
+                                    onClick={genererDevis}
+                                    disabled={loading || !tarif}
+                                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
                                 >
-                                    Annuler
+                                    Générer un devis
                                 </button>
+                            ) : (
                                 <button
-                                    onClick={handleTarifUpdate}
-                                    disabled={loading}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg"
+                                    onClick={() => setShowFactureModal(true)}
+                                    disabled={loading || !tarif || commande?.statuts?.livraison !== 'LIVREE'}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                                 >
-                                    Valider
+                                    Générer une facture
                                 </button>
-                            </div>
+                            )}
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    </div>
 
-            {/* Modal Facture */}
-            <AnimatePresence>
-                {showFactureModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-                    >
-                        <div className="bg-white p-6 rounded-lg w-96">
-                            <h3 className="text-lg font-medium mb-4">Générer une facture</h3>
-                            <input
-                                type="date"
-                                value={dateFacture}
-                                onChange={(e) => setDateFacture(e.target.value)}
-                                className="w-full border rounded-lg px-3 py-2 mb-4"
-                            />
-                            <div className="flex justify-end space-x-2">
-                                <button
-                                    onClick={() => setShowFactureModal(false)}
-                                    className="px-4 py-2 border rounded-lg"
-                                >
-                                    Annuler
-                                </button>
-                                <button
-                                    onClick={genererFacture}
-                                    disabled={loading}
-                                    className="px-4 py-2 bg-primary text-white rounded-lg"
-                                >
-                                    Générer
-                                </button>
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    {/* Modal Tarif */}
+                    <AnimatePresence>
+                        {showTarifModal && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                            >
+                                <div className="bg-white p-6 rounded-lg w-96">
+                                    <h3 className="text-lg font-medium mb-4">Définir le tarif</h3>
+                                    <input
+                                        type="number"
+                                        value={tarif}
+                                        onChange={(e) => setTarif(Number(e.target.value))}
+                                        className="w-full border rounded-lg px-3 py-2 mb-4"
+                                        placeholder="Montant HT"
+                                    />
+                                    <div className="flex justify-end space-x-2">
+                                        <button
+                                            onClick={() => setShowTarifModal(false)}
+                                            className="px-4 py-2 border rounded-lg"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={handleTarifUpdate}
+                                            disabled={loading}
+                                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                                        >
+                                            Valider
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {/* Modal Facture */}
+                    <AnimatePresence>
+                        {showFactureModal && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                            >
+                                <div className="bg-white p-6 rounded-lg w-96">
+                                    <h3 className="text-lg font-medium mb-4">Générer une facture</h3>
+                                    <input
+                                        type="date"
+                                        value={dateFacture}
+                                        onChange={(e) => setDateFacture(e.target.value)}
+                                        className="w-full border rounded-lg px-3 py-2 mb-4"
+                                    />
+                                    <div className="flex justify-end space-x-2">
+                                        <button
+                                            onClick={() => setShowFactureModal(false)}
+                                            className="px-4 py-2 border rounded-lg"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={genererFacture}
+                                            disabled={loading}
+                                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                                        >
+                                            Générer
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </>
+            )}
+
         </div>
     );
 };

@@ -1,4 +1,4 @@
-import { CommandeMetier, PersonnelInfo } from '../types/business.types';
+import { CommandeMetier, MagasinInfo, PersonnelInfo } from '../types/business.types';
 
 export class SimpleBackendService {
     private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
@@ -8,6 +8,7 @@ export class SimpleBackendService {
 
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
             ...(options.headers as Record<string, string> | undefined)
         };
 
@@ -29,127 +30,171 @@ export class SimpleBackendService {
 
     // ✅ TRANSFORMATION EXACTE BACKEND → FRONTEND
     private transformBackendToFrontend(backendData: any): CommandeMetier {
-        console.log('🔄 Transform Backend → Frontend pour:', backendData.numeroCommande);
-        // console.log('🔄 Articles bruts:', backendData.articles);
-        console.log('🔍 Client Backend brut:', backendData.client);
-        console.log('🔍 Etage Backend:', backendData.client?.etage);
-        console.log('🔍 Interphone Backend:', backendData.client?.interphone);
-        console.log('🔍 Ascenseur Backend:', backendData.client?.ascenseur);
+        // console.log('🔄 Transform Backend → Frontend pour:', backendData.numeroCommande);
+        // // console.log('🔄 Articles bruts:', backendData.articles);
+        // console.log('🔍 Client Backend brut:', backendData.client);
+        // console.log('🔍 Etage Backend:', backendData.client?.etage);
+        // console.log('🔍 Interphone Backend:', backendData.client?.interphone);
+        // console.log('🔍 Ascenseur Backend:', backendData.client?.ascenseur);
 
-        const result = {
-            id: backendData.id,
-            numeroCommande: backendData.numeroCommande,
+        // ✅ PROTECTION : Vérifier que les données existent
+        if (!backendData || !backendData.id) {
+            console.error('❌ Données Backend invalides:', backendData);
+            throw new Error('Données commande invalides reçues du Backend');
+        }
 
-            dates: {
-                livraison: backendData.dateLivraison,
-                commande: backendData.dateCommande,
-                misAJour: backendData.updatedAt
-            },
+        try {
+            const result = {
+                id: backendData.id,
+                numeroCommande: backendData.numeroCommande,
 
-            statuts: {
-                commande: backendData.statutCommande || 'En attente',
-                livraison: backendData.statutLivraison || 'EN ATTENTE'
-            },
-
-            livraison: {
-                creneau: backendData.creneauLivraison,
-                vehicule: backendData.categorieVehicule,
-                equipiers: backendData.optionEquipier || 0,
-                reserve: backendData.reserveTransport || false,
-                remarques: backendData.remarques || '',
-            },
-            // ✅ AJOUT CRITIQUE : Champ racine "reserve"
-            reserve: backendData.reserveTransport || false,
-
-            client: {
-                nom: backendData.client?.nom || '',
-                prenom: backendData.client?.prenom || '',
-                nomComplet: `${backendData.client?.prenom || ''} ${backendData.client?.nom || ''}`.trim(),
-                telephone: {
-                    principal: backendData.client?.telephone || '',
-                    secondaire: backendData.client?.telephoneSecondaire || ''
+                dates: {
+                    livraison: backendData.dateLivraison,
+                    commande: backendData.dateCommande,
+                    misAJour: backendData.updatedAt
                 },
-                adresse: {
-                    type: backendData.client?.typeAdresse || 'Domicile',
-                    ligne1: backendData.client?.adresseLigne1 || '',
-                    batiment: backendData.client?.batiment || '',
-                    etage: backendData.client?.etage !== undefined
-                        ? String(backendData.client.etage)
+
+                statuts: {
+                    commande: backendData.statutCommande || 'En attente',
+                    livraison: backendData.statutLivraison || 'EN ATTENTE'
+                },
+
+                livraison: {
+                    creneau: backendData.creneauLivraison,
+                    vehicule: backendData.categorieVehicule,
+                    equipiers: backendData.optionEquipier || 0,
+                    reserve: backendData.reserveTransport || false,
+                    remarques: backendData.remarques || '',
+                    details: {
+                        // Conditions existantes
+                        hasElevator: backendData.clientAscenseur || false,
+                        hasStairs: backendData.hasStairs || false,
+                        stairCount: backendData.stairCount || 0,
+                        parkingDistance: backendData.parkingDistance || 0,
+                        needsAssembly: backendData.needsAssembly || false,
+                        // 🆕 NOUVELLES CONDITIONS
+                        rueInaccessible: backendData.rueInaccessible || false,
+                        paletteComplete: backendData.paletteComplete || false,
+                        isDuplex: backendData.isDuplex || false,
+                        deliveryToUpperFloor: backendData.deliveryToUpperFloor || false
+                    }
+                },
+
+                validation: {
+                    requiredCrewSize: backendData.requiredCrewSize,
+                    heaviestArticleWeight: backendData.heaviestArticleWeight,
+                    needsQuote: backendData.needsQuote,
+                    lastValidationAt: backendData.lastValidationAt,
+                    details: backendData.validationDetails ? JSON.parse(backendData.validationDetails) : null
+                },
+                // ✅ AJOUT CRITIQUE : Champ racine "reserve"
+                reserve: backendData.reserveTransport || false,
+
+                client: {
+                    nom: backendData.client?.nom || '',
+                    prenom: backendData.client?.prenom || '',
+                    nomComplet: `${backendData.client?.prenom || ''} ${backendData.client?.nom || ''}`.trim(),
+                    telephone: {
+                        principal: backendData.client?.telephone || '',
+                        secondaire: backendData.client?.telephoneSecondaire || ''
+                    },
+                    adresse: {
+                        type: backendData.client?.typeAdresse || 'Domicile',
+                        ligne1: backendData.client?.adresseLigne1 || '',
+                        batiment: backendData.client?.batiment || '',
+                        etage: backendData.client?.etage !== undefined
+                            ? String(backendData.client.etage)
+                            : '',
+                        ascenseur: backendData.client?.ascenseur === true,
+                        interphone: backendData.client?.interphone !== undefined
+                            ? String(backendData.client.interphone)
+                            : '',
+                    }
+                },
+
+                magasin: backendData.magasin ? {
+                    id: backendData.magasin.id,
+                    name: backendData.magasin.nom, // ✅ Backend.nom → Frontend.name
+                    address: backendData.magasin.adresse, // ✅ Backend.adresse → Frontend.address
+                    phone: backendData.magasin.telephone,
+                    email: backendData.magasin.email,
+                    status: backendData.magasin.status || 'actif',
+                    photo: backendData.magasin.photo || '',
+                    manager: backendData.magasin.manager || ''
+                } : {
+                    id: '',
+                    name: '',
+                    address: '',
+                    phone: '',
+                    email: '',
+                    status: '',
+                    photo: '',
+                    manager: ''
+                },
+
+                // ✅ CORRECTION CRITIQUE : Articles avec array[0]
+                articles: {
+                    nombre: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].nombre
+                        : 0,
+                    details: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].details || ''
                         : '',
-                    ascenseur: backendData.client?.ascenseur === true,
-                    interphone: backendData.client?.interphone !== undefined
-                        ? String(backendData.client.interphone)
-                        : '',
-                }
-            },
+                    photos: backendData.photos ?
+                        backendData.photos
+                            .filter((photo: { type: string }) => photo.type === 'ARTICLE')
+                            .map((photo: { url: string }) => ({ url: photo.url }))
+                        : [],
+                    newPhotos: [],
+                    categories: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].categories || []
+                        : [],
+                    dimensions: this.extractDimensions(backendData),
+                    canBeTilted: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].canBeTilted || false
+                        : false
+                },
 
-            magasin: backendData.magasin ? {
-                id: backendData.magasin.id,
-                name: backendData.magasin.nom, // ✅ Backend.nom → Frontend.name
-                address: backendData.magasin.adresse, // ✅ Backend.adresse → Frontend.address
-                phone: backendData.magasin.telephone,
-                email: backendData.magasin.email,
-                status: backendData.magasin.status || 'actif',
-                photo: backendData.magasin.photo || '',
-                manager: backendData.magasin.manager || ''
-            } : {
-                id: '',
-                name: '',
-                address: '',
-                phone: '',
-                email: '',
-                status: '',
-                photo: '',
-                manager: ''
-            },
+                chauffeurs: backendData.chauffeurs?.map((assignment: any) => ({
+                    id: assignment.chauffeur.id,
+                    nom: assignment.chauffeur.nom,
+                    prenom: assignment.chauffeur.prenom,
+                    telephone: assignment.chauffeur.telephone,
+                    email: assignment.chauffeur.email,
+                    role: 'Chauffeur',
+                    status: assignment.chauffeur.status || 'Actif'
+                })) || [],
 
-            // ✅ CORRECTION CRITIQUE : Articles avec array[0]
-            articles: {
-                nombre: backendData.articles && backendData.articles.length > 0
-                    ? backendData.articles[0].nombre
-                    : 0,
-                details: backendData.articles && backendData.articles.length > 0
-                    ? backendData.articles[0].details || ''
-                    : '',
-                photos: backendData.photos ?
-                    backendData.photos
-                        .filter((photo: { type: string }) => photo.type === 'ARTICLE')
-                        .map((photo: { url: string }) => ({ url: photo.url }))
-                    : [],
-                newPhotos: [],
-                categories: backendData.articles && backendData.articles.length > 0
-                    ? backendData.articles[0].categories || []
-                    : [],
-                dimensions: this.extractDimensions(backendData),
-                canBeTilted: backendData.articles && backendData.articles.length > 0
-                    ? backendData.articles[0].canBeTilted || false
-                    : false
-            },
+                financier: {
+                    tarifHT: parseFloat(backendData.tarifHT) || 0
+                },
 
-            chauffeurs: backendData.chauffeurs?.map((assignment: any) => ({
-                id: assignment.chauffeur.id,
-                nom: assignment.chauffeur.nom,
-                prenom: assignment.chauffeur.prenom,
-                telephone: assignment.chauffeur.telephone,
-                email: assignment.chauffeur.email,
-                role: 'Chauffeur',
-                status: assignment.chauffeur.status || 'Actif'
-            })) || [],
+                documents: backendData.documents || [],
 
-            financier: {
-                tarifHT: parseFloat(backendData.tarifHT) || 0
-            },
+                createdAt: backendData.createdAt,
+                updatedAt: backendData.updatedAt
+            };
+            // console.log('🔍 ===== APRÈS TRANSFORMATION =====');
+            // console.log('🔍 Frontend etage:', result.client.adresse.etage);
+            // console.log('🔍 Frontend interphone:', result.client.adresse.interphone);
+            // console.log('🔍 Frontend ascenseur:', result.client.adresse.ascenseur);
+            // console.log('🔍 Frontend tel secondaire:', result.client.telephone.secondaire);
 
-            createdAt: backendData.createdAt,
-            updatedAt: backendData.updatedAt
-        };
-        console.log('🔍 ===== APRÈS TRANSFORMATION =====');
-        console.log('🔍 Frontend etage:', result.client.adresse.etage);
-        console.log('🔍 Frontend interphone:', result.client.adresse.interphone);
-        console.log('🔍 Frontend ascenseur:', result.client.adresse.ascenseur);
-        console.log('🔍 Frontend tel secondaire:', result.client.telephone.secondaire);
+            // console.log('✅ Transformation réussie:', {
+            //     id: result.id,
+            //     numero: result.numeroCommande,
+            //     client: result.client.nomComplet,
+            //     magasin: result.magasin.name,
+            //     statutCommande: result.statuts.commande,
+            //     statutLivraison: result.statuts.livraison
+            // });
 
-        return result;
+            return result;
+        } catch (error) {
+            console.error('❌ Erreur transformation Backend → Frontend:', error);
+            console.error('❌ Données problématiques:', backendData);
+            throw error;
+        }
     }
 
     private extractDimensions(backendData: any): any[] {
@@ -186,7 +231,7 @@ export class SimpleBackendService {
                 }
             }
 
-            console.warn('⚠️ Dimensions non reconnues, retour array vide');
+            // console.warn('⚠️ Dimensions non reconnues, retour array vide');
             return [];
 
         } catch (error) {
@@ -224,7 +269,7 @@ export class SimpleBackendService {
             apiData.tarifHT = commande.tarifHT;
         }
 
-        console.log('🔄 Données API pour PATCH:', apiData);
+        // console.log('🔄 Données API pour PATCH:', apiData);
         return apiData;
     }
 
@@ -262,14 +307,14 @@ export class SimpleBackendService {
             // ✅ Utiliser la transformation spécifique pour les mises à jour
             const apiData = this.transformCommandeUpdateToApi(commande);
 
-            console.log('📤 Envoi PATCH /commandes/' + id, apiData);
+            // console.log('📤 Envoi PATCH /commandes/' + id, apiData);
 
             const result = await this.request<any>(`/commandes/${id}`, {
                 method: 'PATCH',
                 body: JSON.stringify(apiData)
             });
 
-            console.log('✅ Réponse PATCH:', result);
+            // console.log('✅ Réponse PATCH:', result);
             return this.transformBackendToFrontend(result);
         } catch (error) {
             console.error('❌ Erreur updateCommande:', error);
@@ -301,6 +346,22 @@ export class SimpleBackendService {
         } catch (error) {
             console.error('❌ Erreur récupération chauffeurs:', error);
             throw error;
+        }
+    }
+
+    async getCommandesByChauffeur(chauffeurId: string): Promise<CommandeMetier[]> {
+        try {
+            console.log(`🚛 Récupération commandes pour chauffeur: ${chauffeurId}`);
+
+            const result = await this.request<{ data: any[] }>(`/commandes/chauffeur/${chauffeurId}`);
+
+            console.log(`✅ ${result.data.length} commandes trouvées pour le chauffeur`);
+
+            return result.data.map(commande => this.transformBackendToFrontend(commande));
+
+        } catch (error) {
+            console.error(`❌ Erreur récupération commandes chauffeur ${chauffeurId}:`, error);
+            return [];
         }
     }
 
