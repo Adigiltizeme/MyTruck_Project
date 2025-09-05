@@ -111,7 +111,6 @@ export default function MagasinManagement() {
 
             // Même structure que chauffeurs - appel direct au service API
             const rawData = await apiService.get('/magasins') as { data: BackendMagasin[] };
-            console.log('📡 Données brutes reçues:', rawData);
 
             // Transformation des données backend → frontend
             const transformedMagasins = rawData.data.map(transformBackendMagasin);
