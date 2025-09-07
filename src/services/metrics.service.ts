@@ -205,7 +205,7 @@ export class MetricsCalculator {
         const weekStart = startOfWeek(now, { weekStartsOn: 1 });
         return {
           start: weekStart,
-          end: endOfWeek(now, { locale: fr }),
+          end: endOfWeek(now, { weekStartsOn: 1 }),
           format: 'EEE',
           interval: 1, // jours
           ticks: 7,
@@ -258,7 +258,7 @@ export class MetricsCalculator {
 
       if (date <= end) {
         points.push({
-          date: formatDisplay ? formatDisplay(date) : format(date, dateFormat, { locale: fr }),
+          date: formatDisplay ? formatDisplay(date) : format(date, dateFormat),
           actualDate: date,
           index: i, // pour l'ordre
           rawDate: date.getTime() // pour le tri

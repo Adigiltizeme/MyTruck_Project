@@ -43,8 +43,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    // Correction pour process.env
-    'process.env': process.env,
+    // Exposer seulement les variables VITE_ nécessaires (sécurisé)
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     global: 'globalThis',
   },
   server: {

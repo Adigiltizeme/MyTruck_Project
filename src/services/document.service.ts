@@ -30,15 +30,9 @@ export class DocumentService {
       // Récupérer l'URL du document le plus récent (supposons qu'il soit le dernier dans la liste)
       const documentId = documents[documents.length - 1].id;
       
-      // Essayer d'abord de récupérer le document depuis Api (pour la compatibilité avec l'existant)
-      try {
-        const documentBlob = await this.apiService.getDocument(commande.id, type);
-        if (documentBlob) {
-          return documentBlob;
-        }
-      } catch (error) {
-        console.log(`Document non trouvé dans Airtable, recherche dans Cloudinary: ${error}`);
-      }
+      // TODO: Implémenter getDocument dans ApiService si nécessaire
+      // Pour l'instant, on récupère directement depuis Cloudinary
+      console.log(`Récupération du document depuis Cloudinary pour la commande ${commande.id}`);
       
       // Si non trouvé dans Airtable, essayer de récupérer depuis Cloudinary
       // Construire l'URL Cloudinary à partir de l'ID du document
