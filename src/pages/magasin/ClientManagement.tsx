@@ -24,16 +24,24 @@ export default function ClientManagement() {
     const loadClients = async () => {
         try {
             setLoading(true);
-            console.log('🔍 Appel API /clients...');
-            const response = await apiService.get('/clients');
+            console.log('🔍 Appel API getClients...');
+            const response = await apiService.getClients();
             console.log('📡 Réponse API clients:', response);
 
-            const clientsData = (response as any).data || response;
+            const clientsData = response.data || response;
             console.log('👥 Clients extraits:', clientsData);
 
             setClients(Array.isArray(clientsData) ? clientsData : []);
         } catch (error) {
             console.error('❌ Erreur chargement clients:', error);
+            console.error('🔍 Détail erreur:', error);
+            
+            // Afficher le type d'erreur pour diagnostic
+            if (error instanceof Error) {
+                console.error('📝 Message:', error.message);
+                console.error('🌐 Network error?', error.message.includes('fetch'));
+            }
+            
             setClients([]);
         } finally {
             setLoading(false);
