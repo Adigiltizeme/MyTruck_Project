@@ -86,8 +86,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
 
             if (isCloudinaryDoc) {
                 console.log('☁️ Document Cloudinary détecté, génération URL signée...');
-                console.log('🔍 VITE_API_URL =', import.meta.env.VITE_API_URL);
-                console.log('🔍 URL complète =', `${import.meta.env.VITE_API_URL}/documents/${document.id}/view-url`);
 
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/documents/${document.id}/view-url`, {
                     headers: {

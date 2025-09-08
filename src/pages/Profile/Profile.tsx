@@ -28,79 +28,80 @@ const Profile = () => {
 
   const navigate = useNavigate();
 
-  // Récupérer les vraies données selon le rôle simulé
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  // 🔄 Fonction pour charger les données utilisateur depuis le backend
+  const loadUserData = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        let actualData = null;
+    try {
+      setLoading(true);
+      let actualData = null;
 
-        if (user.role === 'magasin' && user.storeId) {
-          // Récupérer les données du magasin depuis l'API
-          const magasins = await dataService.getMagasins();
-          const magasin = magasins.find(m => m.id === user.storeId);
-          
-          if (magasin) {
-            const normalized = normalizeMagasin(magasin);
-            actualData = {
-              name: normalized.name,
-              email: normalized.email || user.email,
-              phone: normalized.phone,
-              address: normalized.address,
-              manager: normalized.manager,
-              status: normalized.status
-            };
-          }
-        } else if (user.role === 'chauffeur' && user.driverId) {
-          // Récupérer les données du chauffeur depuis l'API
-          const personnel = await dataService.getPersonnel();
-          const chauffeur = personnel.find(p => p.id === user.driverId);
-          
-          if (chauffeur) {
-            const normalized = normalizeChauffeur(chauffeur);
-            actualData = {
-              name: normalized.fullName,
-              email: normalized.email || user.email,
-              phone: normalized.telephone,
-              status: normalized.status,
-              role: normalized.role
-            };
-          }
-        } else {
-          // Utilisateur admin - données d'origine
+      if (user.role === 'magasin' && user.storeId) {
+        // Récupérer les données du magasin depuis l'API
+        const magasins = await dataService.getMagasins();
+        const magasin = magasins.find(m => m.id === user.storeId);
+        
+        if (magasin) {
+          const normalized = normalizeMagasin(magasin);
           actualData = {
-            name: user.name || '',
-            email: user.email || '',
-            phone: user.storePhone || ''
+            name: normalized.name,
+            email: normalized.email || user.email,
+            phone: normalized.phone,
+            address: normalized.address,
+            manager: normalized.manager,
+            status: normalized.status
           };
         }
-
-        if (actualData) {
-          setActualUserData(actualData);
-          setUserData({
-            name: actualData.name,
-            email: actualData.email,
-            phone: actualData.phone
-          });
+      } else if (user.role === 'chauffeur' && user.driverId) {
+        // Récupérer les données du chauffeur depuis l'API
+        const personnel = await dataService.getPersonnel();
+        const chauffeur = personnel.find(p => p.id === user.driverId);
+        
+        if (chauffeur) {
+          const normalized = normalizeChauffeur(chauffeur);
+          actualData = {
+            name: normalized.fullName,
+            email: normalized.email || user.email,
+            phone: normalized.telephone,
+            status: normalized.status,
+            role: normalized.role
+          };
         }
-      } catch (error) {
-        console.error('Erreur chargement données profil:', error);
-        // Fallback vers les données de base
-        setUserData({
+      } else {
+        // Utilisateur admin - données d'origine
+        actualData = {
           name: user.name || '',
           email: user.email || '',
           phone: user.storePhone || ''
-        });
-      } finally {
-        setLoading(false);
+        };
       }
-    };
 
+      if (actualData) {
+        setActualUserData(actualData);
+        setUserData({
+          name: actualData.name,
+          email: actualData.email,
+          phone: actualData.phone
+        });
+      }
+    } catch (error) {
+      console.error('Erreur chargement données profil:', error);
+      // Fallback vers les données de base
+      setUserData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.storePhone || ''
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger les données au montage du composant
+  useEffect(() => {
     loadUserData();
   }, [user?.role, user?.storeId, user?.driverId, dataService]);
 
@@ -179,6 +180,9 @@ const Profile = () => {
         }
       }
 
+      // 🔄 Recharger les données actualisées depuis le backend
+      await loadUserData();
+      
       setIsEditing(false);
       NotificationService.success('Informations mises à jour avec succès');
     } catch (error) {
