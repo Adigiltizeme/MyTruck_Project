@@ -458,7 +458,7 @@ const Profile = () => {
                 />
               </div>
               <div>
-                <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Vendeur</label>
+                <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur</label>
                 <input
                   id="manager"
                   name="manager"
