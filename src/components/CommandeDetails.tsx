@@ -721,7 +721,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                 );
             case 'photos-articles':
                 // Calcul sécurisé des photos existantes
-                const articles = commande.articles || {};
+                const articles = commande.articles || { photos: [] };
                 const photos = Array.isArray(articles.photos) ? articles.photos : [];
                 const totalPhotos = photos.length;
                 const remainingPhotos = 5 - totalPhotos;
