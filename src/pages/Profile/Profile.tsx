@@ -16,7 +16,9 @@ const Profile = () => {
   const [userData, setUserData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    address: '',
+    manager: ''
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -82,9 +84,11 @@ const Profile = () => {
       if (actualData) {
         setActualUserData(actualData);
         setUserData({
-          name: actualData.name,
-          email: actualData.email,
-          phone: actualData.phone
+          name: actualData.name || '',
+          email: actualData.email || '',
+          phone: actualData.phone || '',
+          address: actualData.address || '',
+          manager: actualData.manager || ''
         });
       }
     } catch (error) {
@@ -93,7 +97,9 @@ const Profile = () => {
       setUserData({
         name: user.name || '',
         email: user.email || '',
-        phone: user.storePhone || ''
+        phone: user.storePhone || '',
+        address: '',
+        manager: ''
       });
     } finally {
       setLoading(false);
