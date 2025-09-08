@@ -446,28 +446,32 @@ const Profile = () => {
                   className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
                 />
               </div>
-              <div>
-                <label htmlFor="address" className="block text-gray-700 text-sm font-bold mb-2">Adresse</label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={userData.address}
-                  onChange={handleInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
-                />
-              </div>
-              <div>
-                <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur</label>
-                <input
-                  id="manager"
-                  name="manager"
-                  type="text"
-                  value={userData.manager}
-                  onChange={handleInputChange}
-                  className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
-                />
-              </div>
+              {user?.role !== 'chauffeur' && (
+                <div>
+                  <label htmlFor="address" className="block text-gray-700 text-sm font-bold mb-2">Adresse</label>
+                  <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    value={userData.address}
+                    onChange={handleInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              )}
+              {user?.role !== 'chauffeur' && (
+                <div>
+                  <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur</label>
+                  <input
+                    id="manager"
+                    name="manager"
+                    type="text"
+                    value={userData.manager}
+                    onChange={handleInputChange}
+                    className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="statut" className="block text-gray-700 text-sm font-bold mb-2">Statut</label>
                 <input
