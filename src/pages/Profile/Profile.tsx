@@ -18,7 +18,8 @@ const Profile = () => {
     email: '',
     phone: '',
     address: '',
-    manager: ''
+    manager: '',
+    statut: ''
   });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -88,7 +89,8 @@ const Profile = () => {
           email: actualData.email || '',
           phone: actualData.phone || '',
           address: actualData.address || '',
-          manager: actualData.manager || ''
+          manager: actualData.manager || '',
+          statut: actualData.status || ''
         });
       }
     } catch (error) {
@@ -99,7 +101,8 @@ const Profile = () => {
         email: user.email || '',
         phone: user.storePhone || '',
         address: '',
-        manager: ''
+        manager: '',
+        statut: ''
       });
     } finally {
       setLoading(false);
@@ -134,7 +137,8 @@ const Profile = () => {
           email: userData.email,
           phone: userData.phone,
           address: userData.address,
-          manager: userData.manager
+          manager: userData.manager,
+          statut: userData.statut
         };
         
         await apiService.patch('/me/profile', profileData);
@@ -454,12 +458,23 @@ const Profile = () => {
                 />
               </div>
               <div>
-                <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Manager</label>
+                <label htmlFor="manager" className="block text-gray-700 text-sm font-bold mb-2">Vendeur</label>
                 <input
                   id="manager"
                   name="manager"
                   type="text"
                   value={userData.manager}
+                  onChange={handleInputChange}
+                  className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
+                />
+              </div>
+              <div>
+                <label htmlFor="statut" className="block text-gray-700 text-sm font-bold mb-2">Statut</label>
+                <input
+                  id="statut"
+                  name="statut"
+                  type="text"
+                  value={userData.statut}
                   onChange={handleInputChange}
                   className="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:ring-primary focus:border-primary"
                 />
@@ -498,22 +513,6 @@ const Profile = () => {
                   <label className="block text-gray-700 text-sm font-bold mb-2">Téléphone</label>
                   <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
                     {actualUserData?.phone || userData.phone}
-                  </p>
-                </div>
-              )}
-              {(actualUserData?.address || userData.address) && (
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">Adresse</label>
-                  <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
-                    {actualUserData?.address || userData.address}
-                  </p>
-                </div>
-              )}
-              {(actualUserData?.manager || userData.manager) && (
-                <div>
-                  <label className="block text-gray-700 text-sm font-bold mb-2">Manager</label>
-                  <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
-                    {actualUserData?.manager || userData.manager}
                   </p>
                 </div>
               )}
