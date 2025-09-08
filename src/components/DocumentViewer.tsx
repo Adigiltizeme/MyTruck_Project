@@ -87,7 +87,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
             if (isCloudinaryDoc) {
                 console.log('☁️ Document Cloudinary détecté, génération URL signée...');
 
-                const response = await fetch(`http://localhost:3000/api/v1/documents/${document.id}/view-url`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/documents/${document.id}/view-url`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                     }
@@ -129,7 +129,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
         try {
             console.log('📥 Téléchargement via Cloudinary...');
 
-            const response = await fetch(`http://localhost:3000/api/v1/documents/${documentId}/download-url`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/documents/${documentId}/download-url`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                 }

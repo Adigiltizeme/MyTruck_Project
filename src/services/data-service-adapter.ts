@@ -56,7 +56,7 @@ export class DataServiceAdapter {
     private async testBackendAndFallback(): Promise<void> {
         try {
             // Test simple et rapide
-            const response = await fetch('http://localhost:3000/api/v1/health', {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
                 signal: AbortSignal.timeout(3000) // Timeout 3s
@@ -1629,7 +1629,7 @@ export async function runCompleteBackendDiagnostic(): Promise<void> {
     // 3. Test direct fetch
     console.log('🧪 Test direct fetch...');
     try {
-        const directResponse = await fetch('http://localhost:3000/api/v1/health');
+        const directResponse = await fetch(`${import.meta.env.VITE_API_URL}/health`);
         console.log('✅ Fetch direct réussi:', directResponse.status);
     } catch (error) {
         console.error('❌ Fetch direct échoué:', error);
@@ -1638,7 +1638,7 @@ export async function runCompleteBackendDiagnostic(): Promise<void> {
     // 4. Test avec curl simulation
     console.log('🧪 Test curl simulation...');
     try {
-        const curlResponse = await fetch('http://localhost:3000/api/v1/health', {
+        const curlResponse = await fetch(`${import.meta.env.VITE_API_URL}/health`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
