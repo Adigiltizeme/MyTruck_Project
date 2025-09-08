@@ -543,7 +543,7 @@ const Profile = () => {
                   )}
                   {actualUserData?.manager && (
                     <div>
-                      <label className="block text-gray-700 text-sm font-bold mb-2">Responsable</label>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur</label>
                       <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
                         {actualUserData.manager}
                       </p>
