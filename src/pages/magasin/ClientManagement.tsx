@@ -145,28 +145,23 @@ export default function ClientManagement() {
         <div className="p-6 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-gray-900 mb-6">Gestion des Clients</h1>
 
-            {/* 🔧 AMÉLIORATION : Informations contextuelles */}
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <p className="text-sm text-blue-800">
-                            ⚖️ Conformité RGPD : Les données clients sont automatiquement
-                            {canViewFullDetails ? ' accessibles' : ' pseudonymisées'} selon votre rôle.
-                            Conservation limitée à 3 ans après la dernière commande.
-                        </p>
-                        {user?.role === 'magasin' && (
-                            <p className="text-xs text-blue-600 mt-2">
-                                📊 Affichage limité aux clients ayant commandé dans votre magasin
+            {/* ✅ RGPD ASSOUPLI : Informations simplifiées */}
+            {user?.role === 'magasin' && (
+                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm text-blue-800">
+                                📊 Clients de votre magasin - Conservation 2 ans après dernière commande
                             </p>
+                        </div>
+                        {debugInfo && process.env.NODE_ENV === 'development' && (
+                            <div className="text-xs bg-white p-2 rounded border">
+                                Rôle: {debugInfo.userRole} | Clients: {debugInfo.clientCount}
+                            </div>
                         )}
                     </div>
-                    {debugInfo && process.env.NODE_ENV === 'development' && (
-                        <div className="text-xs bg-white p-2 rounded border">
-                            Rôle: {debugInfo.userRole} | Clients: {debugInfo.clientCount}
-                        </div>
-                    )}
                 </div>
-            </div>
+            )}
 
             {/* Barre de recherche */}
             <div className="mb-6">
@@ -187,9 +182,6 @@ export default function ClientManagement() {
                 <div className="px-6 py-4 border-b border-gray-200">
                     <h3 className="text-lg font-medium text-gray-900">
                         Clients ({filteredClients.length})
-                        {clients.some(c => c.pseudonymized) && (
-                            <span className="ml-2 text-sm text-yellow-600">(Données pseudonymisées)</span>
-                        )}
                     </h3>
                 </div>
 
