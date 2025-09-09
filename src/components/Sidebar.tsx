@@ -129,15 +129,6 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
     }
   ];
 
-  if (user?.role === 'magasin') {
-    baseNavItems.push({
-      name: 'Commandes',
-      icon: ShoppingBagIcon,
-      href: '/orders',
-      roles: ['magasin'],
-    });
-  }
-
   if (user?.role === 'admin') {
     baseNavItems.push({
       name: 'Paramètres',
