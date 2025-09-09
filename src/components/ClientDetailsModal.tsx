@@ -46,12 +46,29 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
         try {
             setLoading(true);
             console.log('🔍 Chargement détails pour client:', client.id);
-            const data = await apiService.get(`/clients/${client.id}`);
+            const data = await apiService.get(`/clients/${client.id}`) as ClientGDPR & {
+                commandes?: any[];
+                _count?: { commandes?: number };
+            };
             console.log('📡 Réponse API détails client:', data);
             
             // Adapter la structure de l'API au format attendu
             const adaptedData: ClientDetailedData = {
-                client: data,
+                client: {
+                    id: data.id,
+                    consentGiven: data.consentGiven,
+                    dataRetentionUntil: data.dataRetentionUntil,
+                    lastActivityAt: data.lastActivityAt,
+                    nomComplet: data.nomComplet,
+                    prenom: data.prenom,
+                    nom: data.nom,
+                    telephone: data.telephone,
+                    adresse: data.adresse,
+                    _count: data._count,
+                    pseudonymized: data.pseudonymized,
+                    deletionRequested: data.deletionRequested,
+                    // Add other required ClientGDPR properties here if needed
+                },
                 commandes: data.commandes || [],
                 statistics: {
                     totalCommandes: data._count?.commandes || 0,
@@ -127,12 +144,6 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
                                         {data.client.nomComplet || `${data.client.prenom || ''} ${data.client.nom || ''}`}
                                     </p>
                                 </div>
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500">Type d'adresse</label>
-                                    <p className="text-sm text-gray-900">
-                                        {data.client.adresse?.type || 'Non spécifié'}
-                                    </p>
-                                </div>
                             </div>
                         </div>
 
@@ -146,49 +157,6 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
                                 <div>
                                     <label className="text-sm font-medium text-gray-500">Téléphone</label>
                                     <p className="text-sm text-gray-900">{formatPhone(data.client.telephone)}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Adresse */}
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                                <HomeIcon className="h-5 w-5 mr-2 text-purple-500" />
-                                Adresse
-                            </h4>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500">Adresse principale</label>
-                                    <p className="text-sm text-gray-900">
-                                        {canViewFullDetails ? 
-                                            (data.client.adresse?.ligne1 || 'Non renseignée') : 
-                                            'Données complètes disponibles'
-                                        }
-                                    </p>
-                                </div>
-                                {data.client.adresse?.batiment && (
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Bâtiment</label>
-                                        <p className="text-sm text-gray-900">{data.client.adresse.batiment}</p>
-                                    </div>
-                                )}
-                                {data.client.adresse?.etage && (
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Étage</label>
-                                        <p className="text-sm text-gray-900">{data.client.adresse.etage}</p>
-                                    </div>
-                                )}
-                                {data.client.adresse?.interphone && (
-                                    <div>
-                                        <label className="text-sm font-medium text-gray-500">Interphone</label>
-                                        <p className="text-sm text-gray-900">{data.client.adresse.interphone}</p>
-                                    </div>
-                                )}
-                                <div>
-                                    <label className="text-sm font-medium text-gray-500">Ascenseur</label>
-                                    <p className="text-sm text-gray-900">
-                                        {data.client.adresse?.ascenseur ? '✅ Disponible' : '❌ Non disponible'}
-                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -218,6 +186,9 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
                                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                     <p className="text-sm text-blue-800">
                                         📦 {data.commandes.length} commande(s) trouvée(s)
+                                    </p>
+                                    <p className="text-sm text-gray-500">
+                                        Revenir à l'onglet "Livraisons" pour plus de détails.
                                     </p>
                                 </div>
                                 <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -349,7 +320,7 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
                                 {client.nomComplet || `${client.prenom || ''} ${client.nom || ''}`}
                             </h3>
                             <p className="text-gray-600">
-                                Détails du client
+                                Infos client
                             </p>
                         </div>
                     </div>

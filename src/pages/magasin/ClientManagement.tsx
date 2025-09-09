@@ -214,13 +214,13 @@ export default function ClientManagement() {
                                             </h4>
                                             <div className="flex items-center space-x-4 text-sm text-gray-500">
                                                 <span>{client._count?.commandes || 0} commande(s)</span>
-                                                <span>
+                                                {/* <span>
                                                     {typeof client.telephone === 'string'
                                                         ? client.telephone
                                                         : client.telephone
                                                             ? `${client.telephone.principal}${client.telephone.secondaire ? ' / ' + client.telephone.secondaire : ''}`
                                                             : 'Pas de téléphone'}
-                                                </span>
+                                                </span> */}
                                                 {client.pseudonymized && (
                                                     <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
                                                         Données masquées
