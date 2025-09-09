@@ -46,7 +46,8 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             const map = new mapboxgl.Map({
                 container: 'map',
                 style: 'mapbox://styles/mapbox/streets-v11',
-                center: [-8.000337, 12.649319], // Bamako par défaut et [2.3488, 48.8534], Paris par défaut
+                // center: [-8.000337, 12.649319], Bamako par défaut
+                center: [2.3488, 48.8534], // Paris par défaut
                 zoom: 12
             });
 
@@ -487,7 +488,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             {/* Section Suivi */}
             {commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
                 <div className="p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium mb-4">Suivi en temps réel</h3>
+                    <h3 className="text-lg font-medium mb-4">Suivi en temps réel (BIENTÔT DISPONIBLE)</h3>
                     <div className="flex justify-between items-center mb-4">
                         <span className='text-sm font-medium text-gray-500'>Localisation des chauffeurs</span>
                         <button

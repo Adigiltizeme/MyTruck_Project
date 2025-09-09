@@ -461,7 +461,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
             {/* Section de suivi */}
             {commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
                 <div className="p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium mb-4">Suivi des livraisons</h3>
+                    <h3 className="text-lg font-medium mb-4">Suivi des livraisons (BIENTÔT DISPONIBLE)</h3>
                     <div className="flex justify-between items-center mb-4">
                         <span className='text-sm font-medium text-gray-500'>En temps réel</span>
                         <button
