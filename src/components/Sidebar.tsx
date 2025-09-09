@@ -91,12 +91,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       href: '/deliveries',
       roles: ['admin', 'magasin', 'chauffeur'],
     },
-    {
-      name: 'Cessions',
-      icon: ArrowsRightLeftIcon,
-      href: '/cessions',
-      roles: ['magasin', 'admin'],
-    },
+    // {
+    //   name: 'Cessions',
+    //   icon: ArrowsRightLeftIcon,
+    //   href: '/cessions',
+    //   roles: ['magasin', 'admin'],
+    // },
     {
       name: 'Gestion Créneaux',
       icon: ClockIcon,
@@ -138,14 +138,14 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
     });
   }
 
-  if (user?.role === 'admin') {
-    baseNavItems.push({
-      name: 'Documents',
-      icon: DocumentIcon,
-      href: '/documents',
-      roles: ['admin'],
-    });
-  }
+  // if (user?.role === 'admin') {
+  //   baseNavItems.push({
+  //     name: 'Documents',
+  //     icon: DocumentIcon,
+  //     href: '/documents',
+  //     roles: ['admin'],
+  //   });
+  // }
 
   // Filtrer les éléments de navigation selon le rôle de l'utilisateur
   const navItems = baseNavItems.filter(item =>
