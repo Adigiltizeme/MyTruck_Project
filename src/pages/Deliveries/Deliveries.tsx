@@ -294,39 +294,39 @@ const Deliveries = () => {
 
     const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur', 'tarifHT'];
 
-    if (loading) {
-        return (
-            <div className="p-6">
-                <div className="mb-6">
-                    <RoleSelector />
-                </div>
-                <div className="flex justify-center items-center h-64">
-                    <div className="text-lg">Chargement des commandes depuis le Backend...</div>
-                </div>
-            </div>
-        );
-    }
+    // if (loading) {
+    //     return (
+    //         <div className="p-6">
+    //             <div className="mb-6">
+    //                 <RoleSelector />
+    //             </div>
+    //             <div className="flex justify-center items-center h-64">
+    //                 <div className="text-lg">Chargement des commandes depuis le Backend...</div>
+    //             </div>
+    //         </div>
+    //     );
+    // }
 
-    if (error) {
-        return (
-            <div className="p-6">
-                <div className="mb-6">
-                    <RoleSelector />
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                    <div className="text-red-800">
-                        <strong>Erreur Backend:</strong> {error}
-                    </div>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                        Réessayer
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    // if (error) {
+    //     return (
+    //         <div className="p-6">
+    //             <div className="mb-6">
+    //                 <RoleSelector />
+    //             </div>
+    //             <div className="bg-red-50 border border-red-200 rounded-md p-4">
+    //                 <div className="text-red-800">
+    //                     <strong>Erreur Backend:</strong> {error}
+    //                 </div>
+    //                 <button
+    //                     onClick={() => window.location.reload()}
+    //                     className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+    //                 >
+    //                     Réessayer
+    //                 </button>
+    //             </div>
+    //         </div>
+    //     );
+    // }
 
     const getClientName = (commande: any): string => {
         if (commande.client?.nom && commande.client?.prenom) {
@@ -369,9 +369,9 @@ const Deliveries = () => {
                 </div>
             )} */}
 
-            <div className="mb-6">
+            {/* <div className="mb-6">
                 <RoleSelector />
-            </div>
+            </div> */}
 
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">
