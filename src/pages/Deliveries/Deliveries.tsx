@@ -566,9 +566,9 @@ const Deliveries = () => {
             </div>
 
             {data.length > 0 && (
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-gray-800">
                     {/* Afficher le nombre de résultats filtrés */}
-                    <div className="mb-2 text-sm text-gray-500">
+                    <div className="mb-2 text-sm text-gray-500 dark:bg-gray-800 p-4">
                         {filteredByRoleData.length !== data.length && (
                             <div>
                                 Affichage de {filteredByRoleData.length} commandes
@@ -578,7 +578,7 @@ const Deliveries = () => {
                         )}
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
                                     <th className="w-10 px-4 py-2"></th>
@@ -631,13 +631,13 @@ const Deliveries = () => {
                                                 {/* dateFormatter.forDisplay(commande.dates?.livraison) : 'N/A'} */}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                <span className={getStatutCommandeStyle(commande.statuts?.commande || 'N/A')}>
-                                                    {commande.statuts?.commande || 'N/A'}
+                                                <span className={getStatutCommandeStyle(commande.statuts?.commande || 'En attente')}>
+                                                    {commande.statuts?.commande || 'En attente'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'N/A')}>
-                                                    {commande.statuts?.livraison || 'N/A'}
+                                                <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'EN ATTENTE')}>
+                                                    {commande.statuts?.livraison || 'EN ATTENTE'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{commande.livraison?.creneau || 'N/A'}</td>
@@ -684,7 +684,7 @@ const Deliveries = () => {
                                             )}
                                         </tr>
                                         {expandedRow === commande.id && (
-                                            <tr className="bg-gray-50">
+                                            <tr className="bg-gray-50 dark:bg-gray-700">
                                                 <td colSpan={10} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="border-l-4 border-blue-500 pl-4">
                                                         <CommandeDetails

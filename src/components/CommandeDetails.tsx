@@ -433,10 +433,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                                 <span className="text-2xl">✅</span>
                                             </div>
-                                            <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                            <h3 className="text-lg font-medium text-gray-900 mb-2 dark:text-gray-400">
                                                 Livraison standard
                                             </h3>
-                                            <p className="text-gray-600">
+                                            <p className="text-gray-600 dark:text-gray-500">
                                                 Cette commande ne présente aucune condition spéciale de livraison.
                                                 Les équipiers peuvent procéder selon les procédures normales.
                                             </p>
@@ -927,9 +927,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden" data-commande-id={commande.id}>
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden dark:bg-gray-800" data-commande-id={commande.id}>
             {/* En-tête avec informations principales */}
-            <div className="bg-gray-50 p-4 border-b">
+            <div className="bg-gray-50 p-4 border-b dark:bg-gray-700 dark:border-gray-600">
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-semibold">
                         Commande #{commande.numeroCommande || 'Non spécifiée'}
@@ -953,7 +953,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors
                                 ${activeTab === tab.id
                                     ? 'border-red-600 text-red-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                         >
                             {tab.icon} {tab.label}
                         </button>

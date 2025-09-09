@@ -177,7 +177,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         className={({ isActive }) =>
           `flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1 ${isActive
             ? 'bg-primary text-white'
-            : 'text-gray-700 hover:bg-gray-50'
+            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
           }`
         }
         onClick={isMobile ? onCloseMobile : undefined}
@@ -189,7 +189,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   };
 
   return (
-    <div className="flex h-full flex-col bg-white shadow-lg">
+    <div className="flex h-full flex-col bg-white shadow-lg dark:bg-gray-800">
       {/* Logo header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100">
         <div className="w-28 py-2">
@@ -211,7 +211,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
             </span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-gray-900 truncate dark:text-gray-300">
               {displayUserData?.name || user?.name || 'Utilisateur'}
               {user?.role === 'admin' && displayUserData ? ' (test)' : ''}
             </p>
@@ -237,9 +237,9 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       <div className="px-3 py-4 border-t border-gray-100">
         <button
           onClick={handleLogout}
-          className="flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1 w-full text-gray-700 hover:bg-gray-50"
+          className="flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1 w-full text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-          <LogOutIcon className="h-5 w-5 mr-3 text-gray-500" />
+          <LogOutIcon className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-300" />
           <span>Déconnexion</span>
         </button>
       </div>

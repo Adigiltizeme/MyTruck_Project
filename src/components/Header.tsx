@@ -74,7 +74,7 @@ const Header = () => {
   };
 
   return (
-    <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6">
+    <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 dark:bg-gray-900 dark:border-gray-700 dark:text-white">
       {/* Recherche */}
       <div className="flex-1 max-w-md">
         {/* <form onSubmit={handleSearch} className="relative">
@@ -114,7 +114,7 @@ const Header = () => {
                   {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </span>
               </div>
-              <span className="ml-3 text-sm text-gray-700 hidden md:block">
+              <span className="ml-3 text-sm text-gray-700 font-bold hidden md:block dark:text-gray-300">
                 {user?.name}
               </span>
             </div>
