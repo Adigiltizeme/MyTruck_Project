@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { CommandeMetier } from '../types/business.types';
+import { CommandeMetier, StatusHistoryEntry } from '../types/business.types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { dateFormatter, formatDate } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { VehicleValidationService } from '../services/vehicle-validation.service';
 import CommandeActions from './CommandeActions';
 import AdminActions from './AdminActions';
 import { AirtableService } from '../services/airtable.service';
@@ -68,19 +69,47 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         console.log('🖥️ Magasin affiché:', commande?.magasin);
     }, [commande]);
 
-    // Vérification sécurisée des dates
-    const timelineEvents = [
-        {
-            date: commande?.dates?.commande ? new Date(commande.dates.commande) : new Date(),
-            status: commande?.statuts?.commande || 'En attente',
-            type: 'commande'
-        },
-        {
-            date: commande.dates?.livraison ? new Date(commande.dates.livraison) : new Date(),
-            status: commande.statuts?.livraison || 'EN ATTENTE',
-            type: 'livraison'
+    // Chronologie avec historique réel des statuts
+    const buildTimelineFromHistory = () => {
+        const events: { date: Date; status: string; type: string }[] = [];
+        
+        if (!commande?.statusHistory || commande.statusHistory.length === 0) {
+            // Fallback: utiliser l'ancienne logique si pas d'historique
+            events.push(
+                {
+                    date: commande?.dates?.commande ? new Date(commande.dates.commande) : new Date(),
+                    status: commande?.statuts?.commande || 'En attente',
+                    type: 'commande'
+                },
+                {
+                    date: commande?.statuts?.livraison === 'EN ATTENTE' 
+                        ? (commande?.dates?.commande ? new Date(commande.dates.commande) : new Date())
+                        : (commande?.dates?.misAJour ? new Date(commande.dates.misAJour) : new Date()),
+                    status: commande.statuts?.livraison || 'EN ATTENTE',
+                    type: 'livraison'
+                }
+            );
+        } else {
+            // ✅ UTILISER UNIQUEMENT L'HISTORIQUE - Afficher le DERNIER statut de chaque type
+            const latestStatuses = new Map<string, { date: Date; status: string; type: string }>();
+            
+            commande.statusHistory.forEach((entry: StatusHistoryEntry) => {
+                const type = entry.statusType.toLowerCase();
+                latestStatuses.set(type, {
+                    date: new Date(entry.changedAt),
+                    status: entry.newStatus,
+                    type: type
+                });
+            });
+            
+            // Convertir la Map en array
+            events.push(...Array.from(latestStatuses.values()));
         }
-    ].sort((a, b) => a.date.getTime() - b.date.getTime());
+        
+        return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    };
+
+    const timelineEvents = buildTimelineFromHistory();
 
     // Helper pour formatter les dates de manière sécurisée
     // const formatDate = (date: Date | string | undefined) => {
@@ -606,58 +635,47 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             );
                                             const totalItems = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
-                                            // Conditions qui ajoutent des équipiers
-                                            const activeConditions = [];
-                                            let requiredCrew = 0;
-
-                                            if (heaviestWeight >= 30) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Article lourd : ${heaviestWeight}kg`);
-                                            }
-
+                                            // 🔥 CORRECTION MAJEURE : Utiliser la nouvelle logique hiérarchique officielle
                                             const hasElevator = commande.client?.adresse?.ascenseur;
-                                            if (hasElevator && totalWeight > 300) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Charge lourde avec ascenseur : ${totalWeight}kg`);
-                                            } else if (!hasElevator && totalWeight > 200) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Charge lourde sans ascenseur : ${totalWeight}kg`);
-                                            }
+                                            
+                                            const validationConditions = {
+                                                hasElevator: hasElevator || false,
+                                                totalItemCount: totalItems,
+                                                rueInaccessible: deliveryConditions.rueInaccessible || false,
+                                                paletteComplete: deliveryConditions.paletteComplete || false,
+                                                parkingDistance: deliveryConditions.parkingDistance || 0,
+                                                hasStairs: deliveryConditions.hasStairs || false,
+                                                stairCount: deliveryConditions.stairCount || 0,
+                                                needsAssembly: deliveryConditions.needsAssembly || false,
+                                                floor: effectiveFloor,
+                                                isDuplex: deliveryConditions.isDuplex || false,
+                                                deliveryToUpperFloor: deliveryConditions.deliveryToUpperFloor || false,
+                                                // 🆕 Nouvelles conditions
+                                                estimatedHandlingTime: deliveryConditions.estimatedHandlingTime || 0,
+                                                hasLargeVoluminousItems: deliveryConditions.hasLargeVoluminousItems || false,
+                                                multipleLargeVoluminousItems: deliveryConditions.multipleLargeVoluminousItems || false,
+                                                complexAccess: deliveryConditions.complexAccess || false
+                                            };
 
-                                            if (totalItems > 20) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Nombreux articles : ${totalItems}`);
-                                            }
+                                            // ✅ UTILISER LA MÉTHODE OFFICIELLE
+                                            const requiredCrew = VehicleValidationService.getRequiredCrewSize(articles, validationConditions);
+                                            
+                                            // Obtenir les détails de validation pour l'affichage
+                                            const validationDetails = VehicleValidationService.getValidationDetails(articles, validationConditions);
+                                            
+                                            console.log('📊 [COMMANDE-DETAILS] Validation:', validationDetails);
 
-                                            // Ajouter les conditions spéciales présentes
-                                            if (deliveryConditions.rueInaccessible) {
-                                                requiredCrew++;
-                                                activeConditions.push('Rue inaccessible');
-                                            }
-
-                                            if (deliveryConditions.paletteComplete) {
-                                                requiredCrew++;
-                                                activeConditions.push('Palette complète');
-                                            }
-
-                                            if (deliveryConditions.parkingDistance > 50) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Distance portage : ${deliveryConditions.parkingDistance}m`);
-                                            }
-
-                                            if (effectiveFloor > 2 && !hasElevator) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Étage élevé : ${effectiveFloor}ème`);
-                                            }
-
-                                            if (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20) {
-                                                requiredCrew++;
-                                                activeConditions.push(`Nombreuses marches : ${deliveryConditions.stairCount}`);
-                                            }
-
-                                            if (deliveryConditions.needsAssembly) {
-                                                requiredCrew++;
-                                                activeConditions.push('Montage nécessaire');
+                                            // Construire les conditions actives pour l'affichage
+                                            const activeConditions = validationDetails.triggeredConditions || [];
+                                            
+                                            // Détecter le niveau pour l'affichage
+                                            let levelInfo = { level: 'NIVEAU 0', description: 'Chauffeur seul' };
+                                            if (requiredCrew >= 3) {
+                                                levelInfo = { level: 'NIVEAU 3', description: 'Devis obligatoire' };
+                                            } else if (requiredCrew === 2) {
+                                                levelInfo = { level: 'NIVEAU 2', description: '+2 équipiers' };
+                                            } else if (requiredCrew === 1) {
+                                                levelInfo = { level: 'NIVEAU 1', description: '+1 équipier' };
                                             }
 
                                             return (

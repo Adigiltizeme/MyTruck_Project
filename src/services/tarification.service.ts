@@ -41,9 +41,10 @@ export class TarificationService {
     };
 
     private readonly TARIF_EQUIPIER = {
-        1: 22,
-        2: 44,
-        3: 'devis', // Au-delà de 2 équipiers = devis obligatoire
+        0: 0,   // Chauffeur seul
+        1: 22,  // +1 équipier
+        2: 44,  // +2 équipiers 
+        3: 'devis', // ≥3 équipiers = devis obligatoire
     };
 
     private readonly FRAIS_KM = {
@@ -251,9 +252,18 @@ export class TarificationService {
                 throw new Error(`Véhicule non reconnu: ${params.vehicule}`);
             }
 
-            // 2. Calcul tarif équipiers
-            const tarifEquipiers = params.equipiers > 0 ?
-                (params.equipiers <= 2 ? params.equipiers * 22 : 'devis') : 0;
+            // 2. Calcul tarif équipiers selon nouvelle logique hiérarchique
+            let tarifEquipiers: number | 'devis' = 0;
+            
+            if (params.equipiers >= 3) {
+                tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+            } else if (params.equipiers === 2) {
+                tarifEquipiers = 44; // Niveau 2: +2 équipiers
+            } else if (params.equipiers === 1) {
+                tarifEquipiers = 22; // Niveau 1: +1 équipier
+            } else {
+                tarifEquipiers = 0; // Niveau 0: Chauffeur seul
+            }
 
             if (tarifEquipiers === 'devis') {
                 return {

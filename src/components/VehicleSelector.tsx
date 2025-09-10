@@ -72,6 +72,24 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
   }), []);
 
+  // 🔧 UTILITAIRE : Calculer l'étage effectif UNE SEULE FOIS
+  const calculateEffectiveFloor = useCallback((): number => {
+    let effectiveFloor = 0;
+    if (deliveryInfo?.floor) {
+      effectiveFloor = typeof deliveryInfo.floor === 'string'
+        ? parseInt(deliveryInfo.floor) || 0
+        : deliveryInfo.floor;
+    }
+
+    // ✅ CALCUL UNIQUE de l'étage duplex
+    if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
+      effectiveFloor += 1;
+      console.log(`🏠 [VEHICLE-SELECTOR] Duplex détecté: ${effectiveFloor} étages effectifs`);
+    }
+
+    return effectiveFloor;
+  }, [deliveryInfo]);
+
   const validateCrewSize = useCallback((crewSize: number): { isRestricted: boolean, reasons: string[] } => {
     const reasons: string[] = [];
 
@@ -82,17 +100,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     console.log('🔍 [VEHICLE-SELECTOR] VALIDATION ÉQUIPIERS');
 
     const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
-
-    let effectiveFloor = 0;
-    if (deliveryInfo?.floor) {
-      effectiveFloor = typeof deliveryInfo.floor === 'string'
-        ? parseInt(deliveryInfo.floor) || 0
-        : deliveryInfo.floor;
-    }
-
-    if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
-      effectiveFloor += 1;
-    }
+    
+    // ✅ UTILISER LA FONCTION UTILITAIRE au lieu de recalculer
+    const effectiveFloor = calculateEffectiveFloor();
 
     const deliveryConditions = {
       hasElevator: deliveryInfo?.hasElevator || false,
@@ -103,9 +113,15 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       hasStairs: deliveryInfo?.hasStairs || false,
       stairCount: deliveryInfo?.stairCount || 0,
       needsAssembly: deliveryInfo?.needsAssembly || false,
-      floor: effectiveFloor,
-      isDuplex: deliveryInfo?.isDuplex || false,
-      deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false
+      floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+      // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+      isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+      deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+      // 🆕 Ajouter les nouvelles conditions pour la logique hiérarchique
+      estimatedHandlingTime: 0, // À implémenter dans l'UI si nécessaire
+      hasLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
+      multipleLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
+      complexAccess: false // À implémenter dans l'UI si nécessaire
     };
 
     // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION
@@ -124,7 +140,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
         ...validation.recommendations.map(rec => `➜ ${rec}`)
       ]
     };
-  }, [articles, deliveryInfo]);
+  }, [articles, deliveryInfo, calculateEffectiveFloor]);
 
   const calculateRecommendedCrewSize = useCallback((): number => {
     if (!articles || articles.length === 0) return 0;
@@ -133,20 +149,10 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
-    // Calculer l'étage effectif avec duplex/maison
-    let effectiveFloor = 0;
-    if (deliveryInfo?.floor) {
-      effectiveFloor = typeof deliveryInfo.floor === 'string'
-        ? parseInt(deliveryInfo.floor) || 0
-        : deliveryInfo.floor;
-    }
+    // ✅ UTILISER LA FONCTION UTILITAIRE au lieu de recalculer
+    const effectiveFloor = calculateEffectiveFloor();
 
-    if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
-      effectiveFloor += 1;
-      console.log(`🏠 [VEHICLE-SELECTOR] Duplex détecté: ${effectiveFloor} étages effectifs`);
-    }
-
-    // 🔥 UTILISER LA NOUVELLE MÉTHODE QUI CUMULE CORRECTEMENT
+    // 🔥 UTILISER LA NOUVELLE LOGIQUE HIÉRARCHIQUE NON-CUMULATIVE
     const deliveryConditions = {
       hasElevator: deliveryInfo?.hasElevator || false,
       totalItemCount,
@@ -156,9 +162,15 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       hasStairs: deliveryInfo?.hasStairs || false,
       stairCount: deliveryInfo?.stairCount || 0,
       needsAssembly: deliveryInfo?.needsAssembly || false,
-      floor: effectiveFloor,
-      isDuplex: deliveryInfo?.isDuplex || false,
-      deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false
+      floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+      // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+      isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+      deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+      // 🆕 Nouvelles conditions pour logique hiérarchique
+      estimatedHandlingTime: 0, // À implémenter dans l'UI si nécessaire
+      hasLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
+      multipleLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
+      complexAccess: false // À implémenter dans l'UI si nécessaire
     };
 
     console.log('📋 [VEHICLE-SELECTOR] Conditions préparées:', deliveryConditions);
@@ -171,9 +183,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     console.log(`👥 [VEHICLE-SELECTOR] Équipiers calculés: ${recommendedCrew}`);
 
-    // 🔍 DÉBOGAGE : Afficher le détail des conditions
-    if (recommendedCrew > 1) {
-      console.log('🔍 [VEHICLE-SELECTOR] CONDITIONS DÉTECTÉES:');
+    // 🔍 DÉBOGAGE : Afficher le niveau détecté par la nouvelle logique hiérarchique
+    if (recommendedCrew >= 1) {
+      console.log('🔍 [VEHICLE-SELECTOR] NIVEAU DÉTECTÉ PAR LA LOGIQUE HIÉRARCHIQUE:');
 
       const heaviestWeight = Math.max(...articles.map(a => a.poids || 0));
       const totalWeight = articles.reduce((sum, article) =>
@@ -185,25 +197,31 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       console.log(`   📦 Total articles: ${totalItemCount}`);
       console.log(`   🏢 Étage effectif: ${effectiveFloor}`);
       console.log(`   🛗 Ascenseur: ${deliveryConditions.hasElevator ? 'Oui' : 'Non'}`);
+      console.log(`   👥 Équipiers requis: ${recommendedCrew} (Niveau ${recommendedCrew === 0 ? '0' : recommendedCrew === 1 ? '1' : recommendedCrew === 2 ? '2' : '3+'})`);
 
-      // Liste des conditions qui ajoutent des équipiers
-      const activeConditions = [];
-      if (heaviestWeight >= 30) activeConditions.push(`Article ≥30kg (${heaviestWeight}kg)`);
-      if (deliveryConditions.hasElevator && totalWeight > 300) activeConditions.push(`Charge >300kg avec ascenseur (${totalWeight}kg)`);
-      if (!deliveryConditions.hasElevator && totalWeight > 200) activeConditions.push(`Charge >200kg sans ascenseur (${totalWeight}kg)`);
-      if (totalItemCount > 20) activeConditions.push(`Plus de 20 articles (${totalItemCount})`);
-      if (deliveryConditions.rueInaccessible) activeConditions.push('Rue inaccessible');
-      if (deliveryConditions.paletteComplete) activeConditions.push('Palette complète');
-      if (deliveryConditions.parkingDistance > 50) activeConditions.push(`Distance >50m (${deliveryConditions.parkingDistance}m)`);
-      if (effectiveFloor > 2 && !deliveryConditions.hasElevator) activeConditions.push(`Étage >2 sans ascenseur (${effectiveFloor}ème)`);
-      if (deliveryConditions.hasStairs && deliveryConditions.stairCount > 20) activeConditions.push(`Marches >20 (${deliveryConditions.stairCount})`);
-      if (deliveryConditions.needsAssembly) activeConditions.push('Montage nécessaire');
+      // Identifier le niveau selon la nouvelle logique
+      let detectedLevel = '';
+      let detectedReason = '';
+      
+      if (recommendedCrew >= 3) {
+        detectedLevel = 'NIVEAU 3 - DEVIS OBLIGATOIRE';
+        if (heaviestWeight >= 90) detectedReason = `Article très lourd (${heaviestWeight}kg ≥90kg)`;
+        else detectedReason = 'Conditions complexes nécessitant devis';
+      } else if (recommendedCrew === 2) {
+        detectedLevel = 'NIVEAU 2 - +2 ÉQUIPIERS';
+        if (heaviestWeight >= 60) detectedReason = `Article lourd (${heaviestWeight}kg 60-90kg)`;
+        else detectedReason = 'Conditions nécessitant 2 équipiers';
+      } else if (recommendedCrew === 1) {
+        detectedLevel = 'NIVEAU 1 - +1 ÉQUIPIER';
+        if (heaviestWeight >= 30 && heaviestWeight < 60) detectedReason = `Article lourd (${heaviestWeight}kg 30-60kg)`;
+        else detectedReason = 'Conditions nécessitant 1 équipier';
+      }
 
-      console.log(`   ✅ Conditions actives (${activeConditions.length}):`, activeConditions);
+      console.log(`   🎯 ${detectedLevel}: ${detectedReason}`);
     }
 
     return recommendedCrew;
-  }, [articles, deliveryInfo]);
+  }, [articles, deliveryInfo, calculateEffectiveFloor]);
 
   // Calcul des recommandations et restrictions lors des changements d'articles ou des options de livraison
   useEffect(() => {

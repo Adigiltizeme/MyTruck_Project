@@ -22,9 +22,9 @@ const Breadcrumbs = () => {
 
     return (
         <nav aria-label="Breadcrumb" className="mb-4">
-            <ol className="flex items-center space-x-1 text-sm text-gray-500">
+            <ol className="flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
                 <li>
-                    <Link to="/home" className="flex items-center hover:text-gray-700">
+                    <Link to="/home" className="flex items-center hover:text-gray-700 dark:hover:text-gray-300">
                         <HomeIcon className="h-4 w-4 mr-1" />
                         Accueil
                     </Link>
@@ -42,7 +42,7 @@ const Breadcrumbs = () => {
                         <li key={path} className="flex items-center">
                             <ChevronRightIcon className="h-4 w-4 mx-1" />
                             {isLast ? (
-                                <span aria-current="page" className="font-medium text-gray-900">
+                                <span aria-current="page" className="font-medium text-gray-900 dark:text-gray-300">
                                     {displayName}
                                 </span>
                             ) : (

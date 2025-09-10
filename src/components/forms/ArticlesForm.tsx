@@ -485,9 +485,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             hasStairs: localDeliveryInfo.hasStairs || false,
             stairCount: localDeliveryInfo.stairCount || 0,
             needsAssembly: localDeliveryInfo.needsAssembly || false,
-            floor: effectiveFloor,
-            isDuplex: localDeliveryInfo.isDuplex || false,
-            deliveryToUpperFloor: localDeliveryInfo.deliveryToUpperFloor || false
+            floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+            // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+            isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
         };
 
         console.log('📋 Conditions préparées:', deliveryConditions);

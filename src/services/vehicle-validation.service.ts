@@ -220,11 +220,14 @@ export class VehicleValidationService {
     }
 
     /**
-     * 🎯 LOGIQUE COMPLÈTE : Détermine les équipiers requis
-     * Basé sur l'article le plus lourd + CUMUL de TOUTES les conditions d'ajout
+     * 🎯 NOUVELLE LOGIQUE HIÉRARCHIQUE NON-CUMULATIVE
+     * Détermine le niveau d'équipiers requis selon 3 niveaux:
+     * NIVEAU 1: +1 équipier (2 personnes total)
+     * NIVEAU 2: +2 équipiers (3 personnes total) 
+     * NIVEAU 3: Devis obligatoire (≥3 équipiers)
      */
     public static getRequiredCrewSize(
-        articles: { poids?: number; quantite?: number }[],
+        articles: { poids?: number; quantite?: number; categories?: string[] }[],
         deliveryConditions: {
             hasElevator?: boolean;
             totalItemCount?: number;
@@ -237,15 +240,19 @@ export class VehicleValidationService {
             floor?: number | string;
             isDuplex?: boolean;
             deliveryToUpperFloor?: boolean;
+            estimatedHandlingTime?: number; // en minutes
+            hasLargeVoluminousItems?: boolean;
+            multipleLargeVoluminousItems?: boolean;
+            complexAccess?: boolean; // combinaison: pas ascenseur + >45min + cours à traverser
         } = {}
     ): number {
         if (!articles || articles.length === 0) {
             return 0;
         }
 
-        console.log('🎯 CALCUL ÉQUIPIERS - LOGIQUE CORRIGÉE');
+        console.log('🎯 NOUVELLE LOGIQUE ÉQUIPIERS - HIÉRARCHIQUE NON-CUMULATIVE');
 
-        // 🔍 ÉTAPE 1: Identifier l'article le plus lourd individuellement
+        // 🔍 CALCULS DE BASE
         let heaviestIndividualWeight = 0;
         articles.forEach(article => {
             const poids = article.poids || 0;
@@ -254,178 +261,191 @@ export class VehicleValidationService {
             }
         });
 
-        // 🔍 ÉTAPE 2: Calculer le poids total avec quantités
         const totalWeight = articles.reduce((sum, article) =>
             sum + ((article.poids || 0) * (article.quantite || 1)), 0
         );
 
-        // 🔍 ÉTAPE 3: Calculer le nombre total d'articles
         const totalItemCount = deliveryConditions.totalItemCount ||
             articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
-        // 🔍 ÉTAPE 4: Calculer l'étage effectif (avec duplex/maison)
+        // Calculer l'étage effectif
         let effectiveFloor = 0;
         if (deliveryConditions.floor) {
             effectiveFloor = typeof deliveryConditions.floor === 'string'
                 ? parseInt(deliveryConditions.floor) || 0
                 : deliveryConditions.floor;
         }
-
-        // 🆕 LOGIQUE DUPLEX/MAISON : +1 étage si livraison à l'étage
         if (deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor) {
             effectiveFloor += 1;
-            console.log(`🏠 Duplex/Maison: +1 étage → ${effectiveFloor} étages effectifs`);
         }
+
+        // Identifier les articles type plantes/terreaux/pots
+        const plantArticleCount = articles.reduce((sum, article) => {
+            const isPlantRelated = article.categories?.some(cat => 
+                cat.toLowerCase().includes('plante') || 
+                cat.toLowerCase().includes('terreau') || 
+                cat.toLowerCase().includes('pot')
+            ) || false;
+            return sum + (isPlantRelated ? (article.quantite || 1) : 0);
+        }, 0);
 
         console.log(`📊 Données calculées:`, {
             heaviestIndividualWeight,
             totalWeight,
             totalItemCount,
+            plantArticleCount,
             effectiveFloor,
-            hasElevator: deliveryConditions.hasElevator
+            hasElevator: deliveryConditions.hasElevator,
+            estimatedHandlingTime: deliveryConditions.estimatedHandlingTime
         });
 
-        // 🔥 CORRECTION MAJEURE : CUMUL AU LIEU DE Math.max()
-        let totalRequiredCrew = 0;
         const triggeredConditions: string[] = [];
 
-        // ✅ CONDITION 1: Au moins un article pèse 30kg individuellement
-        if (heaviestIndividualWeight >= 30) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Article lourd: ${heaviestIndividualWeight}kg (≥30kg)`);
-            console.log('✅ +1 équipier: Article lourd détecté');
+        // 🔥 NIVEAU 3: DEVIS OBLIGATOIRE (≥3 équipiers) - PRIORITÉ MAXIMALE
+        
+        // Article ≥90kg
+        if (heaviestIndividualWeight >= 90) {
+            triggeredConditions.push(`DEVIS: Article très lourd (${heaviestIndividualWeight}kg ≥90kg)`);
+            console.log('🚨 DEVIS REQUIS: Article ≥90kg');
+            return 3; // Retour immédiat
         }
 
-        // ✅ CONDITION 2: Charge totale >300kg avec ascenseur
-        if (deliveryConditions.hasElevator && totalWeight > 300) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Charge lourde avec ascenseur: ${totalWeight}kg (>300kg)`);
-            console.log('✅ +1 équipier: Charge lourde avec ascenseur');
+        // 3+ étages sans ascenseur avec ≥40 articles plantes/terreaux/pots
+        if (effectiveFloor >= 3 && !deliveryConditions.hasElevator && plantArticleCount >= 40) {
+            triggeredConditions.push(`DEVIS: ${effectiveFloor} étages + ${plantArticleCount} articles plantes sans ascenseur`);
+            console.log('🚨 DEVIS REQUIS: Étages + nombreuses plantes sans ascenseur');
+            return 3;
         }
 
-        // ✅ CONDITION 3: Charge totale >200kg sans ascenseur
-        if (!deliveryConditions.hasElevator && totalWeight > 200) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Charge lourde sans ascenseur: ${totalWeight}kg (>200kg)`);
-            console.log('✅ +1 équipier: Charge lourde sans ascenseur');
+        // Palette + accès compliqué (pas ascenseur + >45min + cours à traverser)
+        if (deliveryConditions.paletteComplete && deliveryConditions.complexAccess) {
+            triggeredConditions.push('DEVIS: Palette + accès très compliqué');
+            console.log('🚨 DEVIS REQUIS: Palette + accès compliqué');
+            return 3;
         }
 
-        // ✅ CONDITION 4: Plus de 20 produits
-        if (totalItemCount > 20) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Nombreux articles: ${totalItemCount} (>20)`);
-            console.log('✅ +1 équipier: Nombreux articles');
+        // Plusieurs gros sujets volumineux
+        if (deliveryConditions.multipleLargeVoluminousItems) {
+            triggeredConditions.push('DEVIS: Plusieurs gros sujets volumineux');
+            console.log('🚨 DEVIS REQUIS: Plusieurs gros sujets volumineux');
+            return 3;
         }
 
-        // ✅ CONDITION 5: Rue inaccessible véhicule 4 roues
+        // Manutention >45min
+        if ((deliveryConditions.estimatedHandlingTime || 0) > 45) {
+            triggeredConditions.push(`DEVIS: Manutention longue (${deliveryConditions.estimatedHandlingTime}min >45min)`);
+            console.log('🚨 DEVIS REQUIS: Manutention >45min');
+            return 3;
+        }
+
+        // 🟡 NIVEAU 2: +2 ÉQUIPIERS (3 personnes total)
+        
+        // Article ≥60kg et <90kg
+        if (heaviestIndividualWeight >= 60 && heaviestIndividualWeight < 90) {
+            triggeredConditions.push(`2 équipiers: Article lourd (${heaviestIndividualWeight}kg ≥60kg et <90kg)`);
+            console.log('⚠️ 2 ÉQUIPIERS: Article ≥60kg et <90kg');
+            return 2;
+        }
+
+        // ≥3 étages sans ascenseur avec ≥30 articles plantes/terreaux/pots
+        if (effectiveFloor >= 3 && !deliveryConditions.hasElevator && plantArticleCount >= 30) {
+            triggeredConditions.push(`2 équipiers: ${effectiveFloor} étages + ${plantArticleCount} articles plantes sans ascenseur`);
+            console.log('⚠️ 2 ÉQUIPIERS: Étages + plantes sans ascenseur');
+            return 2;
+        }
+
+        // Palette à dépalettiser + montage en étage
+        if (deliveryConditions.paletteComplete && effectiveFloor > 0) {
+            triggeredConditions.push(`2 équipiers: Palette + montage en étage (${effectiveFloor}ème)`);
+            console.log('⚠️ 2 ÉQUIPIERS: Palette + étage');
+            return 2;
+        }
+
+        // Gros sujets volumineux (palmiers, etc.)
+        if (deliveryConditions.hasLargeVoluminousItems) {
+            triggeredConditions.push('2 équipiers: Gros sujet volumineux (palmier, etc.)');
+            console.log('⚠️ 2 ÉQUIPIERS: Gros sujet volumineux');
+            return 2;
+        }
+
+        // Manutention ≥30min et ≤45min
+        if ((deliveryConditions.estimatedHandlingTime || 0) >= 30 && (deliveryConditions.estimatedHandlingTime || 0) <= 45) {
+            triggeredConditions.push(`2 équipiers: Manutention longue (${deliveryConditions.estimatedHandlingTime}min ≥30min et ≤45min)`);
+            console.log('⚠️ 2 ÉQUIPIERS: Manutention ≥30min et ≤45min');
+            return 2;
+        }
+
+        // 🟢 NIVEAU 1: +1 ÉQUIPIER (2 personnes total)
+        
+        // 🔸 CONDITION PRIORITAIRE: Article ≥30kg et <60kg (prend priorité sur charge totale)
+        if (heaviestIndividualWeight >= 30 && heaviestIndividualWeight < 60) {
+            triggeredConditions.push(`1 équipier: Article lourd (${heaviestIndividualWeight}kg ≥30kg et <60kg)`);
+            console.log('✅ 1 ÉQUIPIER: Article ≥30kg et <60kg');
+            return 1;
+        }
+
+        // 🔸 Charge totale lourde (SEULEMENT si pas d'article ≥30kg individuel)
+        if (heaviestIndividualWeight < 30 && 
+            ((deliveryConditions.hasElevator && totalWeight >= 300) || 
+             (!deliveryConditions.hasElevator && totalWeight >= 200))) {
+            const condition = deliveryConditions.hasElevator ? 'avec ascenseur' : 'sans ascenseur';
+            triggeredConditions.push(`1 équipier: Charge lourde ${totalWeight}kg ${condition} (aucun article ≥30kg)`);
+            console.log(`✅ 1 ÉQUIPIER: Charge lourde ${condition} sans article lourd individuel`);
+            return 1;
+        }
+
+        // 🔸 Étage élevé sans ascenseur (≥2ème étage) avec nombreux articles (≥20)
+        if (effectiveFloor >= 2 && !deliveryConditions.hasElevator && totalItemCount >= 20) {
+            triggeredConditions.push(`1 équipier: Étage élevé (${effectiveFloor}ème sans ascenseur) + nombreux articles (${totalItemCount})`);
+            console.log('✅ 1 ÉQUIPIER: Étage élevé + nombreux articles');
+            return 1;
+        }
+
+        // 🔸 Nombreux articles (≥20) - SEULEMENT si pas d'étage sans ascenseur
+        if (totalItemCount >= 20 && (deliveryConditions.hasElevator || effectiveFloor < 2)) {
+            triggeredConditions.push(`1 équipier: Nombreux articles (${totalItemCount} ≥20)`);
+            console.log('✅ 1 ÉQUIPIER: Nombreux articles (sans étage problématique)');
+            return 1;
+        }
+
+        // 🔸 Rue inaccessible
         if (deliveryConditions.rueInaccessible) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push('Rue inaccessible - portage nécessaire');
-            console.log('✅ +1 équipier: Rue inaccessible');
+            triggeredConditions.push('1 équipier: Rue inaccessible');
+            console.log('✅ 1 ÉQUIPIER: Rue inaccessible');
+            return 1;
         }
 
-        // ✅ CONDITION 6: Palette complète à dépalettiser
-        if (deliveryConditions.paletteComplete) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push('Palette complète à dépalettiser');
-            console.log('✅ +1 équipier: Palette complète');
+        // 🔸 Palette complète simple (rez-de-chaussée uniquement)
+        if (deliveryConditions.paletteComplete && effectiveFloor === 0) {
+            triggeredConditions.push('1 équipier: Palette complète (rez-de-chaussée)');
+            console.log('✅ 1 ÉQUIPIER: Palette simple');
+            return 1;
         }
 
-        // 🆕 CONDITIONS SUPPLÉMENTAIRES DÉTAILLÉES
-
-        // Distance de portage importante (>50m)
-        if ((deliveryConditions.parkingDistance || 0) > 50) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Distance portage: ${deliveryConditions.parkingDistance}m (>50m)`);
-            console.log('✅ +1 équipier: Distance portage importante');
+        // 🔸 Distance de portage ≥50m
+        if ((deliveryConditions.parkingDistance || 0) >= 50) {
+            triggeredConditions.push(`1 équipier: Distance portage (${deliveryConditions.parkingDistance}m ≥50m)`);
+            console.log('✅ 1 ÉQUIPIER: Distance portage');
+            return 1;
         }
 
-        // Étage élevé sans ascenseur (>2ème étage)
-        if (effectiveFloor > 2 && !deliveryConditions.hasElevator) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Étage élevé sans ascenseur: ${effectiveFloor}ème étage`);
-            console.log('✅ +1 équipier: Étage élevé sans ascenseur');
+        // 🔸 Nombreuses marches ≥20
+        if (deliveryConditions.hasStairs && (deliveryConditions.stairCount || 0) >= 20) {
+            triggeredConditions.push(`1 équipier: Nombreuses marches (${deliveryConditions.stairCount} ≥20)`);
+            console.log('✅ 1 ÉQUIPIER: Nombreuses marches');
+            return 1;
         }
 
-        // Nombreuses marches (>20)
-        if (deliveryConditions.hasStairs && (deliveryConditions.stairCount || 0) > 20) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push(`Nombreuses marches: ${deliveryConditions.stairCount} (>20)`);
-            console.log('✅ +1 équipier: Nombreuses marches');
-        }
-
-        // Montage/installation nécessaire
+        // 🔸 Montage/installation standard
         if (deliveryConditions.needsAssembly) {
-            totalRequiredCrew += 1; // 🔥 += au lieu de Math.max
-            triggeredConditions.push('Montage/installation requis');
-            console.log('✅ +1 équipier: Montage nécessaire');
+            triggeredConditions.push('1 équipier: Montage/installation');
+            console.log('✅ 1 ÉQUIPIER: Montage nécessaire');
+            return 1;
         }
 
-        // 🎯 RÈGLES POUR ÉQUIPIERS SUPPLÉMENTAIRES (conditions exceptionnelles)
-
-        // +1 équipier supplémentaire pour charges exceptionnelles avec ascenseur (>500kg)
-        if (deliveryConditions.hasElevator && totalWeight > 500) {
-            totalRequiredCrew += 1;
-            triggeredConditions.push(`Charge exceptionnelle avec ascenseur: ${totalWeight}kg (>500kg)`);
-            console.log('✅ +1 équipier: Charge exceptionnelle avec ascenseur');
-        }
-
-        // +1 équipier supplémentaire pour charges très lourdes sans ascenseur (>400kg)
-        if (!deliveryConditions.hasElevator && totalWeight > 400) {
-            totalRequiredCrew += 1;
-            triggeredConditions.push(`Charge très lourde sans ascenseur: ${totalWeight}kg (>400kg)`);
-            console.log('✅ +1 équipier: Charge très lourde sans ascenseur');
-        }
-
-        // +1 équipier supplémentaire pour très nombreux articles (>50)
-        if (totalItemCount > 50) {
-            totalRequiredCrew += 1;
-            triggeredConditions.push(`Très nombreux articles: ${totalItemCount} (>50)`);
-            console.log('✅ +1 équipier: Très nombreux articles');
-        }
-
-        // +1 équipier supplémentaire pour combinaison article lourd + étage élevé
-        if (heaviestIndividualWeight >= 30 && effectiveFloor > 3) {
-            totalRequiredCrew += 1;
-            triggeredConditions.push(`Article lourd + étage élevé: ${heaviestIndividualWeight}kg au ${effectiveFloor}ème`);
-            console.log('✅ +1 équipier: Combinaison article lourd + étage élevé');
-        }
-
-        // 🎯 RÈGLES POUR DEVIS OBLIGATOIRE (3+ équipiers au total)
-        let needsQuote = false;
-
-        // Charges exceptionnelles (>800kg) → Devis obligatoire
-        if (totalWeight > 800) {
-            needsQuote = true;
-            triggeredConditions.push(`Charge exceptionnelle: ${totalWeight}kg (>800kg) - Devis requis`);
-            console.log('⚠️ DEVIS REQUIS: Charge exceptionnelle');
-        }
-
-        // Charge très lourde sans ascenseur (>600kg) → Devis obligatoire
-        if (!deliveryConditions.hasElevator && totalWeight > 600) {
-            needsQuote = true;
-            triggeredConditions.push(`Charge très lourde sans ascenseur: ${totalWeight}kg (>600kg) - Devis requis`);
-            console.log('⚠️ DEVIS REQUIS: Charge très lourde sans ascenseur');
-        }
-
-        // Très nombreux articles (>100) → Devis obligatoire
-        if (totalItemCount > 100) {
-            needsQuote = true;
-            triggeredConditions.push(`Articles exceptionnels: ${totalItemCount} (>100) - Devis requis`);
-            console.log('⚠️ DEVIS REQUIS: Articles exceptionnels');
-        }
-
-        // Si 3+ équipiers requis → Devis obligatoire
-        if (totalRequiredCrew >= 3) {
-            needsQuote = true;
-            console.log('⚠️ DEVIS REQUIS: 3+ équipiers nécessaires');
-        }
-
-        console.log(`👥 RÉSULTAT FINAL: ${totalRequiredCrew} équipier(s) requis`);
-        console.log(`⚠️ Conditions déclenchées (${triggeredConditions.length}):`, triggeredConditions);
-        console.log(`💰 Devis obligatoire: ${needsQuote}`);
-
-        return totalRequiredCrew;
+        // 🔵 AUCUNE CONDITION = CHAUFFEUR SEUL
+        console.log('✅ 0 ÉQUIPIER: Chauffeur seul suffisant');
+        return 0;
     }
 
     /**
@@ -466,10 +486,10 @@ export class VehicleValidationService {
     }
 
     /**
-     * 🆕 MÉTHODE COMPLÈTE : Détails de validation avec toutes les nouvelles conditions
+     * 🆕 MÉTHODE COMPLÈTE : Détails de validation avec la nouvelle logique hiérarchique
      */
     public static getValidationDetails(
-        articles: { longueur?: number; largeur?: number; hauteur?: number; poids?: number; quantite?: number }[],
+        articles: { longueur?: number; largeur?: number; hauteur?: number; poids?: number; quantite?: number; categories?: string[] }[],
         conditions: {
             hasElevator?: boolean;
             totalItemCount?: number;
@@ -482,6 +502,10 @@ export class VehicleValidationService {
             floor?: number | string;
             isDuplex?: boolean;
             deliveryToUpperFloor?: boolean;
+            estimatedHandlingTime?: number;
+            hasLargeVoluminousItems?: boolean;
+            multipleLargeVoluminousItems?: boolean;
+            complexAccess?: boolean;
         } = {}
     ): {
         requiredVehicle: VehicleType | null;
@@ -533,22 +557,60 @@ export class VehicleValidationService {
             }
         });
 
-        const requiredCrew = this.getRequiredCrewSize(articles, conditions);
-        const needsQuote = requiredCrew >= 3 || totalWeight >= 800;
+        // Identifier les articles type plantes/terreaux/pots
+        const plantArticleCount = articles.reduce((sum, article) => {
+            const isPlantRelated = article.categories?.some(cat => 
+                cat.toLowerCase().includes('plante') || 
+                cat.toLowerCase().includes('terreau') || 
+                cat.toLowerCase().includes('pot')
+            ) || false;
+            return sum + (isPlantRelated ? (article.quantite || 1) : 0);
+        }, 0);
 
-        // Construire la liste des conditions déclenchées
+        const requiredCrew = this.getRequiredCrewSize(articles, conditions);
+        const needsQuote = requiredCrew >= 3;
+
+        // 🆕 Construire la liste des conditions selon la nouvelle logique hiérarchique
         const triggeredConditions: string[] = [];
-        if (heaviestArticle >= 30) triggeredConditions.push(`Article lourd: ${heaviestArticle}kg`);
-        if (conditions.hasElevator && totalWeight >= 300) triggeredConditions.push(`Charge lourde avec ascenseur: ${totalWeight}kg`);
-        if (!conditions.hasElevator && totalWeight >= 200) triggeredConditions.push(`Charge lourde sans ascenseur: ${totalWeight}kg`);
-        if (totalItems >= 20) triggeredConditions.push(`Nombreux articles: ${totalItems}`);
-        if (conditions.rueInaccessible) triggeredConditions.push('Rue inaccessible');
-        if (conditions.paletteComplete) triggeredConditions.push('Palette complète');
-        if ((conditions.parkingDistance || 0) >= 50) triggeredConditions.push(`Distance portage: ${conditions.parkingDistance}m`);
-        if (effectiveFloor > 2 && !conditions.hasElevator) triggeredConditions.push(`Étage élevé: ${effectiveFloor}ème sans ascenseur`);
-        if (conditions.hasStairs && (conditions.stairCount || 0) >= 20) triggeredConditions.push(`Nombreuses marches: ${conditions.stairCount}`);
-        if (conditions.needsAssembly) triggeredConditions.push('Montage requis');
-        if (conditions.isDuplex && conditions.deliveryToUpperFloor) triggeredConditions.push('Duplex/Maison - livraison étage');
+
+        // NIVEAU 3: DEVIS OBLIGATOIRE
+        if (heaviestArticle >= 90) {
+            triggeredConditions.push(`DEVIS: Article très lourd (${heaviestArticle}kg ≥90kg)`);
+        } else if (effectiveFloor >= 3 && !conditions.hasElevator && plantArticleCount >= 40) {
+            triggeredConditions.push(`DEVIS: ${effectiveFloor} étages + ${plantArticleCount} articles plantes sans ascenseur`);
+        } else if (conditions.paletteComplete && conditions.complexAccess) {
+            triggeredConditions.push('DEVIS: Palette + accès très compliqué');
+        } else if (conditions.multipleLargeVoluminousItems) {
+            triggeredConditions.push('DEVIS: Plusieurs gros sujets volumineux');
+        } else if ((conditions.estimatedHandlingTime || 0) > 45) {
+            triggeredConditions.push(`DEVIS: Manutention longue (${conditions.estimatedHandlingTime}min >45min)`);
+        }
+        // NIVEAU 2: +2 ÉQUIPIERS
+        else if (heaviestArticle >= 60) {
+            triggeredConditions.push(`2 équipiers: Article lourd (${heaviestArticle}kg ≥60kg)`);
+        } else if (effectiveFloor >= 3 && !conditions.hasElevator && plantArticleCount >= 30) {
+            triggeredConditions.push(`2 équipiers: ${effectiveFloor} étages + ${plantArticleCount} articles plantes sans ascenseur`);
+        } else if (conditions.paletteComplete && effectiveFloor > 0) {
+            triggeredConditions.push(`2 équipiers: Palette + montage en étage (${effectiveFloor}ème)`);
+        } else if (conditions.hasLargeVoluminousItems) {
+            triggeredConditions.push('2 équipiers: Gros sujet volumineux (palmier, etc.)');
+        } else if ((conditions.estimatedHandlingTime || 0) >= 30) {
+            triggeredConditions.push(`2 équipiers: Manutention longue (${conditions.estimatedHandlingTime}min ≥30min)`);
+        }
+        // NIVEAU 1: +1 ÉQUIPIER
+        else {
+            if ((conditions.hasElevator && totalWeight > 300) || (!conditions.hasElevator && totalWeight > 200)) {
+                const condition = conditions.hasElevator ? 'avec ascenseur' : 'sans ascenseur';
+                triggeredConditions.push(`1 équipier: Charge lourde ${totalWeight}kg ${condition}`);
+            }
+            if (totalItems > 20) triggeredConditions.push(`1 équipier: Nombreux articles (${totalItems} >20)`);
+            if (conditions.rueInaccessible) triggeredConditions.push('1 équipier: Rue inaccessible');
+            if (conditions.paletteComplete && effectiveFloor === 0) triggeredConditions.push('1 équipier: Palette complète (rez-de-chaussée)');
+            if ((conditions.parkingDistance || 0) > 50) triggeredConditions.push(`1 équipier: Distance portage (${conditions.parkingDistance}m >50m)`);
+            if (effectiveFloor > 2 && !conditions.hasElevator) triggeredConditions.push(`1 équipier: Étage élevé (${effectiveFloor}ème sans ascenseur)`);
+            if (conditions.hasStairs && (conditions.stairCount || 0) > 20) triggeredConditions.push(`1 équipier: Nombreuses marches (${conditions.stairCount} >20)`);
+            if (conditions.needsAssembly) triggeredConditions.push('1 équipier: Montage/installation');
+        }
 
         return {
             requiredVehicle: this.recommendVehicle(articles),

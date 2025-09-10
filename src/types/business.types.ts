@@ -154,6 +154,12 @@ export interface DeliveryDetails {
     isDuplex: boolean;
     deliveryToUpperFloor: boolean;
 
+    // 🆕 Nouvelles conditions pour équipiers
+    estimatedHandlingTime?: number; // Durée estimée de manutention en minutes
+    hasLargeVoluminousItems?: boolean; // Gros sujets volumineux (palmiers, etc.)
+    multipleLargeVoluminousItems?: boolean; // Plusieurs gros sujets volumineux
+    complexAccess?: boolean; // Accès compliqué (combinaison de conditions)
+
     // Métadonnées
     createdAt?: string;
     updatedAt?: string;
@@ -230,6 +236,19 @@ export interface DeliveryCondition {
     priority: number;
 }
 
+// Types pour l'historique des statuts
+export type StatusType = 'COMMANDE' | 'LIVRAISON';
+
+export interface StatusHistoryEntry {
+    id: string;
+    statusType: StatusType;
+    oldStatus: string;
+    newStatus: string;
+    reason?: string;
+    changedBy: string;
+    changedAt: string;
+}
+
 // Interface pour la commande
 export interface CommandeMetier {
     id: string;
@@ -243,6 +262,8 @@ export interface CommandeMetier {
         commande: 'En attente' | 'Confirmée' | 'Transmise' | 'Annulée' | 'Modifiée';
         livraison: 'EN ATTENTE' | 'CONFIRMEE' | 'ENLEVEE' | 'EN COURS DE LIVRAISON' | 'LIVREE' | 'ANNULEE' | 'ECHEC';
     };
+    // Historique des changements de statuts
+    statusHistory?: StatusHistoryEntry[];
     client: ClientInfo;
     livraison: LivraisonInfo;
     articles: {

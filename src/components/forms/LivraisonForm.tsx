@@ -472,7 +472,11 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         rueInaccessible: false,
         paletteComplete: false,
         isDuplex: false,
-        deliveryToUpperFloor: false
+        deliveryToUpperFloor: false,
+        estimatedHandlingTime: 0,
+        hasLargeVoluminousItems: false,
+        multipleLargeVoluminousItems: false,
+        complexAccess: false,
     });
     const [availableSlots, setAvailableSlots] = useState<SlotAvailability[]>([]);
     const [slotsLoading, setSlotsLoading] = useState(false);
@@ -528,7 +532,11 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         rueInaccessible: livDetails.rueInaccessible || false,
                         paletteComplete: livDetails.paletteComplete || false,
                         isDuplex: livDetails.isDuplex || false,
-                        deliveryToUpperFloor: livDetails.deliveryToUpperFloor || false
+                        deliveryToUpperFloor: livDetails.deliveryToUpperFloor || false,
+                        estimatedHandlingTime: livDetails.estimatedHandlingTime || 0,
+                        hasLargeVoluminousItems: livDetails.hasLargeVoluminousItems || false,
+                        multipleLargeVoluminousItems: livDetails.multipleLargeVoluminousItems || false,
+                        complexAccess: livDetails.complexAccess || false
                     };
                     setDeliveryInfo(currentDeliveryInfo);
                 }
@@ -573,8 +581,27 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         const recommended = VehicleValidationService.recommendVehicle(articleDimensions, canBeTilted);
         setRecommendedVehicle(recommended);
 
-        // Calculer les équipiers recommandés
-        const crew = VehicleValidationService.getRequiredCrewSize(articleDimensions);
+        // 🔥 CORRECTION : Calculer les équipiers avec TOUTES les conditions de livraison
+        const deliveryConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount: articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0),
+            rueInaccessible: currentDeliveryInfo?.rueInaccessible || false,
+            paletteComplete: currentDeliveryInfo?.paletteComplete || false,
+            parkingDistance: currentDeliveryInfo?.parkingDistance || 0,
+            hasStairs: currentDeliveryInfo?.hasStairs || false,
+            stairCount: currentDeliveryInfo?.stairCount || 0,
+            needsAssembly: currentDeliveryInfo?.needsAssembly || false,
+            floor: data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0,
+            isDuplex: currentDeliveryInfo?.isDuplex || false,
+            deliveryToUpperFloor: currentDeliveryInfo?.deliveryToUpperFloor || false,
+            // 🆕 Ajouter les nouvelles conditions
+            estimatedHandlingTime: currentDeliveryInfo?.estimatedHandlingTime || 0,
+            hasLargeVoluminousItems: currentDeliveryInfo?.hasLargeVoluminousItems || false,
+            multipleLargeVoluminousItems: currentDeliveryInfo?.multipleLargeVoluminousItems || false,
+            complexAccess: currentDeliveryInfo?.complexAccess || false
+        };
+
+        const crew = VehicleValidationService.getRequiredCrewSize(articleDimensions, deliveryConditions);
         setRecommendedCrew(crew);
 
         // Vérifier si des équipiers supplémentaires sont nécessaires
@@ -994,9 +1021,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             hasStairs: deliveryInfo?.hasStairs || false,
             stairCount: deliveryInfo?.stairCount || 0,
             needsAssembly: deliveryInfo?.needsAssembly || false,
-            floor: effectiveFloor,
-            isDuplex,
-            deliveryToUpperFloor
+            floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+            // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+            isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
         };
 
         // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION
@@ -1009,13 +1037,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         console.log('📊 [LIVRAISON] Résultat validation:', validation);
 
         // 🔍 DÉBOGAGE DÉTAILLÉ si restriction
-    if (!validation.isValid) {
-        console.log('🚨 [LIVRAISON] RESTRICTION DÉTECTÉE:');
-        console.log(`   - Sélectionné: ${crewSize} équipiers`);
-        console.log(`   - Requis: ${validation.requiredCrewSize} équipiers`);
-        console.log(`   - Manque: ${validation.deficiency} équipiers`);
-        console.log('📋 Conditions déclenchées:', validation.triggeredConditions);
-    }
+        if (!validation.isValid) {
+            console.log('🚨 [LIVRAISON] RESTRICTION DÉTECTÉE:');
+            console.log(`   - Sélectionné: ${crewSize} équipiers`);
+            console.log(`   - Requis: ${validation.requiredCrewSize} équipiers`);
+            console.log(`   - Manque: ${validation.deficiency} équipiers`);
+            console.log('📋 Conditions déclenchées:', validation.triggeredConditions);
+        }
 
         return {
             isRestricted: !validation.isValid,
@@ -1062,9 +1090,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             hasStairs: deliveryInfo?.hasStairs || false,
             stairCount: deliveryInfo?.stairCount || 0,
             needsAssembly: deliveryInfo?.needsAssembly || false,
-            floor: effectiveFloor,
-            isDuplex: deliveryInfo?.isDuplex || false,
-            deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false
+            floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+            // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+            isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
         };
 
         // ✅ UTILISER LA NOUVELLE MÉTHODE
@@ -1109,9 +1138,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             hasStairs: deliveryInfo?.hasStairs || false,
             stairCount: deliveryInfo?.stairCount || 0,
             needsAssembly: deliveryInfo?.needsAssembly || false,
-            floor: effectiveFloor,
-            isDuplex: deliveryInfo?.isDuplex || false,
-            deliveryToUpperFloor: deliveryInfo?.deliveryToUpperFloor || false,
+            floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
+            // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
+            isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
         };
 
         return VehicleValidationService.getValidationDetails(articleDimensions, deliveryConditions);

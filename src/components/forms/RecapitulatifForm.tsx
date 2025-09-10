@@ -1,5 +1,6 @@
 import { CommandeMetier } from "../../types/business.types";
 import { RecapitulatifFormProps } from "../../types/form.types";
+import { VehicleValidationService } from "../../services/vehicle-validation.service";
 import FormInput from "./FormInput";
 
 export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, errors, onChange, showErrors = false }) => {
@@ -122,32 +123,37 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
         );
     }
 
-    // Définir la fonction getRequiredCrew en dehors du JSX
+    // 🔥 CORRECTION CRITIQUE : Utiliser la NOUVELLE logique hiérarchique
     const getRequiredCrew = (deliveryConditions: any, effectiveFloor: number) => {
         const articles = data.articles?.dimensions || [];
         if (articles.length === 0) return null;
 
         const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
-        // Simuler le calcul côté frontend pour affichage
-        let requiredCrew = 0;
-        const heaviestWeight = Math.max(...articles.map(a => a.poids || 0));
-        const totalWeight = articles.reduce((sum, article) =>
-            sum + ((article.poids || 0) * (article.quantite || 1)), 0
-        );
+        // 🆕 UTILISER VehicleValidationService.getRequiredCrewSize() avec TOUTES les conditions
+        const validationConditions = {
+            hasElevator: data.client?.adresse?.ascenseur || false,
+            totalItemCount,
+            rueInaccessible: deliveryConditions?.rueInaccessible || false,
+            paletteComplete: deliveryConditions?.paletteComplete || false,
+            parkingDistance: deliveryConditions?.parkingDistance || 0,
+            hasStairs: deliveryConditions?.hasStairs || false,
+            stairCount: deliveryConditions?.stairCount || 0,
+            needsAssembly: deliveryConditions?.needsAssembly || false,
+            floor: effectiveFloor,
+            isDuplex: deliveryConditions?.isDuplex || false,
+            deliveryToUpperFloor: deliveryConditions?.deliveryToUpperFloor || false,
+            // 🆕 Nouvelles conditions pour logique hiérarchique
+            estimatedHandlingTime: deliveryConditions?.estimatedHandlingTime || 0,
+            hasLargeVoluminousItems: deliveryConditions?.hasLargeVoluminousItems || false,
+            multipleLargeVoluminousItems: deliveryConditions?.multipleLargeVoluminousItems || false,
+            complexAccess: deliveryConditions?.complexAccess || false
+        };
 
-        // Compter les conditions (logique simplifiée pour affichage)
-        if (heaviestWeight >= 30) requiredCrew++;
-        if (data.client?.adresse?.ascenseur && totalWeight > 300) requiredCrew++;
-        if (!data.client?.adresse?.ascenseur && totalWeight > 200) requiredCrew++;
-        if (totalItemCount > 20) requiredCrew++;
-        if (deliveryConditions?.rueInaccessible) requiredCrew++;
-        if (deliveryConditions?.isDuplex && deliveryConditions.deliveryToUpperFloor) requiredCrew++;
-        if (deliveryConditions?.paletteComplete) requiredCrew++;
-        if (deliveryConditions?.parkingDistance > 50) requiredCrew++;
-        // if (effectiveFloor > 2 && !data.client?.adresse?.ascenseur) requiredCrew++;
-        if (deliveryConditions?.hasStairs && deliveryConditions?.stairCount > 20) requiredCrew++;
-        if (deliveryConditions?.needsAssembly) requiredCrew++;
+        // ✅ UTILISER LA MÉTHODE OFFICIELLE au lieu de la logique manuelle
+        const requiredCrew = VehicleValidationService.getRequiredCrewSize(articles, validationConditions);
+
+        console.log('📊 [RECAPITULATIF] Équipiers calculés:', requiredCrew);
 
         return (
             <div className="mt-3 pt-3 border-t border-orange-300">
