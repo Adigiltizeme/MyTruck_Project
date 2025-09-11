@@ -256,7 +256,10 @@ export interface CommandeMetier {
     dates: {
         commande: string;
         livraison: string;
-        misAJour: string;
+        misAJour: {
+            commande?: string;
+            livraison?: string;
+        }
     };
     statuts: {
         commande: 'En attente' | 'Confirmée' | 'Transmise' | 'Annulée' | 'Modifiée';

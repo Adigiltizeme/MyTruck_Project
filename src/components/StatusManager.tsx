@@ -47,7 +47,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
         return user?.role === 'chauffeur';
     };
 
-    // ✅ RÈGLE 1 : Auto-confirmation commande après soumission (désactivé pour contrôle manuel)
+    // ✅ RÈGLE 1 RÉTABLIE : Auto-confirmation (compatible avec dates indépendantes)
     useEffect(() => {
         const autoConfirmCommande = async () => {
             if (commande.statuts?.commande === 'En attente' && user?.role === 'magasin') {
@@ -379,14 +379,14 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
             <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600">Statut commande :</span>
-                    <span className={getStatutCommandeStyle(commande.statuts?.commande || '')}>
-                        {commande.statuts?.commande || 'N/A'}
+                    <span className={getStatutCommandeStyle(commande.statuts?.commande || 'En attente')}>
+                        {commande.statuts?.commande || 'En attente'}
                     </span>
                 </div>
                 <div className="flex items-center justify-between">
                     <span className="text-gray-600">Statut livraison :</span>
-                    <span className={getStatutLivraisonStyle(commande.statuts?.livraison || '')}>
-                        {commande.statuts?.livraison || 'N/A'}
+                    <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'EN ATTENTE')}>
+                        {commande.statuts?.livraison || 'EN ATTENTE'}
                     </span>
                 </div>
             </div>
@@ -477,9 +477,9 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                                 </div>
                             )}
 
-                            {/* Indication automatisation */}
-                            <div className="text-sm text-center text-gray-500 bg-blue-50 p-2 rounded">
-                                💡 La confirmation de livraison confirmera<br /> automatiquement la commande
+                            {/* Information indépendance des statuts */}
+                            <div className="text-sm text-center text-gray-500 bg-green-50 p-2 rounded">
+                                ✅ Les statuts de commande et livraison<br /> évoluent désormais de façon indépendante
                             </div>
                         </div>
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { CommandeMetier, StatusHistoryEntry } from '../types/business.types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -28,6 +28,29 @@ interface CommandeDetailsProps {
     onRefresh?: () => Promise<void>;
 }
 
+// ✅ SYSTÈME DE CACHE LOCAL pour les dates de changement de statuts
+const getStatusDatesCache = () => {
+    const cached = localStorage.getItem('statusDatesCache');
+    return cached ? JSON.parse(cached) : {};
+};
+
+const setStatusDateInCache = (commandeId: string, statusType: 'commande' | 'livraison', status: string, date: string) => {
+    const cache = getStatusDatesCache();
+    if (!cache[commandeId]) {
+        cache[commandeId] = {};
+    }
+    if (!cache[commandeId][statusType]) {
+        cache[commandeId][statusType] = {};
+    }
+    cache[commandeId][statusType][status] = date;
+    localStorage.setItem('statusDatesCache', JSON.stringify(cache));
+};
+
+const getStatusDateFromCache = (commandeId: string, statusType: 'commande' | 'livraison', status: string): string | null => {
+    const cache = getStatusDatesCache();
+    return cache[commandeId]?.[statusType]?.[status] || null;
+};
+
 const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, onRefresh }) => {
     // Vérification de sécurité - si commande est undefined ou null, afficher un message
     if (!commande) {
@@ -42,6 +65,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     const [chauffeurs, setChauffeurs] = useState<Personnel[]>([]);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
+    
+    // ✅ Ref pour suivre les changements de statuts (évite les boucles de rendu)
+    const previousStatutsRef = useRef<{commande?: string, livraison?: string}>({
+        commande: commande?.statuts?.commande,
+        livraison: commande?.statuts?.livraison
+    });
 
     const backendDataService = new BackendDataService();
     const { dataService } = useOffline();
@@ -61,49 +90,126 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         loadChauffeurs();
     }, [user]);
 
+    // ✅ EFFET pour détecter les changements de statuts et mettre à jour le cache
     useEffect(() => {
-        console.log('🖥️ ===== DEBUG COMMANDEDETAILS RENDU =====');
-        console.log('🖥️ Commande reçue:', commande);
-        console.log('🖥️ Client affiché:', commande?.client);
-        console.log('🖥️ Statuts affichés:', commande?.statuts);
-        console.log('🖥️ Magasin affiché:', commande?.magasin);
+        const currentCommande = commande?.statuts?.commande;
+        const currentLivraison = commande?.statuts?.livraison;
+        const now = new Date().toISOString();
+
+        // Vérifier changement de statut commande
+        if (previousStatutsRef.current.commande !== currentCommande && currentCommande) {
+            setStatusDateInCache(commande.id, 'commande', currentCommande, now);
+        }
+
+        // Vérifier changement de statut livraison
+        if (previousStatutsRef.current.livraison !== currentLivraison && currentLivraison) {
+            setStatusDateInCache(commande.id, 'livraison', currentLivraison, now);
+        }
+
+        // Mettre à jour les statuts précédents (pas de re-render car c'est une ref)
+        previousStatutsRef.current = {
+            commande: currentCommande,
+            livraison: currentLivraison
+        };
+    }, [commande?.statuts?.commande, commande?.statuts?.livraison, commande?.id]);
+
+    // ✅ FONCTION helper pour obtenir la date de mise à jour avec rétro-compatibilité
+    const getUpdateDateForStatus = (statusType: 'commande' | 'livraison'): string | null => {
+        const misAJour = commande?.dates?.misAJour;
+        
+        if (!misAJour) {
+            return null;
+        }
+        
+        // Nouveau format (objet avec commande/livraison séparées)
+        if (typeof misAJour === 'object' && misAJour !== null) {
+            return statusType === 'commande' ? misAJour.commande || null : misAJour.livraison || null;
+        }
+        
+        // Ancien format (string) - pour rétro-compatibilité
+        if (typeof misAJour === 'string') {
+            return misAJour;
+        }
+        
+        return null;
+    };
+
+    // ✅ FONCTION pour obtenir la date intelligente d'un statut
+    const getSmartStatusDate = (statusType: 'commande' | 'livraison', currentStatus: string): Date => {
+        // 1. D'abord essayer depuis le cache local
+        const cachedDate = getStatusDateFromCache(commande.id, statusType, currentStatus);
+        if (cachedDate) {
+            return new Date(cachedDate);
+        }
+
+        // 2. Si pas dans le cache, logique intelligente selon le statut
+        if (statusType === 'commande') {
+            const isDefaultStatus = !currentStatus || currentStatus === 'En attente';
+            if (isDefaultStatus) {
+                // Statut par défaut = date de création
+                return commande?.dates?.commande ? new Date(commande.dates.commande) : new Date();
+            } else {
+                // Statut modifié = date de mise à jour
+                const updateDate = getUpdateDateForStatus('commande');
+                return updateDate ? new Date(updateDate) : 
+                       (commande?.dates?.commande ? new Date(commande.dates.commande) : new Date());
+            }
+        } else { // livraison
+            const isDefaultStatus = !currentStatus || currentStatus === 'EN ATTENTE';
+            if (isDefaultStatus) {
+                // Statut par défaut = date de création
+                return commande?.dates?.commande ? new Date(commande.dates.commande) : new Date();
+            } else {
+                // Statut modifié = date de mise à jour
+                const updateDate = getUpdateDateForStatus('livraison');
+                return updateDate ? new Date(updateDate) : new Date();
+            }
+        }
+    };
+
+    // Monitoring minimal pour les erreurs importantes
+    useEffect(() => {
+        if (!commande?.dates) {
+            console.warn('⚠️ Commande sans dates détectée:', commande?.id);
+        }
     }, [commande]);
 
     // Chronologie avec historique réel des statuts
     const buildTimelineFromHistory = () => {
-        const events: { date: Date; status: string; type: string }[] = [];
+        const events: { date: Date; status: string; type: string; oldStatus?: string; reason?: string }[] = [];
         
         if (!commande?.statusHistory || commande.statusHistory.length === 0) {
             // Fallback: utiliser l'ancienne logique si pas d'historique
-            events.push(
-                {
-                    date: commande?.dates?.commande ? new Date(commande.dates.commande) : new Date(),
-                    status: commande?.statuts?.commande || 'En attente',
-                    type: 'commande'
-                },
-                {
-                    date: commande?.statuts?.livraison === 'EN ATTENTE' 
-                        ? (commande?.dates?.commande ? new Date(commande.dates.commande) : new Date())
-                        : (commande?.dates?.misAJour ? new Date(commande.dates.misAJour) : new Date()),
-                    status: commande.statuts?.livraison || 'EN ATTENTE',
-                    type: 'livraison'
-                }
-            );
-        } else {
-            // ✅ UTILISER UNIQUEMENT L'HISTORIQUE - Afficher le DERNIER statut de chaque type
-            const latestStatuses = new Map<string, { date: Date; status: string; type: string }>();
             
+            // ✅ Utiliser les dates intelligentes qui incluent le cache local
+            const currentCommandeStatus = commande?.statuts?.commande || 'En attente';
+            const currentLivraisonStatus = commande?.statuts?.livraison || 'EN ATTENTE';
+            
+            const commandeSmartDate = getSmartStatusDate('commande', currentCommandeStatus);
+            const livraisonSmartDate = getSmartStatusDate('livraison', currentLivraisonStatus);
+                
+            events.push({
+                date: commandeSmartDate,
+                status: currentCommandeStatus,
+                type: 'commande',
+            });
+                
+            events.push({
+                date: livraisonSmartDate,
+                status: currentLivraisonStatus,
+                type: 'livraison',
+            });
+        } else {
+            // ✅ UTILISER TOUS LES CHANGEMENTS DE L'HISTORIQUE - Chronologie complète
             commande.statusHistory.forEach((entry: StatusHistoryEntry) => {
-                const type = entry.statusType.toLowerCase();
-                latestStatuses.set(type, {
+                events.push({
                     date: new Date(entry.changedAt),
                     status: entry.newStatus,
-                    type: type
+                    type: entry.statusType.toLowerCase(),
+                    oldStatus: entry.oldStatus, // Conserver l'ancien statut pour plus de contexte
+                    reason: entry.reason || 'Changement de statut'
                 });
             });
-            
-            // Convertir la Map en array
-            events.push(...Array.from(latestStatuses.values()));
         }
         
         return events.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -136,7 +242,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         { id: 'photos-articles', label: 'Photos articles', icon: '📸' },
         { id: 'photos-commentaires', label: 'Photos commentaires', icon: '🖼️' },
         { id: 'chronologie', label: 'Chronologie', icon: '⏱️' },
-        { id: 'historique', label: 'Historique', icon: '📊' },
         ...(user?.role !== 'chauffeur' ? [{ id: 'documents', label: 'Documents', icon: '📄' }] : []),
         { id: 'actions', label: 'Actions', icon: '⚡' },
     ];
@@ -149,7 +254,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
     // ✅ FONCTION REFRESH PERSONNALISÉE qui préserve l'onglet
     const handleRefreshWithTabPreservation = async () => {
-        console.log('🔄 Refresh avec préservation onglet:', activeTab);
 
         // Sauvegarder l'onglet actuel
         const currentTab = activeTab;
@@ -817,6 +921,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             case 'chronologie':
                 return (
                     <div className="max-w-3xl mx-auto">
+                        {/* Section des dates actuelles des statuts */}
+                        <div>
+                            <h4 className="text-lg font-medium mb-4 text-gray-800">⏰ Chronologie des statuts</h4>
+                        </div>
                         <div className="flow-root">
                             <ul className="-mb-8">
                                 {timelineEvents.map((event, index) => (
@@ -838,8 +946,20 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                 <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
                                                     <div>
                                                         <p className="text-sm text-gray-500">
-                                                            {event.type === 'commande' ? 'Commande' : 'Livraison'} : {event.status}
+                                                            <span className="font-medium">
+                                                                {event.type === 'commande' ? 'Commande' : 'Livraison'}
+                                                            </span>
+                                                            {event.oldStatus ? (
+                                                                <span>: {event.oldStatus} → <span className="font-medium text-gray-700">{event.status}</span></span>
+                                                            ) : (
+                                                                <span>: <span className="font-medium text-gray-700">{event.status}</span></span>
+                                                            )}
                                                         </p>
+                                                        {event.reason && (
+                                                            <p className="text-xs text-gray-400 mt-1">
+                                                                {event.reason}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                     <div className="whitespace-nowrap text-right text-sm text-gray-500">
                                                         {formatDate(event.date)}
@@ -851,40 +971,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                 ))}
                             </ul>
                         </div>
-                    </div>
-                );
-            case 'historique':
-                return (
-                    <div className="space-y-4">
-                        {commande.dates?.misAJour ? (
-                            <div className="flow-root">
-                                <ul className="-mb-8">
-                                    <li>
-                                        <div className="relative pb-8">
-                                            <div className="relative flex space-x-3">
-                                                <div>
-                                                    <span className="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center ring-8 ring-white">
-                                                        {/* Icon */}
-                                                    </span>
-                                                </div>
-                                                <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                                                    <div>
-                                                        <p className="text-sm text-gray-500">
-                                                            Dernière modification
-                                                        </p>
-                                                    </div>
-                                                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                                                        {formatDate(commande.dates.misAJour)}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                        ) : (
-                            <p className="text-center text-gray-500">Aucun historique disponible</p>
-                        )}
                     </div>
                 );
             case 'documents':

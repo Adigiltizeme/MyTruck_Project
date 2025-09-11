@@ -445,7 +445,7 @@ const Deliveries = () => {
                             initialData={{
                                 id: '',
                                 numeroCommande: '',
-                                dates: { commande: '', livraison: '', misAJour: '' },
+                                dates: { commande: '', livraison: '', misAJour: { commande: '', livraison: '' } },
                                 statuts: { livraison: 'EN ATTENTE', commande: 'En attente' },
                                 client: { nom: '', prenom: '', nomComplet: '', adresse: { ligne1: '', type: 'Domicile', batiment: '', etage: '', ascenseur: false, interphone: '' }, telephone: { principal: '', secondaire: '' } },
                                 magasin: user?.role === 'magasin' ? {
