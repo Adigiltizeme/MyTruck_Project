@@ -11,7 +11,7 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
 
         // Extraction des chauffeurs
         console.log('Raw chauffeurs data:', fields['CHAUFFEUR(S)']);
-        
+
         // console.log('Raw delivery status:', {
         //     field: fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'],
         //     rawFields: fields
@@ -65,9 +65,14 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
                 livraison: fields['DATE DE LIVRAISON']
                     ? new Date(fields['DATE DE LIVRAISON']).toISOString()
                     : new Date().toISOString(),
-                misAJour: fields['DATE DE MISE A JOUR COMMANDE']
-                    ? new Date(fields['DATE DE MISE A JOUR COMMANDE']).toISOString()
-                    : new Date().toISOString()
+                misAJour: {
+                    commande: fields['DATE DE MISE A JOUR COMMANDE']
+                        ? new Date(fields['DATE DE MISE A JOUR COMMANDE']).toISOString()
+                        : new Date().toISOString(),
+                    livraison: fields['DATE DE MISE A JOUR LIVRAISON']
+                        ? new Date(fields['DATE DE MISE A JOUR LIVRAISON']).toISOString()
+                        : new Date().toISOString(),
+                }
             },
             statuts: {
                 commande: fields['STATUT DE LA COMMANDE']?.[0]?.trim() || 'En attente',

@@ -71,9 +71,9 @@ const AdminDashboard: React.FC = () => {
                         className="border rounded-lg px-3 py-2 bg-white"
                     >
                         <option value="">Tous les magasins</option>
-                        {data.store?.map((storeName) => (
-                            <option key={storeName} value={storeName}>
-                                {storeName}
+                        {data.magasins?.map((magasin) => (
+                            <option key={magasin.id} value={magasin.id}>
+                                {magasin.name}
                             </option>
                         ))}
                     </select>
@@ -83,10 +83,9 @@ const AdminDashboard: React.FC = () => {
             {/* Métriques principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MetricCard
-                    title="Total Livraisons"
+                    title="Livraisons réussies"
                     value={data.totalLivraisons}
-                    subtitle={`${data.enAttente} en attente`}
-                    variation={0}
+                    subtitle={`${data.totalLivraisons} sur ${data.totalCommandes} livraisons`}
                     chartData={data.historique}
                     color="#3B82F6"
                 />
@@ -94,7 +93,6 @@ const AdminDashboard: React.FC = () => {
                     title="En cours"
                     value={data.enCours}
                     subtitle={`${data.chauffeursActifs} chauffeurs actifs`}
-                    variation={0}
                     chartData={data.historique}
                     color="#10B981"
                 />
@@ -102,7 +100,6 @@ const AdminDashboard: React.FC = () => {
                     title="Performance"
                     value={`${data.performance}%`}
                     subtitle="Taux de livraison"
-                    variation={0}
                     chartData={data.historique}
                     color="#6366F1"
                 />
@@ -112,7 +109,6 @@ const AdminDashboard: React.FC = () => {
                     subtitle={`${data.totalLivraisons > 0 
                         ? Math.round(data.chiffreAffaires / data.totalLivraisons) 
                         : 0}€/livraison`}
-                    variation={0}
                     chartData={data.historique}
                     color="#F59E0B"
                 />

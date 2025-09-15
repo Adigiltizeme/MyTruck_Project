@@ -130,7 +130,10 @@ export class DataServiceAdapter {
             // ✅ PRIORITÉ ABSOLUE au Backend API
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 console.log('🔄 Redirection vers simple-backend.service');
-                return await this.simpleBackendService.getCommandes();
+                const commandes = await this.simpleBackendService.getCommandes();
+                
+                // ✅ TRANSFORMATION CRITIQUE : Appliquer la transformation à toutes les commandes
+                return commandes.map(commande => this.transformBackendCommandeData(commande));
 
             } else {
                 console.log('📊 FALLBACK: Récupération via Airtable');
@@ -172,10 +175,13 @@ export class DataServiceAdapter {
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 const commande = await this.apiService.getCommande(id);
 
-                // Mettre à jour la base locale
-                await SafeDbService.put('commandes', commande);
+                // ✅ TRANSFORMATION CRITIQUE : Préserver le format misAJour attendu par le frontend
+                const transformedCommande = this.transformBackendCommandeData(commande);
 
-                return commande;
+                // Mettre à jour la base locale avec les données transformées
+                await SafeDbService.put('commandes', transformedCommande);
+
+                return transformedCommande;
             } else {
                 return await this.dataService.getCommande(id);
             }
@@ -555,6 +561,34 @@ export class DataServiceAdapter {
             console.error('Erreur deleteCommande:', error);
             throw error;
         }
+    }
+
+    // ✅ NOUVELLE MÉTHODE : Suppression multiple de commandes
+    async deleteMultipleCommandes(ids: string[]): Promise<{ success: string[]; errors: { id: string; error: string }[] }> {
+        console.log(`🗑️ Suppression multiple de ${ids.length} commandes:`, ids);
+        
+        const results = {
+            success: [] as string[],
+            errors: [] as { id: string; error: string }[]
+        };
+
+        // Traiter en parallèle pour performance
+        await Promise.allSettled(
+            ids.map(async (id) => {
+                try {
+                    await this.deleteCommande(id);
+                    results.success.push(id);
+                    console.log(`✅ Commande ${id} supprimée avec succès`);
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+                    results.errors.push({ id, error: errorMessage });
+                    console.error(`❌ Échec suppression commande ${id}:`, errorMessage);
+                }
+            })
+        );
+
+        console.log(`📊 Résultats suppression: ${results.success.length} réussies, ${results.errors.length} échouées`);
+        return results;
     }
 
     // =====================================
@@ -1587,6 +1621,32 @@ export class DataServiceAdapter {
         if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
             (window as any).debugOfflineMode = () => this.debugOfflineMode();
         }
+    }
+
+    // ==========================================
+    // TRANSFORMATION DES DONNÉES BACKEND
+    // =====================================
+
+    // ✅ MÉTHODE CRITIQUE : Transformer les données backend pour préserver les dates indépendantes
+    private transformBackendCommandeData(commande: any): CommandeMetier {
+        if (!commande) return commande;
+
+        // Conserver les données originales
+        const transformedCommande = { ...commande };
+
+        // ✅ TRANSFORMATION ESSENTIELLE : Préserver le format misAJour pour les dates indépendantes
+        if (commande.dates?.misAJour) {
+            // Si le backend renvoie un string (ancien format), ne pas l'écraser
+            if (typeof commande.dates.misAJour === 'string') {
+                // Laisser tel quel - notre système de cache local prendra le relais
+                console.log('🔄 Backend format misAJour (string) préservé pour cache local');
+            } else if (typeof commande.dates.misAJour === 'object') {
+                // Nouveau format déjà correct, garder tel quel
+                console.log('✅ Backend format misAJour (object) déjà correct');
+            }
+        }
+
+        return transformedCommande as CommandeMetier;
     }
 
     // ==========================================

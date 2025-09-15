@@ -29,12 +29,16 @@ interface RapportManagerProps {
     commande: CommandeMetier;
     onUpdate: (commande: CommandeMetier) => void;
     onRefresh?: () => Promise<void>;
+    onRapportOperationStart?: () => void;
+    onRapportOperationEnd?: () => void;
 }
 
 export const RapportManager: React.FC<RapportManagerProps> = ({
     commande,
     onUpdate,
-    onRefresh
+    onRefresh,
+    onRapportOperationStart,
+    onRapportOperationEnd
 }) => {
     const { user } = useAuth();
     const { dataService } = useOffline();
@@ -85,6 +89,11 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
     const handleCreateRapport = async () => {
         try {
             setLoading(true);
+
+            // ✅ PROTECTION TOTALE : Marquer le début d'opération rapport
+            if (onRapportOperationStart) {
+                onRapportOperationStart();
+            }
 
             // ✅ Validation
             if (!message.trim()) {
@@ -155,11 +164,20 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
             setIsObligatoire(false);
             await loadRapports();
 
+            // ✅ PROTECTION TOTALE : Marquer la fin d'opération rapport
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
+
         } catch (error) {
             console.error('❌ Erreur création rapport:', error);
             alert(`Erreur: ${error instanceof Error ? error.message : 'Impossible de créer le rapport'}`);
         } finally {
             setLoading(false);
+            // ✅ S'assurer de marquer la fin même en cas d'erreur
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
         }
     };
 
@@ -242,7 +260,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                             </button>
                         )}
 
-                        {canCreateRapport('LIVRAISON') && ['ENLEVEE', 'EN COURS DE LIVRAISON'].includes(commande.statuts?.livraison || '') && (
+                        {canCreateRapport('LIVRAISON') && ['EN COURS DE LIVRAISON', 'ECHEC'].includes(commande.statuts?.livraison || '') && (
                             <button
                                 onClick={() => {
                                     setRapportType('LIVRAISON');

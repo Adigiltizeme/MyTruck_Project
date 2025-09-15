@@ -12,12 +12,16 @@ interface PhotosCommentairesProps {
     commande: CommandeMetier;
     onUpdate: (commande: CommandeMetier) => void;
     onRefresh?: () => Promise<void>;
+    onRapportOperationStart?: () => void;
+    onRapportOperationEnd?: () => void;
 }
 
 const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
     commande,
     onUpdate,
-    onRefresh
+    onRefresh,
+    onRapportOperationStart,
+    onRapportOperationEnd
 }) => {
     const { dataService } = useOffline();
     const { user } = useAuth();
@@ -64,6 +68,11 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
         try {
             setLoading(true);
 
+            // ✅ PROTECTION TOTALE : Marquer le début d'opération rapport
+            if (onRapportOperationStart) {
+                onRapportOperationStart();
+            }
+
             if (!editingRapport) return;
 
             await dataService.updateRapport(commande.id, editingRapport.type, {
@@ -87,11 +96,20 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
             await loadRapportsEtPhotos();
             cancelEditRapport();
 
+            // ✅ PROTECTION TOTALE : Marquer la fin d'opération rapport
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
+
         } catch (error) {
             console.error('❌ Erreur modification rapport:', error);
             alert(`Erreur: ${error instanceof Error ? error.message : 'Impossible de modifier le rapport'}`);
         } finally {
             setLoading(false);
+            // ✅ S'assurer de marquer la fin même en cas d'erreur
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
         }
     };
 
@@ -102,6 +120,11 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
 
         try {
             setLoading(true);
+
+            // ✅ PROTECTION TOTALE : Marquer le début d'opération rapport
+            if (onRapportOperationStart) {
+                onRapportOperationStart();
+            }
 
             await dataService.deleteRapport(commande.id, type);
 
@@ -119,11 +142,20 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
 
             await loadRapportsEtPhotos();
 
+            // ✅ PROTECTION TOTALE : Marquer la fin d'opération rapport
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
+
         } catch (error) {
             console.error('❌ Erreur suppression rapport:', error);
             alert(`Erreur: ${error instanceof Error ? error.message : 'Impossible de supprimer le rapport'}`);
         } finally {
             setLoading(false);
+            // ✅ S'assurer de marquer la fin même en cas d'erreur
+            if (onRapportOperationEnd) {
+                onRapportOperationEnd();
+            }
         }
     };
 
@@ -384,13 +416,17 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
     return (
         <div className="space-y-6">
             {/* ✅ RAPPORTS D'ENLÈVEMENT avec modification */}
-            {rapports.enlevement.length > 0 && rapports.enlevement.map((rapport: any) =>
-                renderRapportWithPhotos(rapport, 'ENLEVEMENT')
+            {rapports.enlevement.length > 0 && rapports.enlevement.map((rapport: any, index: number) =>
+                <div key={`enlevement-${rapport.id || index}`}>
+                    {renderRapportWithPhotos(rapport, 'ENLEVEMENT')}
+                </div>
             )}
 
             {/* ✅ RAPPORTS DE LIVRAISON avec modification */}
-            {rapports.livraison.length > 0 && rapports.livraison.map((rapport: any) =>
-                renderRapportWithPhotos(rapport, 'LIVRAISON')
+            {rapports.livraison.length > 0 && rapports.livraison.map((rapport: any, index: number) =>
+                <div key={`livraison-${rapport.id || index}`}>
+                    {renderRapportWithPhotos(rapport, 'LIVRAISON')}
+                </div>
             )}
 
             {/* ✅ ANCIENNE STRUCTURE (fallback pour compatibilité) */}

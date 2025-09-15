@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AirtableService } from '../../services/airtable.service';
+// import { AirtableService } from '../../services/airtable.service'; // ✅ SUPPRIMÉ - Migration vers backend My Truck
 import { CommandeMetier } from '../../types/business.types';
 import Pagination from '../../components/Pagination';
 import CommandeDetails from '../../components/CommandeDetails';
@@ -17,6 +17,7 @@ import AjoutCommande from '../../components/AjoutCommande';
 import { useDraftStorage } from '../../hooks/useDraftStorage';
 import { simpleBackendService } from '../../services/simple-backend.service';
 import { useOffline } from '../../contexts/OfflineContext';
+import { useCommandeExpiration } from '../../hooks/useCommandeExpiration';
 
 // Extend the Window interface to include debugDeliveries for TypeScript
 declare global {
@@ -42,6 +43,13 @@ const Deliveries = () => {
     });
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
+    // ✅ NOUVEAUX ÉTATS pour suppression multiple
+    const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // ✅ NOUVEL ÉTAT pour filtres temporels
+    const [temporalFilter, setTemporalFilter] = useState<'all' | 'today' | 'upcoming' | 'history'>('all');
+
     // Filtrer les données selon le rôle de l'utilisateur
     const filteredByRoleData = useMemo(() => {
         // Si c'est un admin, pas de filtrage
@@ -63,15 +71,121 @@ const Deliveries = () => {
         return data;
     }, [data, user?.role, user?.storeId, user?.driverId]);
 
-    // Filtrer par date après le filtrage par rôle
+    // ✅ FILTRAGE TEMPOREL après le filtrage par rôle
+    const filteredByTemporalData = useMemo(() => {
+        console.log('🔍 DEBUG - Filtre temporel actuel:', temporalFilter);
+        
+        if (temporalFilter === 'all') return filteredByRoleData;
+
+        // Utiliser le fuseau horaire français pour les livraisons
+        const todayFrance = new Date().toLocaleDateString('en-CA', {
+            timeZone: 'Europe/Paris'
+        });
+        const todayStr = todayFrance; // Format YYYY-MM-DD
+
+        const filtered = filteredByRoleData.filter(item => {
+            const livraisonDate = item.dates?.livraison || item.dateLivraison;
+            if (!livraisonDate) return false;
+
+            const itemDate = new Date(livraisonDate);
+            const itemDateStr = itemDate.toLocaleDateString('en-CA', {
+                timeZone: 'Europe/Paris'
+            });
+
+            switch (temporalFilter) {
+                case 'today':
+                    return itemDateStr === todayStr;
+
+                case 'upcoming':
+                    // À venir : commandes datées après aujourd'hui (peu importe le statut)
+                    return itemDateStr > todayStr;
+
+                case 'history':
+                    // Historique : TOUTES les commandes dont les dates sont passées
+                    return itemDateStr < todayStr;
+
+                default:
+                    return true;
+            }
+        });
+        
+        console.log(`🔍 DEBUG - Résultats filtrés (${temporalFilter}):`, filtered.length, 'sur', filteredByRoleData.length);
+        return filtered;
+    }, [filteredByRoleData, temporalFilter]);
+
+    // Filtrer par date après le filtrage par rôle et temporel
     const filteredData: CommandeMetier[] = useMemo(() => {
-        return filteredByRoleData.filter(item => {
+        return filteredByTemporalData.filter(item => {
             if (!dateRange.start || !dateRange.end) return true;
             const itemDate = new Date(item.dates.livraison);
             return itemDate >= new Date(dateRange.start) &&
                 itemDate <= new Date(dateRange.end);
         });
-    }, [filteredByRoleData, dateRange]);
+    }, [filteredByTemporalData, dateRange]);
+
+    // ✅ COMPTEURS basés sur la MÊME logique que le filtrage
+    const temporalCounts = useMemo(() => {
+        // Utiliser le fuseau horaire français pour les livraisons
+        const todayFrance = new Date().toLocaleDateString('en-CA', {
+            timeZone: 'Europe/Paris'
+        });
+        const todayStr = todayFrance; // Format YYYY-MM-DD
+
+        const counts = {
+            all: filteredByRoleData.length,
+            today: 0,
+            upcoming: 0,
+            history: 0
+        };
+
+        // Utiliser EXACTEMENT la même logique que le filtrage
+        filteredByRoleData.forEach((item, index) => {
+            const livraisonDate = item.dates?.livraison || item.dateLivraison;
+            if (!livraisonDate) return; // Même condition que le filtrage
+
+            const itemDate = new Date(livraisonDate);
+            const itemDateStr = itemDate.toLocaleDateString('en-CA', {
+                timeZone: 'Europe/Paris'
+            });
+
+            // Debug détaillé pour les premières commandes
+            if (index < 10) {
+                console.log(`📅 Commande ${index + 1} (${item.numeroCommande}):`, {
+                    dateBrute: livraisonDate,
+                    dateObjet: itemDate.toString(),
+                    dateISO: itemDateStr,
+                    aujourdhui: todayStr,
+                    comparaison: {
+                        isToday: itemDateStr === todayStr,
+                        isUpcoming: itemDateStr > todayStr,  
+                        isHistory: itemDateStr < todayStr
+                    }
+                });
+            }
+
+            if (itemDateStr === todayStr) {
+                counts.today++;
+            } else if (itemDateStr > todayStr) {
+                counts.upcoming++;
+            } else if (itemDateStr < todayStr) {
+                counts.history++;
+            }
+        });
+
+        // Debug fuseau horaire
+        const nowLocal = new Date();
+        const nowUTC = new Date();
+        console.log('🕒 DEBUG FUSEAU HORAIRE:');
+        console.log('  - Heure locale actuelle:', nowLocal.toString());
+        console.log('  - Heure UTC actuelle:', nowUTC.toISOString());
+        console.log('  - Date locale (YYYY-MM-DD):', nowLocal.toLocaleDateString('en-CA')); // Format ISO local
+        console.log('  - Date UTC (YYYY-MM-DD):', nowUTC.toISOString().split('T')[0]);
+        console.log('  - Fuseau horaire système:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+        console.log('  - Décalage UTC (minutes):', nowLocal.getTimezoneOffset());
+
+        console.log('🔍 DEBUG - Compteurs unifiés:', counts);
+        return counts;
+    }, [filteredByRoleData]);
 
     const { clearDraft } = useDraftStorage();
 
@@ -81,6 +195,7 @@ const Deliveries = () => {
         'numeroCommande',
         'client.nom',
         'client.prenom',
+        'client.nomComplet',
         'client.adresse.ligne1',
         'client.adresse.type',
         'client.telephone.principal',
@@ -106,6 +221,13 @@ const Deliveries = () => {
     const { currentPage, setCurrentPage, paginatedItems, totalPages } = usePagination({
         items: sortedItems,
         itemsPerPage: rowsPerPage
+    });
+
+    // ✅ HOOK EXPIRATION AUTOMATIQUE
+    const { checkExpiredCommandes } = useCommandeExpiration({
+        commandes: data,
+        onCommandesUpdated: () => fetchData(),
+        enabled: user?.role === 'admin' // Seuls les admins peuvent déclencher l'expiration
     });
 
     useEffect(() => {
@@ -213,11 +335,6 @@ const Deliveries = () => {
         await fetchData(contextToPreserve);
     };
 
-    function handleEdit(id: string): void {
-        // Navigate to the edit page with the selected commande id
-        window.location.href = `/edit-commande/${id}`;
-    }
-
     const handleDelete = async (id: string) => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer cette commande ?')) {
             try {
@@ -226,6 +343,71 @@ const Deliveries = () => {
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la suppression');
             }
+        }
+    };
+
+    // ✅ NOUVELLES FONCTIONS : Gestion sélection multiple
+    const handleSelectRow = (id: string, checked: boolean) => {
+        setSelectedRows(prev => {
+            const newSet = new Set(prev);
+            if (checked) {
+                newSet.add(id);
+            } else {
+                newSet.delete(id);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            // Sélectionner toutes les commandes visibles (après filtres)
+            const allVisibleIds = new Set((paginatedItems as CommandeMetier[]).map(commande => commande.id));
+            setSelectedRows(allVisibleIds);
+        } else {
+            setSelectedRows(new Set());
+        }
+    };
+
+    const handleMultipleDelete = async () => {
+        if (selectedRows.size === 0) return;
+
+        const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${selectedRows.size} commande(s) sélectionnée(s) ? Cette action est irréversible.`;
+
+        if (!window.confirm(confirmMessage)) return;
+
+        setIsDeleting(true);
+        try {
+            const idsToDelete = Array.from(selectedRows);
+            console.log('🗑️ Début suppression multiple:', idsToDelete);
+
+            const results = await dataService.deleteMultipleCommandes(idsToDelete);
+
+            // Mettre à jour les données locales avec seulement les suppressions réussies
+            setData(prevData =>
+                prevData.filter(commande => !results.success.includes(commande.id))
+            );
+
+            // Vider la sélection
+            setSelectedRows(new Set());
+
+            // Afficher les résultats
+            if (results.errors.length === 0) {
+                // Toutes les suppressions ont réussi
+                console.log(`✅ ${results.success.length} commande(s) supprimée(s) avec succès`);
+            } else {
+                // Certaines suppressions ont échoué
+                const errorMessage = `${results.success.length} commande(s) supprimée(s), ${results.errors.length} échec(s):\n` +
+                    results.errors.map(e => `• ${e.id}: ${e.error}`).join('\n');
+                alert(errorMessage);
+            }
+
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la suppression multiple';
+            setError(errorMessage);
+            console.error('❌ Erreur suppression multiple:', err);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -292,7 +474,12 @@ const Deliveries = () => {
         }
     };
 
-    const sortableFields: SortableFields[] = ['dates', 'creneau', 'statuts', 'magasin', 'chauffeur', 'tarifHT'];
+    const sortableFields: SortableFields[] = [
+        'dates',
+        'creneau',
+        'statuts',
+        ...(user?.role === 'admin' ? ['tarifHT' as SortableFields] : [])
+    ];
 
     // if (loading) {
     //     return (
@@ -426,6 +613,16 @@ const Deliveries = () => {
                         </button>
                     )}
 
+                    {user?.role === 'admin' && (
+                        <button
+                            onClick={checkExpiredCommandes}
+                            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+                            title="Vérifier et traiter les commandes expirées"
+                        >
+                            Traiter les expirées
+                        </button>
+                    )}
+
                     <Modal
                         isOpen={showNewCommandeModal}
                         onClose={() => {
@@ -470,6 +667,30 @@ const Deliveries = () => {
                             }}
                         />
                     </Modal>
+                </div>
+
+                {/* ✅ FILTRES TEMPORELS - Onglets de filtrage */}
+                <div className="mb-6">
+                    <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                        {[
+                            { key: 'all', label: `Toutes (${temporalCounts.all})`, desc: 'Toutes les commandes' },
+                            { key: 'today', label: `Aujourd'hui (${temporalCounts.today})`, desc: 'Commandes du jour' },
+                            { key: 'upcoming', label: `À venir (${temporalCounts.upcoming})`, desc: 'Commandes à venir' },
+                            { key: 'history', label: `Historique (${temporalCounts.history})`, desc: 'Commandes terminées' },
+                        ].map(({ key, label, desc }) => (
+                            <button
+                                key={key}
+                                onClick={() => setTemporalFilter(key as typeof temporalFilter)}
+                                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${temporalFilter === key
+                                        ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                    }`}
+                                title={desc}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Sélecteur de dates */}
@@ -577,11 +798,47 @@ const Deliveries = () => {
                             </div>
                         )}
                     </div>
+                    {/* ✅ BARRE D'ACTIONS Suppression multiple */}
+                    {selectedRows.size > 0 && (
+                        <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg mb-4 flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                    {selectedRows.size} commande(s) sélectionnée(s)
+                                </span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setSelectedRows(new Set())}
+                                    className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                                >
+                                    Annuler la sélection
+                                </button>
+                                <button
+                                    onClick={handleMultipleDelete}
+                                    disabled={isDeleting}
+                                    className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm flex items-center space-x-2"
+                                >
+                                    {isDeleting ? (
+                                        <>
+                                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                                            <span>Suppression...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span>🗑️</span>
+                                            <span>Supprimer ({selectedRows.size})</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th className="w-10 px-4 py-2"></th>
+                                    <th className="w-16 px-4 py-2"></th>
                                     <th
                                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
                                     >
@@ -602,14 +859,28 @@ const Deliveries = () => {
                                     {user?.role !== 'magasin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"></th>
+                                    <th className="w-16 px-4 py-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedRows.size > 0 && selectedRows.size === (paginatedItems as CommandeMetier[]).length}
+                                            ref={(checkbox) => {
+                                                if (checkbox) {
+                                                    const visibleSelected = (paginatedItems as CommandeMetier[]).filter(item => selectedRows.has(item.id)).length;
+                                                    checkbox.indeterminate = visibleSelected > 0 && visibleSelected < (paginatedItems as CommandeMetier[]).length;
+                                                }
+                                            }}
+                                            onChange={(e) => handleSelectAll(e.target.checked)}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            title="Tout sélectionner"
+                                        />
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                                 {(paginatedItems as CommandeMetier[]).map((commande: CommandeMetier) => (
                                     <React.Fragment key={commande.id}>
                                         <tr className="border-t hover:bg-gray-50 dark:hover:bg-gray-700">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 <button
                                                     onClick={() => setExpandedRow(
                                                         expandedRow === commande.id ? null : (commande.id || null)
@@ -664,15 +935,21 @@ const Deliveries = () => {
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>
                                             )}
+                                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                <div className="flex items-center justify-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedRows.has(commande.id)}
+                                                        onChange={(e) => handleSelectRow(commande.id, e.target.checked)}
+                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                            </td>
+                                            {/* COMMENTÉ : Bouton supprimer individuel remplacé par checkbox
                                             {(user?.role === 'admin') && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={() => commande.id && handleEdit(commande.id)}
-                                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                                        >
-                                                            Éditer
-                                                        </button>
                                                         <button
                                                             onClick={() => commande.id && handleDelete(commande.id)}
                                                             className="text-red-600 hover:text-red-800 text-sm font-medium"
@@ -682,6 +959,7 @@ const Deliveries = () => {
                                                     </div>
                                                 </td>
                                             )}
+                                            */}
                                         </tr>
                                         {expandedRow === commande.id && (
                                             <tr className="bg-gray-50 dark:bg-gray-700">

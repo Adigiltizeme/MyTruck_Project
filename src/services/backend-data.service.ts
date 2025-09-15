@@ -396,7 +396,7 @@ export class BackendDataService {
         try {
             if (this.shouldMakeApiCall('getCommandes')) {
                 console.log('Récupération des commandes depuis Backend API');
-                const response = await apiService.getCommandes();
+                const response = await apiService.getCommandes({ take: 1000 }); // Augmente la limite à 1000
                 const commandes = response.data || response;
 
                 // Sauvegarde dans IndexedDB
@@ -431,7 +431,7 @@ export class BackendDataService {
         try {
             if (this.shouldMakeApiCall()) {
                 // En ligne: récupérer depuis Airtable
-                const response = await apiService.getCommandes();
+                const response = await apiService.getCommandes({ take: 1000 }); // Augmente la limite à 1000
                 const commandes = response.data || response;
                 const commande = commandes.find((cmd: CommandeMetier) => cmd.id === id);
 

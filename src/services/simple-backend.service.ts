@@ -275,7 +275,7 @@ export class SimpleBackendService {
 
     async getCommandes(): Promise<CommandeMetier[]> {
         try {
-            const result = await this.request<{ data: any[] }>('/commandes');
+            const result = await this.request<{ data: any[] }>('/commandes?take=1000'); // Augmente la limite à 1000
             // console.log('🔍 Données Backend brutes:', result.data[0]);
 
             // ✅ TRANSFORMER chaque commande
@@ -374,6 +374,35 @@ export class SimpleBackendService {
             return this.transformBackendToFrontend(result);
         } catch (error) {
             console.error('❌ Erreur update photos:', error);
+            throw error;
+        }
+    }
+
+    async getMagasins(): Promise<MagasinInfo[]> {
+        try {
+            const result = await this.request<{ data: { 
+                id: string; 
+                nom: string; 
+                adresse: string; 
+                telephone?: string; 
+                email?: string; 
+                status?: string; 
+                photo?: string; 
+                manager?: string; 
+            }[] }>('/magasins');
+            
+            return result.data.map(magasin => ({
+                id: magasin.id,
+                name: magasin.nom,
+                address: magasin.adresse,
+                phone: magasin.telephone || '',
+                email: magasin.email || '',
+                status: magasin.status || 'actif',
+                photo: magasin.photo || '',
+                manager: magasin.manager || ''
+            }));
+        } catch (error) {
+            console.error('❌ Erreur récupération magasins:', error);
             throw error;
         }
     }

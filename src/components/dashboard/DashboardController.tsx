@@ -2,18 +2,16 @@ import React from 'react';
 import { DashboardContext, UserRole } from '../../types/dashboard.types';
 import AdminDashboard from './AdminDashboard';
 import StoreDashboard from './StoreDashboard';
-// import DriverDashboard from './DriverDashboard';
+import ChauffeurDashboard from '../ChauffeurDashboard';
 
 interface DashboardControllerProps {
     role: UserRole;
     storeId?: string;
-    driverId?: string;
 }
 
 const DashboardController: React.FC<DashboardControllerProps> = ({
     role,
     storeId,
-    // driverId
 }) => {
     // Sélection du dashboard en fonction du rôle
     const renderDashboard = () => {
@@ -25,11 +23,8 @@ const DashboardController: React.FC<DashboardControllerProps> = ({
                     return <div className="text-red-600">Erreur: ID du magasin manquant</div>;
                 }
                 return <StoreDashboard storeId={storeId} />;
-            // case 'chauffeur':
-            //     if (!driverId) {
-            //         return <div className="text-red-600">Erreur: ID du chauffeur manquant</div>;
-            //     }
-            //     return <DriverDashboard driverId={driverId} />;
+            case 'chauffeur':
+                return <ChauffeurDashboard />;
             default:
                 return <div className="text-red-600">Rôle non reconnu</div>;
         }

@@ -1,4 +1,4 @@
-import { ResponsiveContainer, LineChart, Line} from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis} from 'recharts';
 
 interface ChartData {
   date: string;
@@ -11,6 +11,13 @@ export const SmallMetricChart: React.FC<{ data: ChartData[]; color?: string }> =
 }) => (
   <ResponsiveContainer width="100%" height={50}>
     <LineChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+      <XAxis
+        dataKey="date"
+        tick={{ fontSize: 8 }}
+        angle={-45}
+        textAnchor="end"
+        hide={true}
+      />
       <Line
         type="monotone"
         dataKey="value"

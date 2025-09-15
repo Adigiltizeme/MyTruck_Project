@@ -512,7 +512,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             )}
 
             {/* Section Tarification */}
-            {user?.role === 'admin' && (
+            {/* {user?.role === 'admin' && (
                 <>
                     <div className="p-4 border rounded-lg">
                         <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
@@ -542,10 +542,10 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                                 </button>
                             )}
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Modal Tarif */}
-                    <AnimatePresence>
+                    {/* <AnimatePresence>
                         {showTarifModal && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -580,10 +580,10 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                                 </div>
                             </motion.div>
                         )}
-                    </AnimatePresence>
+                    </AnimatePresence> */}
 
                     {/* Modal Facture */}
-                    <AnimatePresence>
+                    {/* <AnimatePresence>
                         {showFactureModal && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -619,8 +619,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                         )}
                     </AnimatePresence>
                 </>
-            )}
-
+            )} */}
         </div>
     );
 };

@@ -72,6 +72,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         livraison: commande?.statuts?.livraison
     });
 
+    // ✅ FLAG pour ignorer les changements pendant les opérations de rapports
+    const rapportOperationInProgressRef = useRef<boolean>(false);
+
     const backendDataService = new BackendDataService();
     const { dataService } = useOffline();
 
@@ -92,18 +95,68 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
     // ✅ EFFET pour détecter les changements de statuts et mettre à jour le cache
     useEffect(() => {
+        if (!commande?.id) return;
+
         const currentCommande = commande?.statuts?.commande;
         const currentLivraison = commande?.statuts?.livraison;
         const now = new Date().toISOString();
 
+        // ✅ INITIALISATION DU CACHE au premier chargement avec les vraies dates backend
+        const initCacheIfNeeded = () => {
+            if (currentCommande && !getStatusDateFromCache(commande.id, 'commande', currentCommande)) {
+                console.log('🏗️ INITIALISATION cache commande:', currentCommande);
+                // Utiliser la vraie date de mise à jour du statut depuis le backend
+                const backendDate = getUpdateDateForStatus('commande');
+                console.log('🏗️ Date backend utilisée pour initialisation commande:', backendDate);
+                setStatusDateInCache(commande.id, 'commande', currentCommande, backendDate);
+            }
+            
+            if (currentLivraison && !getStatusDateFromCache(commande.id, 'livraison', currentLivraison)) {
+                console.log('🏗️ INITIALISATION cache livraison:', currentLivraison);
+                // Utiliser la vraie date de mise à jour du statut depuis le backend
+                const backendDate = getUpdateDateForStatus('livraison');
+                console.log('🏗️ Date backend utilisée pour initialisation livraison:', backendDate);
+                setStatusDateInCache(commande.id, 'livraison', currentLivraison, backendDate);
+            }
+        };
+
+        // Initialiser le cache au premier chargement
+        initCacheIfNeeded();
+
+        // ✅ PROTECTION TOTALE : Ignorer pendant les opérations de rapports
+        if (rapportOperationInProgressRef.current) {
+            console.log('🚫 PROTECTION ACTIVE - Changements de statuts ignorés (opération rapport en cours)');
+            console.log('🚫 Statuts actuels:', { currentCommande, currentLivraison });
+            console.log('🚫 Statuts précédents:', previousStatutsRef.current);
+            return;
+        }
+
         // Vérifier changement de statut commande
         if (previousStatutsRef.current.commande !== currentCommande && currentCommande) {
-            setStatusDateInCache(commande.id, 'commande', currentCommande, now);
+            // ✅ SÉCURITÉ : Vérifier qu'il n'y a pas déjà une date en cache pour ce statut
+            const cachedDate = getStatusDateFromCache(commande.id, 'commande', currentCommande);
+            if (!cachedDate) {
+                console.log('📅 🔴 NOUVEAU STATUT COMMANDE DÉTECTÉ:', currentCommande);
+                console.log('📅 🔴 Statut précédent:', previousStatutsRef.current.commande);
+                console.log('📅 🔴 MISE À JOUR CACHE AVEC DATE:', now);
+                setStatusDateInCache(commande.id, 'commande', currentCommande, now);
+            } else {
+                console.log('📅 ✅ Statut commande inchangé (cache existant):', currentCommande, cachedDate);
+            }
         }
 
         // Vérifier changement de statut livraison
         if (previousStatutsRef.current.livraison !== currentLivraison && currentLivraison) {
-            setStatusDateInCache(commande.id, 'livraison', currentLivraison, now);
+            // ✅ SÉCURITÉ : Vérifier qu'il n'y a pas déjà une date en cache pour ce statut
+            const cachedDate = getStatusDateFromCache(commande.id, 'livraison', currentLivraison);
+            if (!cachedDate) {
+                console.log('📅 🔴 NOUVEAU STATUT LIVRAISON DÉTECTÉ:', currentLivraison);
+                console.log('📅 🔴 Statut précédent:', previousStatutsRef.current.livraison);
+                console.log('📅 🔴 MISE À JOUR CACHE AVEC DATE:', now);
+                setStatusDateInCache(commande.id, 'livraison', currentLivraison, now);
+            } else {
+                console.log('📅 ✅ Statut livraison inchangé (cache existant):', currentLivraison, cachedDate);
+            }
         }
 
         // Mettre à jour les statuts précédents (pas de re-render car c'est une ref)
@@ -139,7 +192,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         // 1. D'abord essayer depuis le cache local
         const cachedDate = getStatusDateFromCache(commande.id, statusType, currentStatus);
         if (cachedDate) {
+            console.log(`📅 🔍 Cache trouvé pour ${statusType}[${currentStatus}]:`, cachedDate);
             return new Date(cachedDate);
+        } else {
+            console.log(`📅 ❌ Pas de cache pour ${statusType}[${currentStatus}] - utilisation date backend`);
         }
 
         // 2. Si pas dans le cache, logique intelligente selon le statut
@@ -178,39 +234,26 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     const buildTimelineFromHistory = () => {
         const events: { date: Date; status: string; type: string; oldStatus?: string; reason?: string }[] = [];
         
-        if (!commande?.statusHistory || commande.statusHistory.length === 0) {
-            // Fallback: utiliser l'ancienne logique si pas d'historique
+        // ✅ SOLUTION SIMPLE : Toujours utiliser les dates du cache local pour la cohérence
+        // Cela évite les incohérences entre l'historique et les dates indépendantes
+        
+        const currentCommandeStatus = commande?.statuts?.commande || 'En attente';
+        const currentLivraisonStatus = commande?.statuts?.livraison || 'EN ATTENTE';
+        
+        const commandeSmartDate = getSmartStatusDate('commande', currentCommandeStatus);
+        const livraisonSmartDate = getSmartStatusDate('livraison', currentLivraisonStatus);
             
-            // ✅ Utiliser les dates intelligentes qui incluent le cache local
-            const currentCommandeStatus = commande?.statuts?.commande || 'En attente';
-            const currentLivraisonStatus = commande?.statuts?.livraison || 'EN ATTENTE';
+        events.push({
+            date: commandeSmartDate,
+            status: currentCommandeStatus,
+            type: 'commande',
+        });
             
-            const commandeSmartDate = getSmartStatusDate('commande', currentCommandeStatus);
-            const livraisonSmartDate = getSmartStatusDate('livraison', currentLivraisonStatus);
-                
-            events.push({
-                date: commandeSmartDate,
-                status: currentCommandeStatus,
-                type: 'commande',
-            });
-                
-            events.push({
-                date: livraisonSmartDate,
-                status: currentLivraisonStatus,
-                type: 'livraison',
-            });
-        } else {
-            // ✅ UTILISER TOUS LES CHANGEMENTS DE L'HISTORIQUE - Chronologie complète
-            commande.statusHistory.forEach((entry: StatusHistoryEntry) => {
-                events.push({
-                    date: new Date(entry.changedAt),
-                    status: entry.newStatus,
-                    type: entry.statusType.toLowerCase(),
-                    oldStatus: entry.oldStatus, // Conserver l'ancien statut pour plus de contexte
-                    reason: entry.reason || 'Changement de statut'
-                });
-            });
-        }
+        events.push({
+            date: livraisonSmartDate,
+            status: currentLivraisonStatus,
+            type: 'livraison',
+        });
         
         return events.sort((a, b) => a.date.getTime() - b.date.getTime());
     };
@@ -273,6 +316,66 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         }, 100);
 
         console.log('✅ Refresh terminé, onglet préservé:', currentTab);
+    };
+
+    // ✅ FONCTIONS D'AIDE pour marquer les opérations de rapports
+    const markRapportOperationStart = () => {
+        console.log('🔒 DÉBUT OPÉRATION RAPPORT - Protection activée');
+        rapportOperationInProgressRef.current = true;
+        
+        // ✅ Exposer le flag globalement pour bloquer les synchronisations
+        if (typeof window !== 'undefined') {
+            (window as any).rapportOperationInProgress = true;
+        }
+        
+        console.log('🔒 Flag protection rapport:', rapportOperationInProgressRef.current);
+    };
+
+    const markRapportOperationEnd = () => {
+        console.log('⏰ Programmation fin protection rapport dans 3 secondes...');
+        setTimeout(() => {
+            rapportOperationInProgressRef.current = false;
+            
+            // ✅ Retirer le flag global pour permettre les synchronisations
+            if (typeof window !== 'undefined') {
+                (window as any).rapportOperationInProgress = false;
+            }
+            
+            console.log('🔓 FIN OPÉRATION RAPPORT - Protection désactivée');
+            console.log('🔓 Flag protection rapport:', rapportOperationInProgressRef.current);
+        }, 3000); // 3 secondes de protection pour éviter les synchronisations automatiques
+    };
+
+    // ✅ FONCTION REFRESH SPÉCIALE POUR RAPPORTS (isolation totale des dates)
+    const handleRapportRefresh = async () => {
+        try {
+            console.log('📋 Refresh rapport - isolation totale des dates...');
+            
+            // ✅ PAS DE DOUBLE PROTECTION - la protection est déjà activée par le composant appelant
+            console.log('🔍 Protection déjà active ?', rapportOperationInProgressRef.current);
+            
+            // Sauvegarder l'onglet actuel
+            const currentTab = activeTab;
+            localStorage.setItem(`commandeDetails_tab_${commande.id}`, currentTab);
+
+            // Exécuter le refresh original
+            if (onRefresh && typeof onRefresh === 'function') {
+                await onRefresh();
+            }
+            
+            // Restaurer l'onglet après le refresh
+            setTimeout(() => {
+                const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
+                if (savedTab && savedTab !== activeTab) {
+                    setActiveTab(savedTab);
+                }
+            }, 100);
+
+            console.log('✅ Refresh rapport terminé, dates totalement isolées, onglet préservé:', currentTab);
+            // ✅ PAS DE FIN DE PROTECTION ICI - laissée au composant appelant
+        } catch (error) {
+            console.error('❌ Erreur refresh rapport:', error);
+        }
     };
 
     // ✅ NETTOYAGE : Supprimer la sauvegarde si la commande change
@@ -527,7 +630,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             <RapportManager
                                 commande={commande}
                                 onUpdate={onUpdate}
-                                onRefresh={handleRefreshWithTabPreservation}
+                                onRefresh={handleRapportRefresh}
+                                onRapportOperationStart={markRapportOperationStart}
+                                onRapportOperationEnd={markRapportOperationEnd}
                             />
                         </div>
                     </div>
@@ -914,7 +1019,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         <PhotosCommentaires
                             commande={commande}
                             onUpdate={onUpdate}
-                            onRefresh={handleRefreshWithTabPreservation}
+                            onRefresh={handleRapportRefresh}
+                            onRapportOperationStart={markRapportOperationStart}
+                            onRapportOperationEnd={markRapportOperationEnd}
                         />
                     </div>
                 );

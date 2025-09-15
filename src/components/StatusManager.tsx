@@ -109,11 +109,24 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
         try {
             setLoading(true);
 
+            // ✅ SYNCHRONISATION AUTOMATIQUE DES ANNULATIONS
+            let finalStatutCommande = selectedStatutCommande;
+            let finalStatutLivraison = selectedStatutLivraison;
+
+            // Si l'un des statuts est annulé, annuler l'autre automatiquement
+            if (selectedStatutCommande === 'Annulée' && selectedStatutLivraison !== 'ANNULEE') {
+                finalStatutLivraison = 'ANNULEE';
+                console.log('🔄 Auto-synchronisation: Commande annulée → Livraison ANNULEE');
+            } else if (selectedStatutLivraison === 'ANNULEE' && selectedStatutCommande !== 'Annulée') {
+                finalStatutCommande = 'Annulée';
+                console.log('🔄 Auto-synchronisation: Livraison ANNULEE → Commande Annulée');
+            }
+
             // ✅ BACKEND INTELLIGENT gérera toutes les règles
             await dataService.updateStatutsCommande(
                 commande.id,
-                selectedStatutCommande,
-                selectedStatutLivraison,
+                finalStatutCommande,
+                finalStatutLivraison,
                 'Modification manuelle via modal'
             );
 
@@ -476,11 +489,17 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                                     </select>
                                 </div>
                             )}
-
-                            {/* Information indépendance des statuts */}
-                            <div className="text-sm text-center text-gray-500 bg-green-50 p-2 rounded">
-                                ✅ Les statuts de commande et livraison<br /> évoluent désormais de façon indépendante
+                            {/* Indication automatisation */}
+                            <div className="text-sm text-center text-gray-500 bg-blue-50 p-2 rounded">
+                                💡 La confirmation de livraison confirmera<br />automatiquement la commande
                             </div>
+                            
+                            {/* Indication synchronisation des annulations */}
+                            {(selectedStatutCommande === 'Annulée' || selectedStatutLivraison === 'ANNULEE') && (
+                                <div className="text-sm text-center text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                                    ⚠️ L'annulation d'un statut annulera<br />automatiquement l'autre
+                                </div>
+                            )}
                         </div>
 
                         <div className="mt-6 flex justify-end space-x-2">

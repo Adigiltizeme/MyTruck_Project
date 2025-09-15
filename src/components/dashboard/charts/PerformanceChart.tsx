@@ -12,7 +12,11 @@ interface ChartDataPoint {
 export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data }) => {
     console.log('Chart data before sort:', data);
 
-    // Tri des données
+    // Tri des données avec protection contre undefined
+    if (!data || !Array.isArray(data)) {
+        return <div className="flex items-center justify-center h-[300px] text-gray-500">Aucune donnée disponible</div>;
+    }
+    
     const sortedData = [...data].sort((a, b) => {
         if (a.rawDate && b.rawDate) {
             return a.rawDate - b.rawDate;
@@ -33,6 +37,10 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     dataKey="date"
                     tick={{ fill: '#6B7280', fontSize: 12 }}
                     tickLine={{ stroke: '#E5E7EB' }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    interval={0}
                 />
                 <YAxis
                     allowDecimals={false}
@@ -47,13 +55,21 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                         padding: '8px',
                         border: '1px solid #E5E7EB'
                     }}
-                    formatter={(value: number, name: string) => {
+                    formatter={(value: number, name: string, props: any) => {
                         switch (name) {
-                            case 'totalLivraisons': return [`${value} livraisons`, 'Total'];
+                            case 'totalLivraisons': return [`${value} livraisons`, 'Livraisons réussies'];
                             case 'enCours': return [`${value} en cours`, 'En cours'];
                             case 'enAttente': return [`${value} en attente`, 'En attente'];
+                            case 'chiffreAffaires': return [`${value}€`, 'Chiffre d\'affaires'];
                             default: return [value, name];
                         }
+                    }}
+                    labelFormatter={(label: string) => {
+                        // ✅ AJOUT : Pour "Aujourd'hui", afficher l'heure du créneau
+                        if (label && label.includes('h')) {
+                            return `Créneau ${label}`;
+                        }
+                        return label;
                     }}
                 />
                 <Line
@@ -78,6 +94,14 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     stroke="#F59E0B"
                     strokeWidth={2}
                     name="En attente"
+                    dot={{ strokeWidth: 2 }}
+                />
+                <Line
+                    type="monotone"
+                    dataKey="chiffreAffaires"
+                    stroke="#9333EA"
+                    strokeWidth={2}
+                    name="CA"
                     dot={{ strokeWidth: 2 }}
                 />
             </LineChart>

@@ -21,10 +21,19 @@ const ChauffeurDashboard: React.FC = () => {
             console.log('🚛 [CHAUFFEUR] Chargement des commandes assignées pour:', user.id);
 
             // 🔍 ENDPOINT SPÉCIFIQUE CHAUFFEUR
-            const commandes = await apiService.get<CommandeMetier[]>(`/commandes/chauffeur/${user.id}`);
+            const response = await apiService.get<{ data: CommandeMetier[] }>(`/commandes/chauffeur/${user.id}`);
+            const commandes = response.data || response;
 
-            console.log('📦 [CHAUFFEUR] Commandes reçues:', commandes.length);
-            setCommandesAssignees(commandes);
+            console.log('📦 [CHAUFFEUR] Commandes reçues:', Array.isArray(commandes) ? commandes.length : 'undefined');
+            console.log('📦 [CHAUFFEUR] Type de données:', typeof commandes, commandes);
+            
+            // Protection contre données undefined ou non-array
+            if (Array.isArray(commandes)) {
+                setCommandesAssignees(commandes);
+            } else {
+                console.error('❌ [CHAUFFEUR] Données reçues ne sont pas un tableau:', commandes);
+                setCommandesAssignees([]);
+            }
 
         } catch (error) {
             console.error('❌ Erreur chargement commandes chauffeur:', error);

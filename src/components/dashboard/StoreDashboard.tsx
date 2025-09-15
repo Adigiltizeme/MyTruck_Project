@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useMetricsData } from '../../hooks/useMetricsData';
 import { MetricCard } from './MetricCard';
 import { DeliveriesTable } from '../../components/DeliveriesTable';
@@ -9,10 +9,26 @@ interface StoreDashboardProps {
 }
 
 const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
-    const { data, loading, error } = useMetricsData({
-        dateRange: 'day',
+    console.log('🏪 StoreDashboard render avec storeId:', storeId);
+    
+    const filters = useMemo(() => ({
+        dateRange: 'day' as const,
         store: storeId
-    });
+    }), [storeId]);
+    
+    const { data, loading, error } = useMetricsData(filters);
+    
+    // ✅ DEBUG: Vérifier cohérence des données reçues
+    if (data && !loading) {
+        console.log('🏪 StoreDashboard - Données reçues:');
+        console.log('  - Total livraisons (métriques):', data.totalLivraisons);
+        console.log('  - Commandes dans tableau:', data.commandes?.length || 0);
+        console.log('  - Exemples commandes:', data.commandes?.slice(0, 2).map(c => ({
+            id: c.id,
+            magasin: c.magasin?.name || c.magasin?.nom,
+            statut: c.statuts?.livraison
+        })));
+    }
 
     if (loading) {
         return <div className="animate-pulse">Chargement...</div>;
@@ -39,10 +55,9 @@ const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
             {/* Métriques principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <MetricCard
-                    title="Livraisons du jour"
+                    title="Livraisons réussies"
                     value={data.totalLivraisons}
                     subtitle={`${data.enAttente} en attente`}
-                    variation={0}
                     chartData={data.historique}
                     color="#3B82F6"
                 />
@@ -50,7 +65,6 @@ const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
                     title="En cours"
                     value={data.enCours}
                     subtitle="Livraisons en cours"
-                    variation={0}
                     chartData={data.historique}
                     color="#10B981"
                 />
@@ -58,7 +72,6 @@ const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
                     title="Taux de livraison"
                     value={`${data.performance}%`}
                     subtitle="Taux de réussite"
-                    variation={0}
                     chartData={data.historique}
                     color="#6366F1"
                 />

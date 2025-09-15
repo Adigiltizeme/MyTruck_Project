@@ -332,6 +332,12 @@ export const OfflineProvider: React.FC<{ children: React.ReactNode }> = ({ child
             return;
         }
 
+        // ✅ PROTECTION TOTALE : Vérifier si une opération rapport est en cours
+        if (typeof window !== 'undefined' && (window as any).rapportOperationInProgress) {
+            console.log('🚫 Synchronisation bloquée - Opération rapport en cours');
+            return;
+        }
+
         setIsSynchronizing(true);
         try {
             console.log('🔄 Début synchronisation');

@@ -81,6 +81,7 @@ import { UserRole } from '../../types/dashboard.types';
 import Loading from '../../components/Loading';
 import { useAuth } from '../../contexts/AuthContext';
 import { RoleSelector } from '../../components/RoleSelector';
+import DashboardController from '../../components/dashboard/DashboardController';
 
 interface DashboardProps {
     userRole?: UserRole;
@@ -89,57 +90,22 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = () => {
     const { user } = useAuth();
-    const [filters, setFilters] = useState<FilterOptions>({
-        dateRange: 'day',
-        store: user?.role === 'magasin' ? user.storeId : ''  // Filtre automatique pour les magasins
-    });
-
-    const { data, loading, error } = useMetricsData(filters);
-
-    const handleFilterChange = (newFilters: FilterOptions) => {
-        setFilters(newFilters);
-    };
-
-    if (loading) {
-        return (
-            <Loading />
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
-                {error}
-            </div>
-        );
-    }
-
-    if (!data) {
-        return <div>Aucune donnée disponible</div>;
+    
+    if (!user) {
+        return <div>Chargement...</div>;
     }
 
     return (
         <div className="space-y-6">
+            {/* Sélecteur de rôle en mode dev */}
             <div className="mb-6">
                 <RoleSelector />
             </div>
-            {/* En-tête avec filtres */}
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold">
-                    {user?.role === 'admin' ? 'Tableau de bord administrateur' : 'Tableau de bord'}
-                </h1>
-                <Filters 
-                    onFilterChange={handleFilterChange}
-                    stores={user?.role === 'admin' ? data?.store : undefined}
-                    currentFilters={filters}
-                    userRole={user?.role || 'magasin'}
-                />
-            </div>
-
-            {/* Section des métriques */}
-            <MetricsSection 
-                data={data}
-                userRole={user?.role || 'magasin'}
+            
+            {/* Dashboard spécifique au rôle */}
+            <DashboardController 
+                role={user.role as UserRole}
+                storeId={user.storeId}
             />
         </div>
     );

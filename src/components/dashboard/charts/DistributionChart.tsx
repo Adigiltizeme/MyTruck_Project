@@ -10,13 +10,20 @@ interface DistributionChartProps {
 }
 
 export const DistributionChart = ({ data }: DistributionChartProps) => {
+    // Protection contre les données undefined
+    if (!data || !Array.isArray(data) || data.length === 0) {
+        return <div className="flex items-center justify-center h-[300px] text-gray-500">Aucune donnée disponible</div>;
+    }
+
+    const distribution = data[0] || { enAttente: 0, enCours: 0, termine: 0, echec: 0 };
+    
     const formattedData = [
         {
             name: 'Distribution',
-            'En attente': data[0].enAttente,
-            'En cours': data[0].enCours,
-            'Terminé': data[0].termine,
-            'Échec': data[0].echec
+            'En attente': Math.round(distribution.enAttente * 100),
+            'En cours': Math.round(distribution.enCours * 100),
+            'Terminé': Math.round(distribution.termine * 100),
+            'Échec': Math.round(distribution.echec * 100)
         }
     ];
 

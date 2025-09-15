@@ -32,34 +32,11 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
         return `${chauffeur.prenom || ''} ${chauffeur.nom || ''}`.trim() || 'N/A';
     };
 
-    const filteredCommandes = useMemo(() => {
-        if (user?.role === 'magasin') {
-            return commandes.filter(cmd => cmd.magasin?.id === user.storeId);
-        }
-        return commandes;
-    }, [commandes, user]);
+    // ✅ SUPPRESSION DU DOUBLE FILTRAGE
+    // Les commandes reçues en props sont déjà filtrées par le dashboard parent
+    // Pas besoin de re-filtrer ici, ça créerait des incohérences
 
-    const filteredData = useMemo(() => {
-        if (!commandes?.length) return [];
-
-        if (userRole === 'chauffeur') {
-            // Pour l'instant, retournons toutes les commandes pour le test du chauffeur
-            // À ajuster plus tard avec l'ID réel du chauffeur connecté
-            return commandes.filter(cmd =>
-                cmd.chauffeurs?.length > 0
-            );
-        }
-        if (userRole === 'magasin') {
-            // Pour l'instant, retournons toutes les commandes pour le test du magasin
-            // À ajuster plus tard avec l'ID réel du magasin
-            return commandes.filter(cmd => cmd.magasin);
-        }
-
-        // Admin voit tout
-        return commandes;
-    }, [commandes, userRole]);
-
-    const recentDeliveries = commandes.slice(0, 5).map(commande => ({
+    const recentDeliveries = (commandes || []).slice(0, 5).map(commande => ({
         reference: commande.numeroCommande,
         magasin: commande.magasin?.name || 'Non spécifié',
         chauffeur: commande.chauffeurs?.[0]
@@ -88,14 +65,14 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
                         <tr>
                             {/* Colonnes conditionnelles selon le rôle */}
                             <th className="text-left">Référence</th>
-                            {user?.role !== 'magasin' && <th className="text-left">Magasin</th>}
+                            {userRole !== 'magasin' && <th className="text-left">Magasin</th>}
                             <th className="text-left">Chauffeur</th>
                             <th className="text-left">Statut</th>
                             <th className="text-left">ETA</th>
                         </tr>
                     </thead>
                     <tbody>
-                    {commandes.slice(0, 5).map((commande) => (
+                    {(commandes || []).slice(0, 5).map((commande) => (
                             <tr key={commande.id} className="border-b">
                                 <td className="py-4 text-sm">{commande.numeroCommande}</td>
                                 {userRole !== 'magasin' && (

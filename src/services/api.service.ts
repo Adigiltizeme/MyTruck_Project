@@ -844,6 +844,19 @@ export class ApiService {
     return response.json();
   }
 
+  // ✅ Migration des statuts ANNULEE existants
+  async migrateAnnuleeSync(): Promise<{ synchronized: number; errors: number }> {
+    try {
+      console.log('🔄 Démarrage migration synchronisation statuts ANNULEE...');
+      const result = await this.post('/commandes/migrate-annulee-sync');
+      console.log('✅ Migration terminée:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur migration:', error);
+      throw error;
+    }
+  }
+
   // =====================================
   // MÉTHODES DE COMPATIBILITÉ (pour transition)
   // =====================================
@@ -885,6 +898,11 @@ export class ApiService {
 
 // ✅ Export de l'instance singleton
 export const apiService = new ApiService();
+
+// ✅ Rendre disponible globalement pour debug console
+if (typeof window !== 'undefined') {
+  (window as any).apiService = apiService;
+}
 
 // ✅ Hook React pour utiliser l'API
 export const useApi = () => {

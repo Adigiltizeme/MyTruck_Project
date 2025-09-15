@@ -1,5 +1,4 @@
-import { Personnel } from "./airtable.types";
-import { CommandeMetier } from "./business.types";
+import { CommandeMetier, MagasinInfo, PersonnelInfo } from "./business.types";
 
 export interface HistoriqueData {
     date: string;
@@ -16,10 +15,13 @@ export interface HistoriqueData {
 }
 
 export interface MetricVariation {
-    livraisons: number;
+    totalCommandes: number;
+    commandesLivrees: number;
+    livraisons: number; // Alias pour totalCommandes 
     performance: number;
     chiffreAffaires: number;
-    enCours: number;
+    commandesEnCours: number;
+    enCours: number; // Alias pour commandesEnCours
 }
 
 export interface StatutsDistribution {
@@ -31,17 +33,16 @@ export interface StatutsDistribution {
 
 export interface MetricData {
     totalLivraisons: number;
+    totalCommandes: number; // ✅ AJOUT : Total pour format "X sur Y livraisons"
     enCours: number;
     enAttente: number;
     performance: number;
     chiffreAffaires: number;
     chauffeursActifs: number;
     historique: HistoriqueData[];
-    variation?: MetricVariation;
     statutsDistribution: StatutsDistribution;
     commandes: CommandeMetier[];
-    // commandes: BasicCommandeMetier[];
-    store?: string[]; // Added magasins property
+    magasins: MagasinInfo[]; // Liste des magasins disponibles
     chauffeurs: PersonnelInfo[];
 }
 
@@ -75,24 +76,6 @@ export interface BasicCommandeMetier {
     chauffeurs: PersonnelInfo[];
 }
 
-export interface MagasinInfo {
-    id: string;
-    name: string;
-    address: string;
-    phone: string;
-    email: string;
-    photo: string;
-}
-
-export interface PersonnelInfo {
-    id: string;
-    nom: string;
-    prenom: string;
-    role: string;
-    telephone: string;
-    email: string;
-    status: 'Actif' | 'Inactif';
-}
 
 export interface OptimizedMetrics {
     totalLivraisons: number;
@@ -133,9 +116,7 @@ export interface MetricCardProps {
     value: number | string;
     subtitle: string;
     subtitleColor?: string;
-    variation?: number;
     chartData: HistoriqueData[];
-    // renderChart: (data: HistoriqueData[]) => JSX.Element;
     color?: string;
 }
 
