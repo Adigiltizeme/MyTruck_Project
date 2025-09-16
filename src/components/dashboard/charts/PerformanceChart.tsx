@@ -10,13 +10,11 @@ interface ChartDataPoint {
 }
 
 export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data }) => {
-    console.log('Chart data before sort:', data);
-
     // Tri des données avec protection contre undefined
     if (!data || !Array.isArray(data)) {
         return <div className="flex items-center justify-center h-[300px] text-gray-500">Aucune donnée disponible</div>;
     }
-    
+
     const sortedData = [...data].sort((a, b) => {
         if (a.rawDate && b.rawDate) {
             return a.rawDate - b.rawDate;
@@ -26,8 +24,6 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
         }
         return 0;
     });
-
-    console.log('Chart data after sort:', sortedData);
 
     return (
         <ResponsiveContainer width="100%" height={300}>
@@ -43,6 +39,15 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     interval={0}
                 />
                 <YAxis
+                    yAxisId="left"
+                    allowDecimals={false}
+                    domain={[0, 'auto']}
+                    tick={{ fill: '#6B7280', fontSize: 12 }}
+                    tickLine={{ stroke: '#E5E7EB' }}
+                />
+                <YAxis
+                    yAxisId="right"
+                    orientation="right"
                     allowDecimals={false}
                     domain={[0, 'auto']}
                     tick={{ fill: '#6B7280', fontSize: 12 }}
@@ -55,9 +60,10 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                         padding: '8px',
                         border: '1px solid #E5E7EB'
                     }}
-                    formatter={(value: number, name: string, props: any) => {
+                    formatter={(value: number, name: string) => {
                         switch (name) {
-                            case 'totalLivraisons': return [`${value} livraisons`, 'Livraisons réussies'];
+                            case 'totalLivraisons':
+                                return [`${value} livraisons`, 'Livraisons réussies'];
                             case 'enCours': return [`${value} en cours`, 'En cours'];
                             case 'enAttente': return [`${value} en attente`, 'En attente'];
                             case 'chiffreAffaires': return [`${value}€`, 'Chiffre d\'affaires'];
@@ -73,14 +79,16 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     }}
                 />
                 <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey="totalLivraisons"
                     stroke="#3B82F6"
                     strokeWidth={2}
-                    name="Total"
+                    name="Livrées"
                     dot={{ strokeWidth: 2 }}
                 />
                 <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey="enCours"
                     stroke="#10B981"
@@ -89,6 +97,7 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     dot={{ strokeWidth: 2 }}
                 />
                 <Line
+                    yAxisId="left"
                     type="monotone"
                     dataKey="enAttente"
                     stroke="#F59E0B"
@@ -97,6 +106,7 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     dot={{ strokeWidth: 2 }}
                 />
                 <Line
+                    yAxisId="right"
                     type="monotone"
                     dataKey="chiffreAffaires"
                     stroke="#9333EA"

@@ -12,6 +12,7 @@ export interface HistoriqueData {
     store?: string;
     driver?: string;
     rawDate?: number; // Pour le tri si nécessaire
+    heuresLivraison?: string[]; // ✅ AJOUT : Heures réelles de livraison pour tooltip
 }
 
 export interface MetricVariation {

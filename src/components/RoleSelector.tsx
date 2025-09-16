@@ -73,15 +73,32 @@ export const RoleSelector = () => {
                     setError('Aucun magasin disponible');
                 }
 
+                // ✅ PROTECTION : Charger chauffeurs avec gestion d'erreur séparée
                 if (user?.role === 'admin') {
-                    const personnelData = await dataService.getPersonnel();
-                    const driversData = personnelData.filter((p: any) => p.role === 'Chauffeur');
-                    setChauffeurs(driversData);
+                    try {
+                        const personnelData = await dataService.getPersonnel();
+                        const driversData = personnelData.filter((p: any) => p.role === 'Chauffeur');
+                        setChauffeurs(driversData);
+                    } catch (personnelError) {
+                        console.error('❌ Erreur chargement personnel dans loadStores:', personnelError);
+                        setChauffeurs([]); // Fallback liste vide
+                    }
                 }
 
             } catch (error) {
                 console.error('❌ Erreur chargement magasins:', error);
                 setError('Impossible de charger la liste des magasins depuis le Backend');
+                // ✅ FALLBACK : Magasins par défaut pour continuer l'interface
+                setStores([{
+                    id: 'maintenance',
+                    name: 'Service en maintenance',
+                    address: 'Reconnexion en cours...'
+                }]);
+                setSelectedStore({
+                    id: 'maintenance',
+                    name: 'Service en maintenance',
+                    address: 'Reconnexion en cours...'
+                });
             } finally {
                 setLoading(false);
             }
@@ -117,7 +134,11 @@ export const RoleSelector = () => {
                         }
                     }
                 } catch (error) {
-                    console.error('Erreur chargement chauffeurs:', error);
+                    console.error('❌ Erreur chargement chauffeurs:', error);
+                    // ✅ FALLBACK : Créer une liste vide plutôt que planter
+                    setChauffeurs([]);
+                    setSelectedChauffeur(null);
+                    console.log('🔄 Mode dégradé : liste chauffeurs vide');
                 }
             } else if (user?.role === 'chauffeur' && user?.driverId) {
                 // ✅ CAS SPÉCIAL : Si c'est un chauffeur connecté, créer son propre profil dans la liste

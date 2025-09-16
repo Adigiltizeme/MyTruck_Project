@@ -197,7 +197,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
     };
 
     const formatRapportDate = (date: string): string => {
-        return format(new Date(date), 'Pp', { locale: fr });
+        return format(new Date(date), 'dd/MM/yyyy - HH:mm');
     };
 
     const renderRapportCard = (rapport: any, type: 'ENLEVEMENT' | 'LIVRAISON') => {

@@ -38,7 +38,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Total Commandes"
               value={data.totalLivraisons}
               subtitle={`${data.enAttente} en attente`}
-              variation={0}
               chartData={data.historique}
               color="#3B82F6"
             />
@@ -46,7 +45,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="En préparation"
               value={data.enCours}
               subtitle="À expédier"
-              variation={0}
               chartData={data.historique}
               color="#10B981"
             />
@@ -54,7 +52,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Taux de livraison"
               value={`${data.performance}%`}
               subtitle="Succès des livraisons"
-              variation={0}
               chartData={data.historique}
               color="#6366F1"
             />
@@ -68,7 +65,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Mes livraisons"
               value={data.totalLivraisons}
               subtitle={`${data.enAttente} à récupérer`}
-              variation={0}
               chartData={data.historique}
               color="#3B82F6"
             />
@@ -76,7 +72,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="En cours"
               value={data.enCours}
               subtitle="En livraison"
-              variation={0}
               chartData={data.historique}
               color="#10B981"
             />
@@ -84,7 +79,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Performance"
               value={`${data.performance}%`}
               subtitle="Taux de réussite"
-              variation={0}
               chartData={data.historique}
               color="#6366F1"
             />
@@ -98,7 +92,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Total Livraisons"
               value={data.totalLivraisons}
               subtitle={`${data.enAttente} en attente`}
-              variation={0}
               chartData={data.historique}
               color="#3B82F6"
             />
@@ -106,7 +99,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="En cours"
               value={data.enCours}
               subtitle={`${data.chauffeursActifs} chauffeurs actifs`}
-              variation={0}
               chartData={data.historique}
               color="#10B981"
             />
@@ -114,7 +106,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Performance"
               value={`${data.performance}%`}
               subtitle="Taux de livraison"
-              variation={0}
               chartData={data.historique}
               color="#6366F1"
             />
@@ -122,7 +113,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               title="Chiffre d'affaires"
               value={`${data.chiffreAffaires.toLocaleString()}€`}
               subtitle={`${data.totalLivraisons > 0 ? Math.round(data.chiffreAffaires / data.totalLivraisons) : 0}€/livraison`}
-              variation={0}
               chartData={data.historique}
               color="#F59E0B"
             />

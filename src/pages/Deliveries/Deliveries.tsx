@@ -74,7 +74,7 @@ const Deliveries = () => {
     // ✅ FILTRAGE TEMPOREL après le filtrage par rôle
     const filteredByTemporalData = useMemo(() => {
         console.log('🔍 DEBUG - Filtre temporel actuel:', temporalFilter);
-        
+
         if (temporalFilter === 'all') return filteredByRoleData;
 
         // Utiliser le fuseau horaire français pour les livraisons
@@ -108,7 +108,7 @@ const Deliveries = () => {
                     return true;
             }
         });
-        
+
         console.log(`🔍 DEBUG - Résultats filtrés (${temporalFilter}):`, filtered.length, 'sur', filteredByRoleData.length);
         return filtered;
     }, [filteredByRoleData, temporalFilter]);
@@ -157,7 +157,7 @@ const Deliveries = () => {
                     aujourdhui: todayStr,
                     comparaison: {
                         isToday: itemDateStr === todayStr,
-                        isUpcoming: itemDateStr > todayStr,  
+                        isUpcoming: itemDateStr > todayStr,
                         isHistory: itemDateStr < todayStr
                     }
                 });
@@ -682,8 +682,8 @@ const Deliveries = () => {
                                 key={key}
                                 onClick={() => setTemporalFilter(key as typeof temporalFilter)}
                                 className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${temporalFilter === key
-                                        ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
-                                        : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50'
+                                    ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50'
                                     }`}
                                 title={desc}
                             >
@@ -859,21 +859,24 @@ const Deliveries = () => {
                                     {user?.role !== 'magasin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
-                                    <th className="w-16 px-4 py-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedRows.size > 0 && selectedRows.size === (paginatedItems as CommandeMetier[]).length}
-                                            ref={(checkbox) => {
-                                                if (checkbox) {
-                                                    const visibleSelected = (paginatedItems as CommandeMetier[]).filter(item => selectedRows.has(item.id)).length;
-                                                    checkbox.indeterminate = visibleSelected > 0 && visibleSelected < (paginatedItems as CommandeMetier[]).length;
-                                                }
-                                            }}
-                                            onChange={(e) => handleSelectAll(e.target.checked)}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                            title="Tout sélectionner"
-                                        />
-                                    </th>
+                                    {user?.role === 'admin' && (
+                                        <th className="w-16 px-4 py-2">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedRows.size > 0 && selectedRows.size === (paginatedItems as CommandeMetier[]).length}
+                                                ref={(checkbox) => {
+                                                    if (checkbox) {
+                                                        const visibleSelected = (paginatedItems as CommandeMetier[]).filter(item => selectedRows.has(item.id)).length;
+                                                        checkbox.indeterminate = visibleSelected > 0 && visibleSelected < (paginatedItems as CommandeMetier[]).length;
+                                                    }
+                                                }}
+                                                onChange={(e) => handleSelectAll(e.target.checked)}
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                title="Tout sélectionner"
+                                            />
+                                        </th>
+                                    )}
+
                                 </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -935,17 +938,19 @@ const Deliveries = () => {
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>
                                             )}
-                                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                <div className="flex items-center justify-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedRows.has(commande.id)}
-                                                        onChange={(e) => handleSelectRow(commande.id, e.target.checked)}
-                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    />
-                                                </div>
-                                            </td>
+                                            {user?.role === 'admin' && (
+                                                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    <div className="flex items-center justify-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedRows.has(commande.id)}
+                                                            onChange={(e) => handleSelectRow(commande.id, e.target.checked)}
+                                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        />
+                                                    </div>
+                                                </td>
+                                            )}
                                             {/* COMMENTÉ : Bouton supprimer individuel remplacé par checkbox
                                             {(user?.role === 'admin') && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">

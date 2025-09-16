@@ -219,7 +219,6 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({
                     title="Total Livraisons"
                     value={data.totalLivraisons}
                     subtitle={`${data.enAttente} en attente`}
-                    variation={0}
                     chartData={data.historique}
                     color="#3B82F6"
                 />
@@ -230,7 +229,6 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({
                         ? `${data.chauffeursActifs} chauffeurs actifs`
                         : 'Livraisons en cours'
                     }
-                    variation={0}
                     chartData={data.historique}
                     color="#10B981"
                 />
@@ -238,7 +236,6 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({
                     title="Performance"
                     value={`${data.performance}%`}
                     subtitle="Taux de livraison"
-                    variation={0}
                     chartData={data.historique}
                     color="#6366F1"
                 />
@@ -249,8 +246,7 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({
                         subtitle={`${data.totalLivraisons > 0 
                             ? Math.round(data.chiffreAffaires / data.totalLivraisons) 
                             : 0}€/livraison`}
-                        variation={0}
-                        chartData={data.historique}
+                            chartData={data.historique}
                         color="#F59E0B"
                     />
                 )}

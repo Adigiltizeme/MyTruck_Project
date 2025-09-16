@@ -4,6 +4,7 @@ import { MetricCard } from './MetricCard';
 import { DeliveriesTable } from '../../components/DeliveriesTable';
 import { PerformanceChart } from './charts/PerformanceChart';
 import { DistributionChart } from './charts/DistributionChart';
+import { DateSelector } from '../DateSelector';
 import { FilterOptions, PeriodType } from '../../types/metrics';
 
 const AdminDashboard: React.FC = () => {
@@ -79,6 +80,9 @@ const AdminDashboard: React.FC = () => {
                     </select>
                 </div>
             </div>
+
+            {/* Sélecteur de plage de dates */}
+            <DateSelector />
 
             {/* Métriques principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

@@ -649,7 +649,14 @@ export class DataServiceAdapter {
             }
         } catch (error) {
             console.error('❌ Erreur getPersonnel:', error);
-            return await SafeDbService.getAll<PersonnelInfo>('personnel');
+            try {
+                return await SafeDbService.getAll<PersonnelInfo>('personnel');
+            } catch (dbError) {
+                console.error('❌ Erreur fallback DB personnel:', dbError);
+                // ✅ DERNIER RECOURS : Retourner array vide
+                console.log('🔄 Mode dégradé : personnel array vide');
+                return [];
+            }
         }
     }
 

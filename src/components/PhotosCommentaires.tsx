@@ -190,7 +190,7 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
     };
 
     const formatDate = (date: string): string => {
-        return format(new Date(date), 'Pp', { locale: fr });
+        return format(new Date(date), 'dd/MM/yyyy - HH:mm');
     };
 
     const renderRapportWithPhotos = (rapport: any, type: 'ENLEVEMENT' | 'LIVRAISON') => {

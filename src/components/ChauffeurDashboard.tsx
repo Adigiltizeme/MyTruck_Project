@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { CommandeMetier } from '../types/business.types';
 import { apiService } from '../services/api.service';
+import { DateSelector } from './DateSelector';
+import { PeriodType } from '../types/metrics';
 
 const ChauffeurDashboard: React.FC = () => {
     const { user } = useAuth();
     const [commandesAssignees, setCommandesAssignees] = useState<CommandeMetier[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
+    const [dateRange, setDateRange] = useState<PeriodType>('day');
 
     useEffect(() => {
         loadCommandesAssignees();
@@ -42,22 +45,66 @@ const ChauffeurDashboard: React.FC = () => {
         }
     };
 
+    // Fonction pour filtrer par période
+    const filterByPeriod = (commandes: CommandeMetier[]) => {
+        const now = new Date();
+        const nowFrance = now.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
+        return commandes.filter(cmd => {
+            const dateLivraison = cmd.dates?.livraison;
+            if (!dateLivraison) return false;
+
+            const cmdDate = new Date(dateLivraison);
+            const cmdDateStr = cmdDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
+            // Périodes courantes
+            switch (dateRange) {
+                case 'day':
+                    return cmdDateStr === nowFrance;
+                case 'week':
+                    const weekStart = getWeekStart(now);
+                    const weekEnd = new Date(weekStart);
+                    weekEnd.setDate(weekEnd.getDate() + 6);
+                    return cmdDate >= weekStart && cmdDate <= weekEnd;
+                case 'month':
+                    return cmdDate.getFullYear() === now.getFullYear() &&
+                           cmdDate.getMonth() === now.getMonth();
+                case 'year':
+                    return cmdDate.getFullYear() === now.getFullYear();
+                default:
+                    return true;
+            }
+        });
+    };
+
+    // Fonction utilitaire pour les calculs de dates
+    const getWeekStart = (date: Date): Date => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.setDate(diff));
+    };
+
     const getFilteredCommandes = () => {
+        // D'abord filtrer par période
+        const periodFiltered = filterByPeriod(commandesAssignees);
+
+        // Ensuite filtrer par statut
         switch (filter) {
             case 'pending':
-                return commandesAssignees.filter(cmd =>
+                return periodFiltered.filter(cmd =>
                     cmd.statuts?.livraison === 'CONFIRMEE' || cmd.statuts?.livraison === 'EN ATTENTE'
                 );
             case 'in_progress':
-                return commandesAssignees.filter(cmd =>
+                return periodFiltered.filter(cmd =>
                     cmd.statuts?.livraison === 'ENLEVEE' || cmd.statuts?.livraison === 'EN COURS DE LIVRAISON'
                 );
             case 'completed':
-                return commandesAssignees.filter(cmd =>
+                return periodFiltered.filter(cmd =>
                     cmd.statuts?.livraison === 'LIVREE'
                 );
             default:
-                return commandesAssignees;
+                return periodFiltered;
         }
     };
 
@@ -88,6 +135,7 @@ const ChauffeurDashboard: React.FC = () => {
     }
 
     const filteredCommandes = getFilteredCommandes();
+    const periodFilteredCommandes = filterByPeriod(commandesAssignees);
 
     return (
         <div className="space-y-6">
@@ -101,8 +149,8 @@ const ChauffeurDashboard: React.FC = () => {
                         </p>
                     </div>
                     <div className="text-right">
-                        <div className="text-3xl font-bold">{commandesAssignees.length}</div>
-                        <div className="text-blue-100 text-sm">Livraisons assignées</div>
+                        <div className="text-3xl font-bold">{periodFilteredCommandes.length}</div>
+                        <div className="text-blue-100 text-sm">Livraisons période</div>
                     </div>
                 </div>
             </div>
@@ -114,7 +162,7 @@ const ChauffeurDashboard: React.FC = () => {
                         <span className="text-2xl mr-3">⏳</span>
                         <div>
                             <div className="text-xl font-bold text-yellow-800">
-                                {commandesAssignees.filter(cmd =>
+                                {periodFilteredCommandes.filter(cmd =>
                                     cmd.statuts?.livraison === 'EN ATTENTE' || cmd.statuts?.livraison === 'CONFIRMEE'
                                 ).length}
                             </div>
@@ -128,7 +176,7 @@ const ChauffeurDashboard: React.FC = () => {
                         <span className="text-2xl mr-3">🚛</span>
                         <div>
                             <div className="text-xl font-bold text-blue-800">
-                                {commandesAssignees.filter(cmd =>
+                                {periodFilteredCommandes.filter(cmd =>
                                     cmd.statuts?.livraison === 'ENLEVEE' || cmd.statuts?.livraison === 'EN COURS DE LIVRAISON'
                                 ).length}
                             </div>
@@ -142,7 +190,7 @@ const ChauffeurDashboard: React.FC = () => {
                         <span className="text-2xl mr-3">✅</span>
                         <div>
                             <div className="text-xl font-bold text-green-800">
-                                {commandesAssignees.filter(cmd => cmd.statuts?.livraison === 'LIVREE').length}
+                                {periodFilteredCommandes.filter(cmd => cmd.statuts?.livraison === 'LIVREE').length}
                             </div>
                             <div className="text-green-700 text-sm">Livrées</div>
                         </div>
@@ -154,7 +202,7 @@ const ChauffeurDashboard: React.FC = () => {
                         <span className="text-2xl mr-3">📦</span>
                         <div>
                             <div className="text-xl font-bold text-purple-800">
-                                {commandesAssignees.reduce((sum, cmd) => sum + (cmd.articles?.nombre || 0), 0)}
+                                {periodFilteredCommandes.reduce((sum, cmd) => sum + (cmd.articles?.nombre || 0), 0)}
                             </div>
                             <div className="text-purple-700 text-sm">Articles total</div>
                         </div>
@@ -165,13 +213,26 @@ const ChauffeurDashboard: React.FC = () => {
             {/* 🔍 FILTRES */}
             <div className="bg-white rounded-lg border p-4">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-medium">Mes Livraisons</h2>
+                    <div className="flex items-center space-x-4">
+                        <h2 className="text-lg font-medium">Mes Livraisons</h2>
+                        <select
+                            value={dateRange}
+                            onChange={(e) => setDateRange(e.target.value as PeriodType)}
+                            className="border rounded-lg px-3 py-2 bg-white"
+                            disabled={loading}
+                        >
+                            <option value="day">Aujourd'hui</option>
+                            <option value="week">Cette semaine</option>
+                            <option value="month">Ce mois</option>
+                            <option value="year">Cette année</option>
+                        </select>
+                    </div>
                     <div className="flex space-x-2">
                         {[
-                            { key: 'all', label: 'Toutes', count: commandesAssignees.length },
-                            { key: 'pending', label: 'En attente', count: commandesAssignees.filter(cmd => cmd.statuts?.livraison === 'EN ATTENTE' || cmd.statuts?.livraison === 'CONFIRMEE').length },
-                            { key: 'in_progress', label: 'En cours', count: commandesAssignees.filter(cmd => cmd.statuts?.livraison === 'ENLEVEE' || cmd.statuts?.livraison === 'EN COURS DE LIVRAISON').length },
-                            { key: 'completed', label: 'Terminées', count: commandesAssignees.filter(cmd => cmd.statuts?.livraison === 'LIVREE').length }
+                            { key: 'all', label: 'Toutes', count: periodFilteredCommandes.length },
+                            { key: 'pending', label: 'En attente', count: periodFilteredCommandes.filter(cmd => cmd.statuts?.livraison === 'EN ATTENTE' || cmd.statuts?.livraison === 'CONFIRMEE').length },
+                            { key: 'in_progress', label: 'En cours', count: periodFilteredCommandes.filter(cmd => cmd.statuts?.livraison === 'ENLEVEE' || cmd.statuts?.livraison === 'EN COURS DE LIVRAISON').length },
+                            { key: 'completed', label: 'Terminées', count: periodFilteredCommandes.filter(cmd => cmd.statuts?.livraison === 'LIVREE').length }
                         ].map((filterOption) => (
                             <button
                                 key={filterOption.key}
@@ -186,6 +247,9 @@ const ChauffeurDashboard: React.FC = () => {
                         ))}
                     </div>
                 </div>
+
+                {/* Sélecteur de plage de dates */}
+                <DateSelector />
 
                 {/* 📋 LISTE DES COMMANDES */}
                 {filteredCommandes.length === 0 ? (

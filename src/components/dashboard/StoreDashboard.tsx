@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMetricsData } from '../../hooks/useMetricsData';
 import { MetricCard } from './MetricCard';
 import { DeliveriesTable } from '../../components/DeliveriesTable';
 import { PerformanceChart } from './charts/PerformanceChart';
+import { DateSelector } from '../DateSelector';
+import { FilterOptions, PeriodType } from '../../types/metrics';
 
 interface StoreDashboardProps {
     storeId: string;
@@ -10,13 +12,18 @@ interface StoreDashboardProps {
 
 const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
     console.log('🏪 StoreDashboard render avec storeId:', storeId);
-    
-    const filters = useMemo(() => ({
-        dateRange: 'day' as const,
+
+    const [filters, setFilters] = useState<FilterOptions>({
+        dateRange: 'day',
         store: storeId
-    }), [storeId]);
-    
+    });
+
     const { data, loading, error } = useMetricsData(filters);
+
+    // Gestionnaires des filtres
+    const handlePeriodChange = (period: PeriodType) => {
+        setFilters(prev => ({ ...prev, dateRange: period }));
+    };
     
     // ✅ DEBUG: Vérifier cohérence des données reçues
     if (data && !loading) {
@@ -48,9 +55,22 @@ const StoreDashboard: React.FC<StoreDashboardProps> = ({ storeId }) => {
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold">Tableau de bord</h1>
                 <div className="flex space-x-4">
-                    {/* Filtres de période si nécessaire */}
+                    <select
+                        value={filters.dateRange}
+                        onChange={(e) => handlePeriodChange(e.target.value as PeriodType)}
+                        className="border rounded-lg px-3 py-2 bg-white"
+                        disabled={loading}
+                    >
+                        <option value="day">Aujourd'hui</option>
+                        <option value="week">Cette semaine</option>
+                        <option value="month">Ce mois</option>
+                        <option value="year">Cette année</option>
+                    </select>
                 </div>
             </div>
+
+            {/* Sélecteur de plage de dates */}
+            <DateSelector />
 
             {/* Métriques principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
