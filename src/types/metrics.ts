@@ -155,6 +155,12 @@ export interface FilterOptions {
     selctedPeriod?: string;
     startDate?: string;
     endDate?: string;
+    customDateRange?: {
+        start: string | null;
+        end: string | null;
+        mode: 'range' | 'single';
+        singleDate: string | null;
+    };
 }
 
 export interface ChartDataPoint {

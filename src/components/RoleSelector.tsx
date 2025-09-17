@@ -74,15 +74,17 @@ export const RoleSelector = () => {
                 }
 
                 // ✅ PROTECTION : Charger chauffeurs avec gestion d'erreur séparée
-                if (user?.role === 'admin') {
-                    try {
-                        const personnelData = await dataService.getPersonnel();
-                        const driversData = personnelData.filter((p: any) => p.role === 'Chauffeur');
-                        setChauffeurs(driversData);
-                    } catch (personnelError) {
-                        console.error('❌ Erreur chargement personnel dans loadStores:', personnelError);
-                        setChauffeurs([]); // Fallback liste vide
-                    }
+                // Charger les chauffeurs pour tous les rôles (nécessaire pour le switch)
+                try {
+                    const personnelData = await dataService.getPersonnel();
+                    const chauffeursData = personnelData.filter((p: any) =>
+                        p.role === 'Chauffeur' || p.role === 'chauffeur'
+                    );
+                    setChauffeurs(chauffeursData);
+                    console.log('✅ Chauffeurs chargés:', chauffeursData.length);
+                } catch (personnelError) {
+                    console.error('❌ Erreur chargement chauffeurs dans loadStores:', personnelError);
+                    setChauffeurs([]); // Fallback liste vide
                 }
 
             } catch (error) {
@@ -109,54 +111,23 @@ export const RoleSelector = () => {
 
     useEffect(() => {
         const loadChauffeurs = async () => {
-            // ✅ VÉRIFICATION DES PERMISSIONS : Seuls les admins peuvent charger la liste complète des chauffeurs
-            if (user?.role === 'admin') {
-                try {
-                    const personnelData = await dataService.getPersonnel();
-                    const chauffeursData = personnelData.filter((p: any) => 
-                        p.role === 'Chauffeur' || p.role === 'chauffeur'
-                    );
-                    setChauffeurs(chauffeursData);
-
-                    // Sélectionner le chauffeur actuel si en mode chauffeur
-                    if (user?.driverId) {
-                        const currentChauffeur = chauffeursData.find(c => c.id === user.driverId);
-                        // Adapt status to match Personnel type
-                        if (currentChauffeur) {
-                            setSelectedChauffeur({
-                                ...currentChauffeur,
-                                status: currentChauffeur.status === 'Actif' || currentChauffeur.status === 'Inactif'
-                                    ? currentChauffeur.status
-                                    : 'Actif' // or 'Inactif', depending on your logic
-                            });
-                        } else {
-                            setSelectedChauffeur(null);
-                        }
-                    }
-                } catch (error) {
-                    console.error('❌ Erreur chargement chauffeurs:', error);
-                    // ✅ FALLBACK : Créer une liste vide plutôt que planter
-                    setChauffeurs([]);
-                    setSelectedChauffeur(null);
-                    console.log('🔄 Mode dégradé : liste chauffeurs vide');
+            // Les chauffeurs sont maintenant chargés dans loadStores pour tous les rôles
+            // Ici on gère juste la sélection du chauffeur actuel si nécessaire
+            if (user?.driverId && chauffeurs.length > 0) {
+                const currentChauffeur = chauffeurs.find(c => c.id === user.driverId);
+                if (currentChauffeur) {
+                    setSelectedChauffeur(currentChauffeur);
+                } else {
+                    setSelectedChauffeur(chauffeurs[0]); // Fallback au premier chauffeur
                 }
-            } else if (user?.role === 'chauffeur' && user?.driverId) {
-                // ✅ CAS SPÉCIAL : Si c'est un chauffeur connecté, créer son propre profil dans la liste
-                const chauffeurProfile = {
-                    id: user.driverId,
-                    nom: user.name.split(' ').pop() || user.name,
-                    prenom: user.name.split(' ').shift() || '',
-                    email: user.email,
-                    role: 'Chauffeur',
-                    status: 'Actif'
-                };
-                setChauffeurs([chauffeurProfile]);
-                setSelectedChauffeur(chauffeurProfile);
+            } else if (chauffeurs.length > 0 && !selectedChauffeur) {
+                // Sélectionner le premier chauffeur par défaut
+                setSelectedChauffeur(chauffeurs[0]);
             }
         };
 
         loadChauffeurs();
-    }, [dataService, user?.role, user?.driverId]);
+    }, [chauffeurs, user?.driverId]);
 
     const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const role = e.target.value as UserRole;
@@ -296,18 +267,12 @@ export const RoleSelector = () => {
                 <select
                     value={user?.role || 'admin'}
                     onChange={handleRoleChange}
-                    disabled={user?.role === 'chauffeur'} // ✅ Empêcher les chauffeurs de changer de rôle
+                    // Réactivé pour permettre le switch entre rôles
                     className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {user?.role === 'chauffeur' ? (
-                        <option value="chauffeur">Chauffeur</option>
-                    ) : (
-                        <>
-                            <option value="admin">Admin</option>
-                            <option value="magasin">Magasin</option>
-                            <option value="chauffeur">Chauffeur</option>
-                        </>
-                    )}
+                    <option value="admin">Admin</option>
+                    <option value="magasin">Magasin</option>
+                    <option value="chauffeur">Chauffeur</option>
                 </select>
             </div>
 
@@ -328,13 +293,13 @@ export const RoleSelector = () => {
                 </div>
             )}
 
-            {user?.role === 'chauffeur' && (
+            {(user?.role === 'chauffeur') && chauffeurs.length > 0 && (
                 <div>
                     <label className="text-sm font-medium mr-2">Chauffeur :</label>
                     <select
                         value={selectedChauffeur?.id || ''}
                         onChange={handleChauffeurChange}
-                        disabled={true} // ✅ Les chauffeurs ne peuvent pas changer d'identité
+                        // Réactivé pour permettre le switch entre chauffeurs
                         className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {chauffeurs.map(chauffeur => (

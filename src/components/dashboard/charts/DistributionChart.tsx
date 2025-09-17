@@ -57,14 +57,14 @@ export const DistributionChart = ({ data }: DistributionChartProps) => {
                 />
                 <Bar
                     dataKey="En cours"
-                    fill="#10B981"
+                    fill="#F59E0B"
                     name="En cours"
                     animationDuration={500}
                     isAnimationActive={true}
                 />
                 <Bar
                     dataKey="Terminé"
-                    fill="#6366F1"
+                    fill="#10B981"
                     name="Terminé"
                     animationDuration={500}
                     isAnimationActive={true}

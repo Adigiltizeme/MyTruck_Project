@@ -91,7 +91,7 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
     // Les commandes reçues en props sont déjà filtrées par le dashboard parent
     // Pas besoin de re-filtrer ici, ça créerait des incohérences
 
-    const recentDeliveries = (commandes || []).slice(0, 5).map(commande => {
+    const recentDeliveries = (commandes || []).slice(0, 10).map(commande => {
         // ✅ HEURE RÉELLE : Utiliser la même logique que CommandeDetails.tsx
         const currentLivraisonStatus = commande?.statuts?.livraison || 'EN ATTENTE';
         const livraisonSmartDate = getSmartStatusDate(commande, 'livraison', currentLivraisonStatus);

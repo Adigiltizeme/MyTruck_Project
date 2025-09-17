@@ -98,9 +98,9 @@ const Dashboard: React.FC<DashboardProps> = () => {
     return (
         <div className="space-y-6">
             {/* Sélecteur de rôle en mode dev */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
                 <RoleSelector />
-            </div>
+            </div> */}
             
             {/* Dashboard spécifique au rôle */}
             <DashboardController 

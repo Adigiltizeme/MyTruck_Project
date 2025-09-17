@@ -18,7 +18,11 @@ export const useMetricsData = (filters: FilterOptions) => {
         filters.store,
         filters.driver,
         filters.startDate,
-        filters.endDate
+        filters.endDate,
+        filters.customDateRange?.start,
+        filters.customDateRange?.end,
+        filters.customDateRange?.mode,
+        filters.customDateRange?.singleDate
     ]);
 
     useEffect(() => {
@@ -30,15 +34,17 @@ export const useMetricsData = (filters: FilterOptions) => {
                 console.log('🔄 useMetricsData: Tentative récupération données...');
 
                 // ✅ UTILISER simpleBackendService comme dans Deliveries.tsx
-                const [commandes, magasins] = await Promise.all([
+                const [commandes, magasins, chauffeurs] = await Promise.all([
                     simpleBackendService.getCommandes(),
-                    simpleBackendService.getMagasins()
+                    simpleBackendService.getMagasins(),
+                    simpleBackendService.getChauffeurs()
                 ]);
 
-                console.log(`📊 Données récupérées: ${commandes.length} commandes, ${magasins.length} magasins`);
+                console.log(`📊 Données récupérées: ${commandes.length} commandes, ${magasins.length} magasins, ${chauffeurs.length} chauffeurs`);
+                console.log(`📊 Source de données unifiée: simpleBackendService.getCommandes() (même que Deliveries.tsx)`);
 
                 // Calculer les métriques à partir des commandes
-                const metricsData = await calculateMetricsFromCommandes(commandes, filters, magasins);
+                const metricsData = await calculateMetricsFromCommandes(commandes, filters, magasins, chauffeurs);
                 setData(metricsData);
                 console.log('✅ Métriques calculées avec succès');
                 
@@ -72,7 +78,7 @@ export const useMetricsData = (filters: FilterOptions) => {
                     performance: 0,
                     chiffreAffaires: 0,
                     chauffeursActifs: 0,
-                    historique: [{ date: 'Aucune donnée', totalLivraisons: 0, enCours: 0, enAttente: 0 }],
+                    historique: [{ date: 'Aucune donnée', totalLivraisons: 0, enCours: 0, enAttente: 0, performance: 0, chiffreAffaires: 0 }],
                     statutsDistribution: { enAttente: 0, enCours: 0, termine: 0, echec: 0 },
                     commandes: [],
                     magasins: [{
@@ -102,7 +108,119 @@ export const useMetricsData = (filters: FilterOptions) => {
 // ✅ FONCTION : Créer données historiques dynamiques selon la période
 function createHistoricalData(commandes: any[], filters: FilterOptions, nowFrance: string): any[] {
     console.log(`📊 createHistoricalData appelée avec ${commandes.length} commandes pour période: ${filters.dateRange}`);
-    
+
+    // ✅ Dates personnalisées : Retourner un graphique simple par jour
+    console.log('📊 DEBUG createHistoricalData customDateRange:', filters.customDateRange);
+
+    const hasCompleteCustomDateChart = filters.customDateRange && (
+        // Date unique complète
+        (filters.customDateRange.mode === 'single' && filters.customDateRange.singleDate) ||
+        // Période complète (les deux dates)
+        (filters.customDateRange.mode === 'range' && filters.customDateRange.start && filters.customDateRange.end)
+    );
+
+    if (hasCompleteCustomDateChart) {
+        console.log('📊 Génération graphique pour dates personnalisées');
+
+        let startDate: Date, endDate: Date;
+
+        if (filters.customDateRange.mode === 'single' && filters.customDateRange.singleDate) {
+            startDate = endDate = new Date(filters.customDateRange.singleDate);
+
+            // ✅ Pour date unique : Créer un graphique par créneaux horaires comme pour "day"
+            const targetDateStr = filters.customDateRange.singleDate;
+            const allCreneaux = [];
+
+            // Créer les créneaux 7h-20h comme pour la vue journalière
+            for (let h = 7; h < 20; h++) {
+                const creneau = `${h.toString().padStart(2, '0')}h-${(h + 1).toString().padStart(2, '0')}h`;
+
+                const commandesHeure = commandes.filter(c => {
+                    try {
+                        // Vérifier que c'est la bonne date
+                        const dateLivraison = c.dates?.livraison || c.dateLivraison;
+                        if (!dateLivraison) return false;
+
+                        const itemDate = new Date(dateLivraison);
+                        const itemDateStr = itemDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
+                        if (itemDateStr !== targetDateStr) return false;
+
+                        // Vérifier le créneau horaire
+                        const creneauCommande = c.livraison?.creneau;
+                        if (!creneauCommande) return false;
+
+                        const match = creneauCommande.match(/(\d+)h/);
+                        if (match) {
+                            const creneauHeureCommande = parseInt(match[1]);
+                            return creneauHeureCommande === h;
+                        }
+
+                        return false;
+                    } catch (error) {
+                        return false;
+                    }
+                });
+
+                allCreneaux.push({
+                    date: creneau,
+                    totalLivraisons: commandesHeure.filter(c => c.statuts?.livraison === 'LIVREE').length,
+                    enCours: commandesHeure.filter(c => ['EN COURS DE LIVRAISON', 'ENLEVEE'].includes(c.statuts?.livraison)).length,
+                    enAttente: commandesHeure.filter(c => ['EN ATTENTE', 'CONFIRMEE'].includes(c.statuts?.livraison)).length,
+                    chiffreAffaires: commandesHeure.filter(c => c.statuts?.livraison === 'LIVREE').reduce((sum, c) => sum + (c.financier?.tarifHT || 0), 0),
+                    performance: commandesHeure.length > 0 ? Math.round((commandesHeure.filter(c => c.statuts?.livraison === 'LIVREE').length / commandesHeure.length) * 100) : 0
+                });
+            }
+
+            return allCreneaux;
+        } else if (filters.customDateRange.start || filters.customDateRange.end) {
+            startDate = filters.customDateRange.start ? new Date(filters.customDateRange.start) : new Date();
+            endDate = filters.customDateRange.end ? new Date(filters.customDateRange.end) : new Date();
+
+            // Si seulement une date, utiliser celle-ci pour les deux
+            if (!filters.customDateRange.start) {
+                startDate = endDate;
+            } else if (!filters.customDateRange.end) {
+                endDate = startDate;
+            }
+        } else {
+            return []; // Données incomplètes
+        }
+
+        // Générer un point par jour dans la plage
+        const days = [];
+        const currentDay = new Date(startDate);
+
+        while (currentDay <= endDate) {
+            const dayStr = currentDay.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+            const commandesJour = commandes.filter(c => {
+                const dateLivraison = c.dates?.livraison || c.dateLivraison;
+                if (!dateLivraison) return false;
+
+                const itemDate = new Date(dateLivraison);
+                const itemDateStr = itemDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                return itemDateStr === dayStr;
+            });
+
+            days.push({
+                date: currentDay.toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    timeZone: 'Europe/Paris'
+                }),
+                totalLivraisons: commandesJour.filter(c => c.statuts?.livraison === 'LIVREE').length,
+                enCours: commandesJour.filter(c => ['EN COURS DE LIVRAISON', 'ENLEVEE'].includes(c.statuts?.livraison)).length,
+                enAttente: commandesJour.filter(c => ['EN ATTENTE', 'CONFIRMEE'].includes(c.statuts?.livraison)).length,
+                chiffreAffaires: commandesJour.filter(c => c.statuts?.livraison === 'LIVREE').reduce((sum, c) => sum + (c.financier?.tarifHT || 0), 0),
+                performance: commandesJour.length > 0 ? Math.round((commandesJour.filter(c => c.statuts?.livraison === 'LIVREE').length / commandesJour.length) * 100) : 0
+            });
+
+            currentDay.setDate(currentDay.getDate() + 1);
+        }
+
+        return days;
+    }
+
     switch (filters.dateRange) {
         case 'day':
             // ✅ CORRIGÉ: Horaires 7h-20h et arrêt à l'heure actuelle
@@ -146,6 +264,18 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
                         // 0. ✅ AJOUT : Filtrer par magasin si spécifié
                         if (filters.store && c.magasin?.id !== filters.store) {
                             return false; // Pas le bon magasin
+                        }
+
+                        // 0.1 ✅ AJOUT : Filtrer par chauffeur si spécifié
+                        if (filters.driver) {
+                            const isAssigned = c.chauffeurs?.some(chauffeur =>
+                                chauffeur.id === filters.driver ||
+                                chauffeur.nom === filters.driver ||
+                                `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+                            );
+                            if (!isAssigned) {
+                                return false; // Pas le bon chauffeur
+                            }
                         }
 
                         // 1. D'abord vérifier que c'est aujourd'hui
@@ -249,6 +379,18 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
                         return false; // Pas le bon magasin
                     }
 
+                    // ✅ AJOUT : Filtrer par chauffeur si spécifié
+                    if (filters.driver) {
+                        const isAssigned = c.chauffeurs?.some(chauffeur =>
+                            chauffeur.id === filters.driver ||
+                            chauffeur.nom === filters.driver ||
+                            `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+                        );
+                        if (!isAssigned) {
+                            return false; // Pas le bon chauffeur
+                        }
+                    }
+
                     const dateLivraison = c.dates?.livraison || c.dateLivraison;
                     if (!dateLivraison) return false;
 
@@ -270,38 +412,73 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
             }); // ✅ CORRECTION : Garder tous les jours (plus de filter(Boolean))
             
         case 'month':
-            // Pour "Ce mois" : Grouper par semaines
-            const semaines = ['S1', 'S2', 'S3', 'S4'];
-            const nowMonth = new Date();
-            const debutMois = new Date(nowMonth.getFullYear(), nowMonth.getMonth(), 1);
-            return semaines.map((semaine, index) => {
-                const debutSemaine = new Date(debutMois);
-                debutSemaine.setDate(1 + (index * 7));
-                const finSemaine = new Date(debutSemaine);
-                finSemaine.setDate(debutSemaine.getDate() + 6);
-                
-                const commandesSemaine = commandes.filter(c => {
-                    // ✅ AJOUT : Filtrer par magasin si spécifié
-                    if (filters.store && c.magasin?.id !== filters.store) {
-                        return false; // Pas le bon magasin
-                    }
+            // ✅ SOLUTION SIMPLE : Afficher par semaines réelles (lundi à dimanche)
+            const monthNowChart = new Date();
+            const monthStartChart = new Date(monthNowChart.getFullYear(), monthNowChart.getMonth(), 1);
+            const monthEndChart = new Date(monthNowChart.getFullYear(), monthNowChart.getMonth() + 1, 0);
 
-                    const dateLivraison = c.dates?.livraison || c.dateLivraison;
-                    if (!dateLivraison) return false;
+            // Générer toutes les semaines du mois (lundi à dimanche)
+            const weeksInMonth = [];
+            let currentWeekStart = new Date(monthStartChart);
 
-                    const itemDate = new Date(dateLivraison);
-                    return itemDate >= debutSemaine && itemDate <= finSemaine;
-                });
-                
-                return {
-                    date: semaine,
-                    totalLivraisons: commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').length, // ✅ CORRIGÉ: seulement LIVREE
-                    enCours: commandesSemaine.filter(c => ['EN COURS DE LIVRAISON', 'ENLEVEE'].includes(c.statuts?.livraison)).length, // ✅ CORRIGÉ: sans CONFIRMEE
-                    enAttente: commandesSemaine.filter(c => ['EN ATTENTE', 'CONFIRMEE'].includes(c.statuts?.livraison)).length, // ✅ CORRIGÉ: CONFIRMEE = attente
-                    chiffreAffaires: commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').reduce((sum, c) => sum + (c.financier?.tarifHT || 0), 0),
-                    performance: commandesSemaine.length > 0 ? Math.round((commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').length / commandesSemaine.length) * 100) : 0
-                };
-            });
+            // Commencer au lundi de la première semaine
+            const dayOfWeek = currentWeekStart.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Dimanche = 0, Lundi = 1
+            currentWeekStart.setDate(currentWeekStart.getDate() + mondayOffset);
+
+            let weekIndex = 1;
+            while (currentWeekStart <= monthEndChart) {
+                const weekEnd = new Date(currentWeekStart);
+                weekEnd.setDate(currentWeekStart.getDate() + 6); // Dimanche
+
+                // Ne prendre que les semaines qui touchent le mois courant
+                if (weekEnd >= monthStartChart && currentWeekStart <= monthEndChart) {
+                    const commandesSemaine = commandes.filter(c => {
+                        // ✅ Filtrer par magasin si spécifié
+                        if (filters.store && c.magasin?.id !== filters.store) {
+                            return false;
+                        }
+
+                        // ✅ AJOUT : Filtrer par chauffeur si spécifié
+                        if (filters.driver) {
+                            const isAssigned = c.chauffeurs?.some(chauffeur =>
+                                chauffeur.id === filters.driver ||
+                                chauffeur.nom === filters.driver ||
+                                `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+                            );
+                            if (!isAssigned) {
+                                return false; // Pas le bon chauffeur
+                            }
+                        }
+
+                        const dateLivraison = c.dates?.livraison || c.dateLivraison;
+                        if (!dateLivraison) return false;
+
+                        const itemDate = new Date(dateLivraison);
+                        const itemDateStr = itemDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                        const weekStartStr = currentWeekStart.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                        const weekEndStr = weekEnd.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
+                        return itemDateStr >= weekStartStr && itemDateStr <= weekEndStr;
+                    });
+
+                    weeksInMonth.push({
+                        date: `S${weekIndex}`,
+                        totalLivraisons: commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').length,
+                        enCours: commandesSemaine.filter(c => ['EN COURS DE LIVRAISON', 'ENLEVEE'].includes(c.statuts?.livraison)).length,
+                        enAttente: commandesSemaine.filter(c => ['EN ATTENTE', 'CONFIRMEE'].includes(c.statuts?.livraison)).length,
+                        chiffreAffaires: commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').reduce((sum, c) => sum + (c.financier?.tarifHT || 0), 0),
+                        performance: commandesSemaine.length > 0 ? Math.round((commandesSemaine.filter(c => c.statuts?.livraison === 'LIVREE').length / commandesSemaine.length) * 100) : 0
+                    });
+
+                    weekIndex++;
+                }
+
+                // Passer à la semaine suivante
+                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            }
+
+            return weeksInMonth;
             
         case 'year':
             // Pour "Cette année" : Grouper par mois
@@ -312,6 +489,18 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
                     // ✅ AJOUT : Filtrer par magasin si spécifié
                     if (filters.store && c.magasin?.id !== filters.store) {
                         return false; // Pas le bon magasin
+                    }
+
+                    // ✅ AJOUT : Filtrer par chauffeur si spécifié
+                    if (filters.driver) {
+                        const isAssigned = c.chauffeurs?.some(chauffeur =>
+                            chauffeur.id === filters.driver ||
+                            chauffeur.nom === filters.driver ||
+                            `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+                        );
+                        if (!isAssigned) {
+                            return false; // Pas le bon chauffeur
+                        }
                     }
 
                     const dateLivraison = c.dates?.livraison || c.dateLivraison;
@@ -337,6 +526,18 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
                 if (filters.store && c.magasin?.id !== filters.store) {
                     return false; // Pas le bon magasin
                 }
+
+                // ✅ AJOUT : Filtrer par chauffeur si spécifié
+                if (filters.driver) {
+                    const isAssigned = c.chauffeurs?.some(chauffeur =>
+                        chauffeur.id === filters.driver ||
+                        chauffeur.nom === filters.driver ||
+                        `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+                    );
+                    if (!isAssigned) {
+                        return false; // Pas le bon chauffeur
+                    }
+                }
                 return true;
             });
 
@@ -355,7 +556,7 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
 
 
 // ✅ FONCTION : Calculer métriques à partir des commandes backend
-async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOptions, magasins: MagasinInfo[]): Promise<MetricData> {
+async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOptions, magasins: MagasinInfo[], chauffeurs: any[] = []): Promise<MetricData> {
     // Utiliser le fuseau horaire français pour les calculs
     const nowFrance = new Date().toLocaleDateString('en-CA', {
         timeZone: 'Europe/Paris'
@@ -380,8 +581,78 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
     // Filtrer par période avec fuseau français
     let filteredCommandes = commandes;
 
-    // Filtrer par période courante
-    switch (filters.dateRange) {
+    // ✅ Vérifier d'abord s'il y a des dates personnalisées COMPLÈTES
+    console.log('🔍 DEBUG customDateRange:', filters.customDateRange);
+
+    const hasCompleteCustomDate = filters.customDateRange && (
+        // Date unique complète
+        (filters.customDateRange.mode === 'single' && filters.customDateRange.singleDate) ||
+        // Période complète (les deux dates)
+        (filters.customDateRange.mode === 'range' && filters.customDateRange.start && filters.customDateRange.end)
+    );
+
+    if (hasCompleteCustomDate) {
+        console.log('🗓️ Utilisation des dates personnalisées:', filters.customDateRange);
+
+        if (filters.customDateRange.mode === 'single' && filters.customDateRange.singleDate) {
+            // Mode date unique
+            const targetDate = filters.customDateRange.singleDate;
+            filteredCommandes = commandes.filter(c => {
+                try {
+                    const dateLivraison = c.dates?.livraison || c.dateLivraison;
+                    if (!dateLivraison) return false;
+
+                    const itemDate = new Date(dateLivraison);
+                    if (isNaN(itemDate.getTime())) return false;
+
+                    const itemDateStr = itemDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+                    return itemDateStr === targetDate;
+                } catch (error) {
+                    console.warn('Erreur filtrage date unique:', c.id, error);
+                    return false;
+                }
+            });
+        } else if (filters.customDateRange.mode === 'range' && (filters.customDateRange.start || filters.customDateRange.end)) {
+            // Mode plage de dates
+            const startDate = filters.customDateRange.start;
+            const endDate = filters.customDateRange.end;
+            console.log('🗓️ Filtrage range:', { startDate, endDate });
+
+            filteredCommandes = commandes.filter(c => {
+                try {
+                    const dateLivraison = c.dates?.livraison || c.dateLivraison;
+                    if (!dateLivraison) return false;
+
+                    const itemDate = new Date(dateLivraison);
+                    if (isNaN(itemDate.getTime())) return false;
+
+                    const itemDateStr = itemDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
+                    // Si seulement une date de début
+                    if (startDate && !endDate) {
+                        return itemDateStr >= startDate;
+                    }
+                    // Si seulement une date de fin
+                    if (!startDate && endDate) {
+                        return itemDateStr <= endDate;
+                    }
+                    // Si les deux dates
+                    if (startDate && endDate) {
+                        return itemDateStr >= startDate && itemDateStr <= endDate;
+                    }
+
+                    return false;
+                } catch (error) {
+                    console.warn('Erreur filtrage plage dates:', c.id, error);
+                    return false;
+                }
+            });
+        }
+
+        console.log(`🗓️ Commandes après filtrage dates personnalisées: ${filteredCommandes.length}`);
+    } else {
+        // Filtrer par période courante (logique existante)
+        switch (filters.dateRange) {
         case 'day':
             filteredCommandes = commandes.filter(c => {
                 try {
@@ -405,9 +676,17 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
             break;
             
         case 'week':
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekAgoStr = weekAgo.toLocaleDateString('en-CA', {
+            // ✅ CORRECTION : Utiliser la même logique que createHistoricalData (lundi-dimanche)
+            const nowWeek = new Date();
+            const startOfWeek = new Date(nowWeek);
+            startOfWeek.setDate(nowWeek.getDate() - nowWeek.getDay() + 1); // Lundi
+            const endOfWeek = new Date(nowWeek);
+            endOfWeek.setDate(nowWeek.getDate() - nowWeek.getDay() + 7); // Dimanche
+
+            const startOfWeekStr = startOfWeek.toLocaleDateString('en-CA', {
+                timeZone: 'Europe/Paris'
+            });
+            const endOfWeekStr = endOfWeek.toLocaleDateString('en-CA', {
                 timeZone: 'Europe/Paris'
             });
 
@@ -423,19 +702,25 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
                         timeZone: 'Europe/Paris'
                     });
 
-                    return itemDateStr >= weekAgoStr && itemDateStr <= nowFrance;
+                    return itemDateStr >= startOfWeekStr && itemDateStr <= endOfWeekStr;
                 } catch (error) {
                     console.warn('Erreur filtrage commande week:', c.id, error);
                     return false;
                 }
             });
-            console.log(`📅 Cette semaine: ${filteredCommandes.length} commandes`);
+            console.log(`📅 Cette semaine (${startOfWeekStr} à ${endOfWeekStr}): ${filteredCommandes.length} commandes`);
             break;
             
         case 'month':
-            const monthStart = new Date();
-            monthStart.setDate(1);
+            // ✅ CORRECTION : Utiliser le mois complet (même logique que createHistoricalData)
+            const monthNow = new Date();
+            const monthStart = new Date(monthNow.getFullYear(), monthNow.getMonth(), 1);
+            const monthEnd = new Date(monthNow.getFullYear(), monthNow.getMonth() + 1, 0); // Dernier jour du mois
+
             const monthStartStr = monthStart.toLocaleDateString('en-CA', {
+                timeZone: 'Europe/Paris'
+            });
+            const monthEndStr = monthEnd.toLocaleDateString('en-CA', {
                 timeZone: 'Europe/Paris'
             });
 
@@ -451,19 +736,25 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
                         timeZone: 'Europe/Paris'
                     });
 
-                    return itemDateStr >= monthStartStr && itemDateStr <= nowFrance;
+                    return itemDateStr >= monthStartStr && itemDateStr <= monthEndStr;
                 } catch (error) {
                     console.warn('Erreur filtrage commande month:', c.id, error);
                     return false;
                 }
             });
-            console.log(`📅 Ce mois: ${filteredCommandes.length} commandes`);
+            console.log(`📅 Ce mois complet (${monthStartStr} à ${monthEndStr}): ${filteredCommandes.length} commandes`);
             break;
             
         case 'year':
-            const yearStart = new Date();
-            yearStart.setMonth(0, 1);
+            // ✅ CORRECTION : Utiliser l'année complète (1er janvier au 31 décembre)
+            const yearNow = new Date();
+            const yearStart = new Date(yearNow.getFullYear(), 0, 1); // 1er janvier
+            const yearEnd = new Date(yearNow.getFullYear(), 11, 31); // 31 décembre
+
             const yearStartStr = yearStart.toLocaleDateString('en-CA', {
+                timeZone: 'Europe/Paris'
+            });
+            const yearEndStr = yearEnd.toLocaleDateString('en-CA', {
                 timeZone: 'Europe/Paris'
             });
 
@@ -479,17 +770,18 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
                         timeZone: 'Europe/Paris'
                     });
 
-                    return itemDateStr >= yearStartStr && itemDateStr <= nowFrance;
+                    return itemDateStr >= yearStartStr && itemDateStr <= yearEndStr;
                 } catch (error) {
                     console.warn('Erreur filtrage commande year:', c.id, error);
                     return false;
                 }
             });
-            console.log(`📅 Cette année: ${filteredCommandes.length} commandes`);
+            console.log(`📅 Cette année complète (${yearStartStr} à ${yearEndStr}): ${filteredCommandes.length} commandes`);
             break;
             
         default:
             console.log(`📅 Toutes les commandes: ${filteredCommandes.length} commandes`);
+        }
     }
     
     // Filtrer par magasin si spécifié
@@ -534,7 +826,44 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
         console.log(`🏪 Résultat filtrage: ${filteredCommandes.length}/${beforeCount} commandes`);
         console.log(`🏪 ==========================================`);
     }
-    
+
+    // ✅ FILTRAGE PAR CHAUFFEUR si spécifié
+    if (filters.driver) {
+        console.log(`🚛 ===== DIAGNOSTIC FILTRAGE CHAUFFEUR =====`);
+        console.log(`🚛 Filtre demandé: "${filters.driver}"`);
+        console.log(`🚛 Commandes avant filtrage chauffeur: ${filteredCommandes.length}`);
+
+        // Diagnostic détaillé des structures de chauffeurs
+        const exemplesChauffeurs = filteredCommandes.slice(0, 3).map(c => ({
+            chauffeurs: c.chauffeurs?.map(ch => ({ id: ch.id, nom: ch.nom, prenom: ch.prenom })),
+            structure: c.chauffeurs ? Object.keys(c.chauffeurs[0] || {}) : []
+        }));
+        console.log(`🚛 Exemples structures chauffeurs:`, exemplesChauffeurs);
+
+        const beforeCountChauffeur = filteredCommandes.length;
+        filteredCommandes = filteredCommandes.filter(c => {
+            // Vérifier si le chauffeur est assigné à cette commande
+            const isAssigned = c.chauffeurs?.some(chauffeur =>
+                chauffeur.id === filters.driver ||
+                chauffeur.nom === filters.driver ||
+                `${chauffeur.prenom} ${chauffeur.nom}` === filters.driver
+            );
+
+            if (!isAssigned && c.chauffeurs?.length > 0) {
+                // Log des non-correspondances pour debugging
+                console.log(`🔍 Chauffeur non-match:`, {
+                    filter: filters.driver,
+                    chauffeurs: c.chauffeurs.map(ch => ({ id: ch.id, nom: ch.nom, prenom: ch.prenom }))
+                });
+            }
+
+            return isAssigned;
+        });
+
+        console.log(`🚛 Résultat filtrage: ${filteredCommandes.length}/${beforeCountChauffeur} commandes`);
+        console.log(`🚛 ==========================================`);
+    }
+
     // ✅ CALCUL MÉTRIQUE CORRIGÉ selon définitions business
     const totalCommandes = filteredCommandes.length; // Total général pour calculs internes
     
@@ -593,6 +922,6 @@ async function calculateMetricsFromCommandes(commandes: any[], filters: FilterOp
         statutsDistribution,
         commandes: filteredCommandes,
         magasins,
-        chauffeurs: []
+        chauffeurs
     };
 }
