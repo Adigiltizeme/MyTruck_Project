@@ -97,10 +97,12 @@ const Dashboard: React.FC<DashboardProps> = () => {
 
     return (
         <div className="space-y-6">
-            {/* Sélecteur de rôle en mode dev */}
-            {/* <div className="mb-6">
-                <RoleSelector />
-            </div> */}
+            {/* Sélecteur de rôle en mode dev seulement */}
+            {import.meta.env.DEV && (
+                <div className="mb-6">
+                    <RoleSelector />
+                </div>
+            )}
             
             {/* Dashboard spécifique au rôle */}
             <DashboardController 

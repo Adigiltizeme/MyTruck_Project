@@ -129,7 +129,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     // ✅ Filtres visibles selon le rôle
     const shouldShowStoreFilter = role === 'admin';
     const shouldShowDriverFilter = role === 'admin';
-    const shouldShowPeriodFilter = role !== 'chauffeur'; // Chauffeur a sa propre logique
+    const shouldShowPeriodFilter = role;
 
     // ✅ Loading state
     if (isLoading) {
@@ -144,8 +144,8 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
         );
     }
 
-    // ✅ Error state (sauf pour chauffeur qui a sa propre gestion)
-    if (role !== 'chauffeur' && error) {
+    // ✅ Error state
+    if (error) {
         return (
             <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-red-600">
                 {error}
@@ -253,7 +253,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
             </div>
 
             {/* Graphiques (cachés pour chauffeur) */}
-            {role !== 'chauffeur' && dashboardData.historique && (
+            {dashboardData.historique && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white rounded-xl p-6">
                         <h3 className="text-lg font-semibold mb-4">Performance dans le temps</h3>
