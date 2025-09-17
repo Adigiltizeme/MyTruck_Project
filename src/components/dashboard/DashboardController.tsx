@@ -29,7 +29,6 @@ const DashboardController: React.FC<DashboardControllerProps> = ({
             case 'chauffeur':
                 // ✅ Passer le driverId du contexte utilisateur
                 const driverId = user?.driverId || user?.id;
-                console.log('🚛 DashboardController - driverId:', driverId, 'user:', user);
                 return <ChauffeurDashboard driverId={driverId} />;
             default:
                 return <div className="text-red-600">Rôle non reconnu</div>;

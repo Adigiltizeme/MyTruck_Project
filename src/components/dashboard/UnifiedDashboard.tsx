@@ -52,15 +52,6 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
         driver: role === 'chauffeur' ? driverId || '' : filters.driver
     };
 
-    // 🐛 DEBUG: Log des filtres pour chauffeur
-    if (role === 'chauffeur') {
-        console.log('🚛 DEBUG UnifiedDashboard - Filtres chauffeur:', {
-            role,
-            driverId,
-            'filters.driver': filters.driver,
-            'filtersWithCustomDates.driver': filtersWithCustomDates.driver
-        });
-    }
 
     const { data, loading, error } = useMetricsData(filtersWithCustomDates);
 

@@ -34,11 +34,14 @@ export const useMetricsData = (filters: FilterOptions) => {
                 console.log('🔄 useMetricsData: Tentative récupération données...');
 
                 // ✅ UTILISER simpleBackendService comme dans Deliveries.tsx
-                const [commandes, magasins, chauffeurs] = await Promise.all([
+                // Pour les chauffeurs, ne pas récupérer les magasins (erreur 403)
+                const promises = [
                     simpleBackendService.getCommandes(),
-                    simpleBackendService.getMagasins(),
+                    filters.driver ? Promise.resolve([]) : simpleBackendService.getMagasins(), // Pas de magasins pour les chauffeurs
                     simpleBackendService.getChauffeurs()
-                ]);
+                ];
+
+                const [commandes, magasins, chauffeurs] = await Promise.all(promises);
 
                 console.log(`📊 Données récupérées: ${commandes.length} commandes, ${magasins.length} magasins, ${chauffeurs.length} chauffeurs`);
                 console.log(`📊 Source de données unifiée: simpleBackendService.getCommandes() (même que Deliveries.tsx)`);
