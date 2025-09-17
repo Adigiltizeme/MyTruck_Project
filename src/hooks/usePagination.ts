@@ -4,17 +4,20 @@ import { UsePaginationProps, UsePaginationReturn } from "../types/hooks.types";
 export function usePagination<T>({ items, itemsPerPage }: UsePaginationProps<T>): UsePaginationReturn<T> {
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Calculate total pages
+    const totalPages = Math.ceil(items.length / itemsPerPage);
+
     useEffect(() => {
-        // Reset to first page when items change
-        setCurrentPage(1);
-    }, [items]);
+        // Only reset if current page is beyond available pages
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(1);
+        }
+    }, [currentPage, totalPages]);
 
     const paginatedItems = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
         return items.slice(start, start + itemsPerPage);
     }, [items, currentPage, itemsPerPage]);
-
-    const totalPages = Math.ceil(items.length / itemsPerPage);
 
     return {
         currentPage,

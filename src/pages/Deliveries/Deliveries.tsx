@@ -230,6 +230,11 @@ const Deliveries = () => {
         enabled: user?.role === 'admin' // Seuls les admins peuvent déclencher l'expiration
     });
 
+    // ✅ Réinitialiser la pagination quand la recherche change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, setCurrentPage]);
+
     useEffect(() => {
         const loadCommandesFromBackend = async () => {
             try {
