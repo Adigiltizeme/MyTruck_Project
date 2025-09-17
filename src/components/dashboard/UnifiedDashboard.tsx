@@ -232,7 +232,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
                 <MetricCard
                     title="En cours"
                     value={dashboardData.enCours}
-                    subtitle={role === 'chauffeur' ? 'Mes livraisons actives' : `${role === 'admin' ? '' : 'Magasin '}en cours`}
+                    subtitle={role === 'chauffeur' ? 'Mes livraisons actives' : 'Livraisons en cours'}
                     chartData={dashboardData.historique}
                     color="#F59E0B"
                 />

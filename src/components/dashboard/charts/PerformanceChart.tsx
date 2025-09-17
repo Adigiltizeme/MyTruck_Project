@@ -1,4 +1,5 @@
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface ChartDataPoint {
     date: string;
@@ -24,6 +25,8 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
         }
         return 0;
     });
+
+    const { user } = useAuth();
 
     return (
         <ResponsiveContainer width="100%" height={300}>
@@ -105,15 +108,17 @@ export const PerformanceChart: React.FC<{ data: ChartDataPoint[] }> = ({ data })
                     name="En attente"
                     dot={{ strokeWidth: 2 }}
                 />
-                <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="chiffreAffaires"
-                    stroke="#9333EA"
-                    strokeWidth={2}
-                    name="CA"
-                    dot={{ strokeWidth: 2 }}
-                />
+                {user?.role !== 'chauffeur' && (
+                    <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="chiffreAffaires"
+                        stroke="#9333EA"
+                        strokeWidth={2}
+                        name="CA"
+                        dot={{ strokeWidth: 2 }}
+                    />
+                )}
             </LineChart>
         </ResponsiveContainer>
     );
