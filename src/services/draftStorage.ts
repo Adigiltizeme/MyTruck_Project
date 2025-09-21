@@ -858,11 +858,15 @@ export class DraftStorageService {
      */
     private getCurrentStoreId(): string {
         try {
+            console.log("[DEBUG] getCurrentStoreId - Recherche dans localStorage...");
+
             // 1. Essayer d'abord depuis l'objet user
             const userString = localStorage.getItem('user');
             if (userString) {
                 const user = JSON.parse(userString);
+                console.log("[DEBUG] getCurrentStoreId - user trouvé:", { role: user.role, storeId: user.storeId });
                 if (user.role === 'magasin' && user.storeId) {
+                    console.log("[DEBUG] getCurrentStoreId - Retourne depuis user:", user.storeId);
                     return user.storeId;
                 }
             }
@@ -871,7 +875,9 @@ export class DraftStorageService {
             const storeInfoString = localStorage.getItem('currentStoreInfo');
             if (storeInfoString) {
                 const storeInfo = JSON.parse(storeInfoString);
+                console.log("[DEBUG] getCurrentStoreId - currentStoreInfo trouvé:", storeInfo);
                 if (storeInfo.id) {
+                    console.log("[DEBUG] getCurrentStoreId - Retourne depuis currentStoreInfo:", storeInfo.id);
                     return storeInfo.id;
                 }
             }
@@ -881,7 +887,9 @@ export class DraftStorageService {
             if (token) {
                 try {
                     const payload = JSON.parse(atob(token.split('.')[1]));
+                    console.log("[DEBUG] getCurrentStoreId - payload JWT:", payload);
                     if (payload.storeId) {
+                        console.log("[DEBUG] getCurrentStoreId - Retourne depuis JWT:", payload.storeId);
                         return payload.storeId;
                     }
                 } catch (tokenError) {
