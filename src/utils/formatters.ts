@@ -87,7 +87,10 @@ export const formatData = {
       dates: {
         commande: new Date().toISOString(),
         livraison: data.dates?.livraison || '',
-        misAJour: new Date().toISOString()
+        misAJour: {
+          commande: new Date().toISOString(),
+          livraison: ''
+        }
       },
       client: {
         nom: data.client?.nom?.trim() || '',

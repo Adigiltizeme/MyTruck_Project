@@ -397,7 +397,7 @@ export class BackendDataService {
             if (this.shouldMakeApiCall('getCommandes')) {
                 console.log('Récupération des commandes depuis Backend API');
                 const response = await apiService.getCommandes({ take: 1000 }); // Augmente la limite à 1000
-                const commandes = response.data || response;
+                const commandes: CommandeMetier[] = Array.isArray(response.data) ? response.data : Array.isArray(response) ? response : [];
 
                 // Sauvegarde dans IndexedDB
                 await SafeDbService.transaction('rw', 'commandes', async () => {
@@ -432,8 +432,9 @@ export class BackendDataService {
             if (this.shouldMakeApiCall()) {
                 // En ligne: récupérer depuis Airtable
                 const response = await apiService.getCommandes({ take: 1000 }); // Augmente la limite à 1000
-                const commandes = response.data || response;
-                const commande = commandes.find((cmd: CommandeMetier) => cmd.id === id);
+                const commandesRaw = response.data || response;
+                const commandesArray: CommandeMetier[] = Array.isArray(commandesRaw) ? commandesRaw : (Array.isArray((commandesRaw as any)?.data) ? (commandesRaw as any).data : []);
+                const commande = commandesArray.find((cmd: CommandeMetier) => cmd.id === id);
 
                 // Mettre à jour la base locale
                 if (commande) {
@@ -983,7 +984,6 @@ export class BackendDataService {
                 historique,
                 statutsDistribution,
                 commandes: filteredCommandes,
-                store: magasins.map(m => m.name || ''),
                 chauffeurs: personnel
                     .filter(p => p.role === 'Chauffeur' && typeof p.email === 'string')
                     .map(p => ({
@@ -991,6 +991,8 @@ export class BackendDataService {
                         email: p.email as string,
                         status: (p.status === 'Actif' || p.status === 'Inactif') ? p.status : 'Inactif'
                     })),
+                totalCommandes: commandes.length,
+                magasins: magasins
             };
         } catch (error) {
             console.error('Erreur lors de la récupération des métriques:', error);

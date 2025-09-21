@@ -9,7 +9,7 @@ interface EmptyStateProps {
 
 const MetricsEmptyState: React.FC<EmptyStateProps> = ({ period, onChangePeriod }) => {
   const today = new Date();
-  const formattedDate = format(today, period === 'day' ? 'dd MMMM yyyy' : 'MMMM yyyy', { locale: fr });
+  const formattedDate = format(today, period === 'day' ? 'dd MMMM yyyy' : 'MMMM yyyy');
 
   return (
     <div className="bg-white rounded-xl p-6 text-center">

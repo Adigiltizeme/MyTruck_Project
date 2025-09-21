@@ -199,12 +199,14 @@ export class DashboardService {
                     id: '', // Provide appropriate id
                     nom: chauffeur, // Assuming chauffeur is the name
                     prenom: '', // Provide appropriate prenom
-                    role: '', // Provide appropriate role
+                    role: 'Chauffeur', // Set to a valid role
                     telephone: '', // Provide appropriate telephone
                     email: '', // Provide appropriate email
                     status: 'Actif', // Assuming the default status is 'Actif'
                     location: { latitude: 0, longitude: 0 } // Provide appropriate location
-                }))
+                })),
+                totalCommandes: commandes.data.length,
+                magasins: Array.from(new Set(commandes.data.map((c: CommandeMetier) => c.magasin))) // assuming 'magasin' is a property
             };
         } catch (error) {
             console.error('Erreur lors de la récupération des métriques:', error);

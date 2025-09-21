@@ -112,14 +112,16 @@ export class DocumentService {
       };
       
       // Mettre à jour la commande avec le nouveau devis
-      const updatedCommande = await this.apiService.updateCommande({
-        ...commande,
-        id: commande.id,
-        financier: {
-          ...commande.financier,
-          devis: [...(commande.financier?.devis || []), devis]
+      const updatedCommande = await this.apiService.updateCommande(
+        commande.id,
+        {
+          ...commande,
+          financier: {
+            ...commande.financier,
+            devis: [...(commande.financier?.devis || []), devis]
+          }
         }
-      });
+      );
       
       return updatedCommande;
     } catch (error) {
@@ -150,16 +152,16 @@ export class DocumentService {
         magasin: factureData.magasin || 'DefaultMagasin', // Replace 'DefaultMagasin' with appropriate default value
         client: factureData.client || 'DefaultClient'    // Replace 'DefaultClient' with appropriate default value
       };
-      
-      // Mettre à jour la commande avec la nouvelle facture
-      const updatedCommande = await this.apiService.updateCommande({
-        ...commande,
-        id: commande.id,
-        financier: {
-          ...commande.financier,
-          factures: [...(commande.financier?.factures || []), facture]
+      const updatedCommande = await this.apiService.updateCommande(
+        commande.id,
+        {
+          ...commande,
+          financier: {
+            ...commande.financier,
+            factures: [...(commande.financier?.factures || []), facture]
+          }
         }
-      });
+      );
       
       return updatedCommande;
     } catch (error) {

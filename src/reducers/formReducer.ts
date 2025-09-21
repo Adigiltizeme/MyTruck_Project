@@ -38,7 +38,7 @@ export const initialFormState: FormState = {
             reserve: false,
             remarques: '',
             chauffeurs: [],
-            details: '{}'
+            details: {} as import('../types/business.types').DeliveryDetails
         },
     },
     errors: {},
@@ -107,9 +107,7 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                         ...state.data,
                         livraison: {
                             ...state.data.livraison,
-                            details: typeof action.payload.value === 'string'
-                                ? action.payload.value
-                                : JSON.stringify(action.payload.value),
+                            details: action.payload.value as import('../types/business.types').DeliveryDetails,
                             // Assurez-vous que les autres champs sont préservés
                             vehicule: state.data.livraison?.vehicule || '',
                             equipiers: state.data.livraison?.equipiers || 0,
@@ -149,8 +147,12 @@ export function formReducer(state: FormState, action: FormAction): FormState {
 
                 // Restaurer les détails de livraison (incluant canBeTilted)
                 let details = restoredData.livraison.details || '{}';
-                if (typeof details !== 'string') {
-                    details = JSON.stringify(details);
+                if (typeof details === 'string') {
+                    try {
+                        details = JSON.parse(details);
+                    } catch {
+                        details = '' as string;
+                    }
                 }
 
                 // Créer un objet LivraisonInfo complet avec tous les champs requis
@@ -159,7 +161,7 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                     vehicule, // Format court attendu
                     equipiers, // number requis
                     reserve, // boolean requis
-                    details,
+                    details: details as import('../types/business.types').DeliveryDetails,
                     remarques: restoredData.livraison.remarques || '',
                     chauffeurs: restoredData.livraison.chauffeurs || [],
                     commentaireEnlevement: restoredData.livraison.commentaireEnlevement,

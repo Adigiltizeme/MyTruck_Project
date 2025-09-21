@@ -9,7 +9,12 @@ export class BackendApiService {
 
     // ✅ GARDER LA MÊME INTERFACE que AirtableService
     async getCommandes(filters: any = {}): Promise<CommandeMetier[]> {
-        return apiService.getCommandes(filters).then(response => response.data || response);
+        return apiService.getCommandes(filters).then(response => {
+            if (Array.isArray(response)) {
+                return response;
+            }
+            return response.data as CommandeMetier[] || [];
+        });
     }
 
     async getCommande(id: string): Promise<CommandeMetier> {

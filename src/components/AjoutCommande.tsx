@@ -36,7 +36,10 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 dates: {
                     commande: new Date().toISOString(),
                     livraison: '',
-                    misAJour: new Date().toISOString()
+                    misAJour: {
+                        commande: new Date().toISOString(),
+                        livraison: ''
+                    }
                 },
             },
             client: {
@@ -213,7 +216,12 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 magasin: {
                     ...prev.magasin, // Preserve existing properties, including 'id'
                     name: user.storeName || '',
-                    address: user.storeAddress || ''
+                    address: user.storeAddress || '',
+                    phone: prev.magasin?.phone || '',
+                    email: prev.magasin?.email || '',
+                    manager: prev.magasin?.manager || '',
+                    status: prev.magasin?.status || '',
+                    photo: prev.magasin?.photo || ''
                 }
             }));
 
@@ -264,6 +272,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 email: '',
                 manager: '',
                 status: '',
+                photo: ''
             };
 
             // Log de vérification

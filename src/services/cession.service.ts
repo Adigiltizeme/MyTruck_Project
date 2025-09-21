@@ -4,17 +4,18 @@ import { AirtableService } from './airtable.service';
 import { CloudinaryService } from './cloudinary.service';
 import { SafeDbService } from './safe-db.service';
 import { DbMonitor } from '../utils/db-repair';
-import { PersonnelInfo } from '../types/business.types';
+import { MagasinInfo, PersonnelInfo } from '../types/business.types';
+import { DataServiceAdapter } from './data-service-adapter';
 
 /**
  * Service de gestion des cessions inter-magasins
  */
 export class CessionService {
-  private airtableService: AirtableService;
+  private dataService: DataServiceAdapter;
   private cloudinaryService: CloudinaryService;
   
   constructor(apiToken: string) {
-    this.airtableService = new AirtableService(apiToken);
+    this.dataService = new DataServiceAdapter();
     this.cloudinaryService = new CloudinaryService();
   }
   
@@ -99,11 +100,11 @@ export class CessionService {
   async createCession(cessionData: CessionFormData, userId: string): Promise<Cession> {
     try {
       // Récupérer les informations des magasins
-    const magasinOrigine: { id: string; nom: string } | undefined = (await this.airtableService.getMagasins()).find(
-      (magasin: { id: string; nom: string }) => magasin.id === cessionData.magasin_origine_id
+    const magasinOrigine = (await this.dataService.getMagasins()).find(
+      (magasin: MagasinInfo) => magasin.id === cessionData.magasin_origine_id
     );
-    const magasinDestination: { id: string; nom: string } | undefined = (await this.airtableService.getMagasins()).find(
-      (magasin: { id: string; nom: string }) => magasin.id === cessionData.magasin_destination_id
+    const magasinDestination = (await this.dataService.getMagasins()).find(
+      (magasin: MagasinInfo) => magasin.id === cessionData.magasin_destination_id
     );
       
       if (!magasinOrigine || !magasinDestination) {
@@ -135,17 +136,17 @@ export class CessionService {
         date_livraison_souhaitee: cessionData.date_livraison_souhaitee,
         magasin_origine: {
           id: magasinOrigine.id,
-          name: magasinOrigine.nom,
-          address: '', // Provide the appropriate value or fetch it
-          phone: '', // Provide the appropriate value or fetch it
-          status: '' // Provide the appropriate value or fetch it
+          name: magasinOrigine.name || "",
+          address: magasinOrigine.address || "",
+          phone: magasinOrigine.phone || "",
+          status: magasinOrigine.status || ""
         },
         magasin_destination: {
           id: magasinDestination.id,
-          name: magasinDestination.nom,
-          address: '', // Provide the appropriate value or fetch it
-          phone: '', // Provide the appropriate value or fetch it
-          status: '' // Provide the appropriate value or fetch it
+          name: magasinDestination.name || "",
+          address: magasinDestination.address || "",
+          phone: magasinDestination.phone || "",
+          status: magasinDestination.status || ""
         },
         articles: articlesWithPhotos.map((article, index) => ({
           id: `art-${index}-${Date.now()}`,
@@ -295,7 +296,7 @@ export class CessionService {
       }
       
       // Récupérer les informations des chauffeurs
-      const allPersonnel = await this.airtableService.getPersonnel();
+      const allPersonnel = await this.dataService.getPersonnel();
     const chauffeurs: PersonnelInfo[] = allPersonnel
       .filter((p: PersonnelInfo) => chauffeurIds.includes(p.id))
       .map((p: PersonnelInfo) => ({

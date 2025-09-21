@@ -848,9 +848,18 @@ export class ApiService {
   async migrateAnnuleeSync(): Promise<{ synchronized: number; errors: number }> {
     try {
       console.log('🔄 Démarrage migration synchronisation statuts ANNULEE...');
-      const result = await this.post('/commandes/migrate-annulee-sync');
+      const result = await this.post<{ synchronized: number; errors: number }>('/commandes/migrate-annulee-sync');
       console.log('✅ Migration terminée:', result);
-      return result;
+      // Assure que le résultat a bien les propriétés attendues
+      if (
+        typeof result === 'object' &&
+        typeof result.synchronized === 'number' &&
+        typeof result.errors === 'number'
+      ) {
+        return result;
+      }
+      // Valeur par défaut si le backend ne renvoie pas les propriétés attendues
+      return { synchronized: 0, errors: 0 };
     } catch (error) {
       console.error('❌ Erreur migration:', error);
       throw error;
