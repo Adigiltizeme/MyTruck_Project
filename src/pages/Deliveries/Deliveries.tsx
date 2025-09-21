@@ -612,32 +612,7 @@ const Deliveries = () => {
                             onCancel={() => setShowNewCommandeModal(false)}
                             commande={{} as CommandeMetier}
                             isEditing={false}
-                            initialData={{
-                                id: '',
-                                numeroCommande: '',
-                                dates: { commande: '', livraison: '', misAJour: { commande: '', livraison: '' } },
-                                statuts: { livraison: 'EN ATTENTE', commande: 'En attente' },
-                                client: { nom: '', prenom: '', nomComplet: '', adresse: { ligne1: '', type: 'Domicile', batiment: '', etage: '', ascenseur: false, interphone: '' }, telephone: { principal: '', secondaire: '' } },
-                                magasin: user?.role === 'magasin' ? {
-                                    id: user.storeId || '',
-                                    name: user.storeName || '',
-                                    address: user.storeAddress || '',
-                                    phone: '',
-                                    email: '',
-                                    status: ''
-                                } : {
-                                    id: '',
-                                    name: '',
-                                    address: '',
-                                    phone: '',
-                                    email: '',
-                                    status: ''
-                                },
-                                livraison: { creneau: '', vehicule: '', reserve: false, equipiers: 0, chauffeurs: [] },
-                                chauffeurs: [],
-                                financier: { tarifHT: 0 },
-                                articles: { nombre: 0, details: '', photos: [] }
-                            }}
+                            initialData={{} as CommandeMetier}
                         />
                     </Modal>
                 </div>
