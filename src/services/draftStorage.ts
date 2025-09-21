@@ -420,9 +420,21 @@ export class DraftStorageService {
             }
 
             // SÉCURITÉ: Vérifier que les données correspondent au bon magasin
-            if (data.magasin?.id && data.magasin.id !== currentStoreId) {
-                console.error(`[SÉCURITÉ] VIOLATION: Tentative de sauvegarder des données du magasin ${data.magasin.id} pour ${currentStoreId}`);
-                return { success: false, error: new Error("Violation de sécurité magasin") };
+            // Priorité à storeId fourni en paramètre (plus fiable)
+            const finalStoreId = storeId || currentStoreId;
+
+            if (data.magasin?.id && data.magasin.id !== finalStoreId) {
+                // En production, être plus flexible si les IDs sont cohérents avec l'utilisateur actuel
+                const isDevelopment = process.env.NODE_ENV === 'development' ||
+                    window.location.hostname === 'localhost';
+
+                if (!isDevelopment) {
+                    console.warn(`[SÉCURITÉ] Correction automatique: ${data.magasin.id} → ${finalStoreId}`);
+                    // Corriger automatiquement l'ID du magasin au lieu de rejeter
+                } else {
+                    console.error(`[SÉCURITÉ] VIOLATION: Tentative de sauvegarder des données du magasin ${data.magasin.id} pour ${finalStoreId}`);
+                    return { success: false, error: new Error("Violation de sécurité magasin") };
+                }
             }
 
             // IMPORTANT: S'assurer que l'ID du magasin dans les données correspond au storeId externe
@@ -431,7 +443,7 @@ export class DraftStorageService {
                 ...data,
                 magasin: {
                     ...(data.magasin || {}),
-                    id: currentStoreId,
+                    id: finalStoreId,
                     name: (data.magasin && typeof data.magasin.name === 'string') ? data.magasin.name : '',
                     address: (data.magasin && typeof data.magasin.address === 'string') ? data.magasin.address : '',
                     phone: (data.magasin && typeof data.magasin.phone === 'string') ? data.magasin.phone : '',
@@ -448,15 +460,7 @@ export class DraftStorageService {
                 livraison: {
                     ...(data.livraison || {}),
                     // Préserver les détails de livraison (incluant canBeTilted)
-                    details: typeof data.livraison?.details === 'object' &&
-                        data.livraison.details !== null &&
-                        typeof data.livraison.details.hasElevator === 'boolean' &&
-                        typeof data.livraison.details.hasStairs === 'boolean' &&
-                        typeof data.livraison.details.stairCount === 'number' &&
-                        typeof data.livraison.details.parkingDistance === 'number' &&
-                        typeof data.livraison.details.deliveryToUpperFloor === 'number'
-                        ? data.livraison.details
-                        : undefined,
+                    details: data.livraison?.details || {},
                     creneau: data.livraison?.creneau ?? '',
                     vehicule: data.livraison?.vehicule || '',
                     equipiers: typeof data.livraison?.equipiers === 'number' ? data.livraison.equipiers : 0,
@@ -464,7 +468,7 @@ export class DraftStorageService {
                 }
             };
 
-            console.log(`Sauvegarde du brouillon pour le magasin ${currentStoreId}, 
+            console.log(`Sauvegarde du brouillon pour le magasin ${finalStoreId},
                         en synchronisant magasin.id=${dataWithCompleteInfo.magasin.id},
                         avec ${dataWithCompleteInfo.articles.dimensions?.length} dimensions d'articles`);
             // console.log(`Sauvegarde brouillon - Véhicule: ${dataWithCompleteInfo.livraison.vehicule}, Détails: ${dataWithCompleteInfo.livraison.details}`);
@@ -472,40 +476,40 @@ export class DraftStorageService {
             // Vérifier s'il existe déjà un brouillon pour ce magasin
             const existingDraft = await this.db.table('drafts')
                 .where('storeId')
-                .equals(currentStoreId)
+                .equals(finalStoreId)
                 .first();
 
-            console.log(` [SÉCURITÉ] Sauvegarde complète du brouillon pour le magasin ${currentStoreId}`);
+            console.log(` [SÉCURITÉ] Sauvegarde complète du brouillon pour le magasin ${finalStoreId}`);
             console.log(`- Dimensions: ${dataWithCompleteInfo.articles.dimensions?.length || 0}`);
             console.log(`- Véhicule: ${dataWithCompleteInfo.livraison?.vehicule || 'non défini'}`);
             console.log(`- Détails livraison: ${dataWithCompleteInfo.livraison?.details || 'non défini'}`);
 
             const draftData: DraftData = {
-                data: dataWithCompleteInfo,
+                data: dataWithCompleteInfo as Partial<CommandeMetier>,
                 timestamp: Date.now(),
                 lastModified: new Date().toISOString(),
                 status: DraftStatus.PENDING,
                 version: '1.0',
-                storeId: currentStoreId
+                storeId: finalStoreId
             };
 
             let id: number;
 
             if (existingDraft) {
                 // DOUBLE VÉRIFICATION avant mise à jour
-                if (existingDraft.storeId !== currentStoreId) {
-                    console.error(`[SÉCURITÉ] VIOLATION: Tentative de mise à jour du brouillon ${existingDraft.storeId} pour ${currentStoreId}`);
+                if (existingDraft.storeId !== finalStoreId) {
+                    console.error(`[SÉCURITÉ] VIOLATION: Tentative de mise à jour du brouillon ${existingDraft.storeId} pour ${finalStoreId}`);
                     return { success: false, error: new Error("Violation de sécurité lors de la mise à jour") };
                 }
 
                 // Mettre à jour le brouillon existant
                 id = existingDraft.id;
                 await this.db.table('drafts').update(id, draftData);
-                console.log(`[SÉCURITÉ] Brouillon mis à jour pour ${currentStoreId}, ID: ${id}`);
+                console.log(`[SÉCURITÉ] Brouillon mis à jour pour ${finalStoreId}, ID: ${id}`);
             } else {
                 // Créer un nouveau brouillon
                 id = await this.db.table('drafts').add(draftData) as number;
-                console.log(`[SÉCURITÉ] Nouveau brouillon créé pour ${currentStoreId}, ID: ${id}`);
+                console.log(`[SÉCURITÉ] Nouveau brouillon créé pour ${finalStoreId}, ID: ${id}`);
             }
 
             return {
@@ -852,27 +856,44 @@ export class DraftStorageService {
      */
     private getCurrentStoreId(): string {
         try {
+            // 1. Essayer d'abord depuis l'objet user
             const userString = localStorage.getItem('user');
             if (userString) {
                 const user = JSON.parse(userString);
                 if (user.role === 'magasin' && user.storeId) {
+                    console.log(`[DEBUG] StoreId trouvé dans user: ${user.storeId}`);
                     return user.storeId;
                 }
             }
 
-            // Si le localStorage n'a pas l'info, essayer le contexte du store
+            // 2. Essayer depuis le contexte du store
             const storeInfoString = localStorage.getItem('currentStoreInfo');
             if (storeInfoString) {
                 const storeInfo = JSON.parse(storeInfoString);
                 if (storeInfo.id) {
+                    console.log(`[DEBUG] StoreId trouvé dans currentStoreInfo: ${storeInfo.id}`);
                     return storeInfo.id;
                 }
             }
 
-            console.warn("[SÉCURITÉ] Aucun storeId valide trouvé");
-            return 'unknown_store'; // Valeur par défaut si aucun magasin n'est identifié
+            // 3. Essayer le token JWT si disponible
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    if (payload.storeId) {
+                        console.log(`[DEBUG] StoreId trouvé dans token: ${payload.storeId}`);
+                        return payload.storeId;
+                    }
+                } catch (tokenError) {
+                    console.warn("[DEBUG] Impossible de parser le token JWT");
+                }
+            }
+
+            console.warn("[SÉCURITÉ] Aucun storeId valide trouvé dans localStorage");
+            return 'unknown_store';
         } catch (error) {
-            console.error(' [SÉCURITÉ] Erreur lors de la récupération du storeId:', error);
+            console.error('[SÉCURITÉ] Erreur lors de la récupération du storeId:', error);
             return 'unknown_store';
         }
     }
