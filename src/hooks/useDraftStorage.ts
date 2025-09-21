@@ -208,14 +208,10 @@ export const useDraftStorage = () => {
             return { success: false, error: new Error("Contexte magasin invalide") };
         }
 
-        // SÉCURITÉ: Vérifier que les données correspondent au bon magasin
-        if (data.magasin?.id && data.magasin.id !== user.storeId) {
-            console.error(`[SÉCURITÉ] VIOLATION: Tentative de sauvegarder des données du magasin ${data.magasin.id} pour ${user.storeId}`);
-            return { success: false, error: new Error("Violation de sécurité magasin") };
-        }
-
         console.log(`[SÉCURITÉ] Sauvegarde pour ${user.storeName} (${user.storeId}) avec dimensions:`, data.articles?.dimensions?.length || 0);
+        console.log(`[DEBUG] Données magasin dans useDraftStorage:`, data.magasin?.id);
 
+        // Laisser le service DraftStorage gérer la validation de sécurité de manière intelligente
         const result = await draftService.saveDraft(data, user.storeId);
 
         if (result.success) {
