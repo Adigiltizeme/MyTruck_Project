@@ -673,7 +673,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     }, []); // Dépendances vides pour n'exécuter qu'une seule fois au montage
 
     // Fonction pour récupérer l'adresse du magasin de toutes les sources possibles
-    const getLatestStoreAddress = useCallback(() => {
+    const getLatestStoreAddress = useCallback(async () => {
         // Priorité 1: Les données du formulaire
         if (data.magasin?.address) {
             return data.magasin.address;
@@ -684,29 +684,64 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             return user.storeAddress;
         }
 
-        // Priorité 3: Le localStorage
+        // Priorité 3: Le localStorage (RoleSelector)
         try {
             const storedInfo = localStorage.getItem('currentStoreInfo');
             if (storedInfo) {
                 const info = JSON.parse(storedInfo);
-                return info.address;
+                if (info.address) {
+                    return info.address;
+                }
             }
         } catch (e) {
-            console.error('Erreur lors de la lecture de localStorage', e);
+            console.error('🔴 Erreur localStorage currentStoreInfo:', e);
         }
 
-        // Valeur par défaut
+        // 🔴 Priorité 4: API directe (comme MagasinManagement.tsx)
+        if (user?.role === 'magasin' && user.storeId) {
+            try {
+                console.log('🔴 [ADRESSE-MANQUANTE] Récupération depuis API /magasins...');
+
+                // Utiliser la même logique que MagasinManagement.tsx
+                const apiService = (window as any).__apiService;
+                if (apiService) {
+                    const rawData = await apiService.get('/magasins');
+                    const magasinData = rawData.data.find((m: any) => m.id === user.storeId);
+
+                    if (magasinData?.adresse) {
+                        console.log('🔴 [ADRESSE-MANQUANTE] Adresse trouvée:', magasinData.adresse);
+
+                        // Mettre à jour le formulaire avec l'adresse trouvée
+                        onChange({
+                            target: {
+                                name: 'magasin.address',
+                                value: magasinData.adresse
+                            }
+                        });
+
+                        return magasinData.adresse;
+                    }
+                }
+            } catch (error) {
+                console.error('🔴 [ADRESSE-MANQUANTE] Erreur API /magasins:', error);
+            }
+        }
+
+        console.warn('🔴 [ADRESSE-MANQUANTE] Aucune adresse trouvée !');
         return '';
-    }, [data.magasin?.address]);
+    }, [data.magasin?.address, user?.storeId, user?.storeAddress, onChange]);
 
     // Pour mettre à jour l'état local quand les données changent
     useEffect(() => {
-        const latestAddress = getLatestStoreAddress();
-        if (latestAddress && latestAddress !== storeAddress) {
-            console.log(`Mise à jour de l'adresse du magasin: ${latestAddress}`);
-            setStoreAddress(latestAddress);
-        }
-    }, [data.magasin?.address, getLatestStoreAddress]);
+        const loadAddress = async () => {
+            const latestAddress = await getLatestStoreAddress();
+            if (latestAddress && latestAddress !== storeAddress) {
+                console.log(`🔴 Mise à jour de l'adresse du magasin: ${latestAddress}`);
+                setStoreAddress(latestAddress);
+            }
+        };
+        loadAddress();
+    }, [data.magasin?.address, getLatestStoreAddress, storeAddress]);
 
     // Vérifier les restrictions de véhicule en fonction des dimensions des articles
     useEffect(() => {
@@ -838,7 +873,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             const tarificationService = new TarificationService();
 
             // Utiliser l'adresse stockée localement OU récupérer la plus récente
-            const addressToUse = storeAddress || getLatestStoreAddress();
+            const addressToUse = storeAddress || await getLatestStoreAddress();
 
             // Log de vérification
             // CRITIQUE: Utiliser l'adresse stockée dans l'état local, pas data.magasin.address

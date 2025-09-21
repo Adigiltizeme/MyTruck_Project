@@ -250,30 +250,6 @@ class ApiAuthService {
             };
 
             console.log('✅ Connexion réussie:', authUser.email);
-
-            // ENRICHISSEMENT : Récupérer les données complètes du magasin si nécessaire
-            if (authUser.role === 'magasin' && authUser.storeId && !authUser.storeAddress) {
-                try {
-                    console.log('[ENRICHISSEMENT] Récupération des données complètes du magasin...');
-                    // Import dynamique pour éviter les dépendances circulaires
-                    const { useOffline } = await import('../contexts/OfflineContext');
-                    // Utiliser directement le dataService si disponible
-                    const dataService = (window as any).__dataService;
-                    if (dataService) {
-                        const magasins = await dataService.getMagasins();
-                        const magasinComplet = magasins.find((m: any) => m.id === authUser.storeId);
-                        if (magasinComplet) {
-                            console.log('[ENRICHISSEMENT] Magasin complet trouvé:', magasinComplet);
-                            authUser.magasin = magasinComplet;
-                            authUser.storeAddress = magasinComplet.address;
-                            authUser.storePhone = magasinComplet.phone;
-                        }
-                    }
-                } catch (error) {
-                    console.warn('[ENRICHISSEMENT] Erreur lors de l\'enrichissement du magasin:', error);
-                }
-            }
-
             return authUser;
 
         } catch (error) {
