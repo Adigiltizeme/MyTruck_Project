@@ -657,15 +657,15 @@ export class DraftStorageService {
                 .equals(storeId) // STRICTEMENT égal au storeId demandé
                 .first();
 
-            // TEMPORAIRE: Fallback désactivé pour tests - à rétablir après
-            // if (!draft) {
-            //     console.log(`[SÉCURITÉ] Recherche alternative par magasin.id pour ${storeId}`);
-            //     const allDraftsForFallback = await this.db.table('drafts').toArray();
-            //     draft = allDraftsForFallback.find(d => d.data?.magasin?.id === storeId);
-            //     if (draft) {
-            //         console.log(`[SÉCURITÉ] Brouillon trouvé par fallback magasin.id, ID: ${draft.id}`);
-            //     }
-            // }
+            // FALLBACK SÉCURISÉ: Si pas trouvé par storeId, chercher par magasin.id dans les données
+            if (!draft) {
+                console.log(`[SÉCURITÉ] Recherche alternative par magasin.id pour ${storeId}`);
+                const allDraftsForFallback = await this.db.table('drafts').toArray();
+                draft = allDraftsForFallback.find(d => d.data?.magasin?.id === storeId);
+                if (draft) {
+                    console.log(`[SÉCURITÉ] Brouillon trouvé par fallback magasin.id, ID: ${draft.id}`);
+                }
+            }
 
             if (draft) {
                 // DOUBLE VÉRIFICATION de sécurité
@@ -876,8 +876,6 @@ export class DraftStorageService {
      */
     private getCurrentStoreId(): string {
         try {
-            console.log("[DEBUG] getCurrentStoreId - Recherche dans localStorage...");
-
             // ========== NETTOYAGE PRODUCTION ==========
             // En production, nettoyer currentStoreInfo au démarrage pour éviter les conflits
             const isProduction = process.env.NODE_ENV === 'production' ||
@@ -886,7 +884,6 @@ export class DraftStorageService {
             if (isProduction) {
                 const currentStoreInfo = localStorage.getItem('currentStoreInfo');
                 if (currentStoreInfo) {
-                    console.log("[PRODUCTION] Nettoyage de currentStoreInfo pour éviter les conflits");
                     localStorage.removeItem('currentStoreInfo');
                 }
             }
@@ -895,15 +892,6 @@ export class DraftStorageService {
             const userString = localStorage.getItem('user');
             if (userString) {
                 const user = JSON.parse(userString);
-                console.log("[DEBUG] getCurrentStoreId - user complet trouvé:", user);
-                console.log("[DEBUG] getCurrentStoreId - propriétés user:", {
-                    storeId: user.storeId,
-                    store_id: user.store_id,
-                    magasinId: user.magasinId,
-                    magasin_id: user.magasin_id,
-                    magasin: user.magasin,
-                    store: user.store
-                });
 
                 if (user.role === 'magasin' || user.role === 'MAGASIN') {
                     // Tester toutes les propriétés possibles pour l'ID du magasin
@@ -917,12 +905,8 @@ export class DraftStorageService {
                         user.store?.id          // Alternative store object
                     ].filter(Boolean); // Supprimer les valeurs nulles/undefined
 
-                    console.log("[DEBUG] getCurrentStoreId - IDs possibles trouvés:", possibleStoreIds);
-
                     if (possibleStoreIds.length > 0) {
-                        const storeId = possibleStoreIds[0];
-                        console.log("[DEBUG] getCurrentStoreId - Retourne depuis user:", storeId);
-                        return storeId;
+                        return possibleStoreIds[0];
                     }
                 }
             }
@@ -937,7 +921,6 @@ export class DraftStorageService {
             for (const token of tokens) {
                 try {
                     const payload = JSON.parse(atob(token.split('.')[1]));
-                    console.log("[DEBUG] getCurrentStoreId - payload JWT:", payload);
 
                     // Tester plusieurs propriétés possibles dans le JWT
                     const possibleJwtStoreIds = [
@@ -951,19 +934,16 @@ export class DraftStorageService {
                     ].filter(Boolean);
 
                     if (possibleJwtStoreIds.length > 0) {
-                        const storeId = possibleJwtStoreIds[0];
-                        console.log("[DEBUG] getCurrentStoreId - Retourne depuis JWT:", storeId);
-                        return storeId;
+                        return possibleJwtStoreIds[0];
                     }
                 } catch (tokenError) {
-                    console.warn("[SÉCURITÉ] Impossible de parser un token JWT");
+                    // Token invalide, continuer avec le suivant
                 }
             }
 
             // SÉCURITÉ: PAS DE FALLBACK vers d'autres magasins
             // Ne jamais utiliser currentStoreInfo car il peut contenir l'ID d'un autre magasin
 
-            console.warn("[SÉCURITÉ] Aucun storeId valide trouvé dans localStorage");
             return 'unknown_store';
         } catch (error) {
             console.error('[SÉCURITÉ] Erreur lors de la récupération du storeId:', error);

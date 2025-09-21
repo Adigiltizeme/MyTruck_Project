@@ -131,8 +131,9 @@ class ApiAuthService {
                 lastLogin: new Date(),
                 magasin: user.magasin,
                 storeId: user.magasin?.id,
-                storeName: user.magasin?.nom,
-                storeAddress: user.magasin?.adresse,
+                storeName: user.magasin?.nom || user.magasin?.name,
+                storeAddress: user.magasin?.adresse || user.magasin?.address,
+                storePhone: user.magasin?.telephone || user.magasin?.phone,
                 // Si c'est un chauffeur, définir driverId et driverName
                 driverId: user.role?.toLowerCase() === 'chauffeur' ? user.id : undefined,
                 driverName: user.role?.toLowerCase() === 'chauffeur' 
@@ -222,8 +223,9 @@ class ApiAuthService {
                 lastLogin: new Date(),
                 magasin: data.user.magasin,
                 storeId: data.user.magasin?.id,
-                storeName: data.user.magasin?.nom,
-                storeAddress: data.user.magasin?.adresse,
+                storeName: data.user.magasin?.nom || data.user.magasin?.name,
+                storeAddress: data.user.magasin?.adresse || data.user.magasin?.address,
+                storePhone: data.user.magasin?.telephone || data.user.magasin?.phone,
                 // Si c'est un chauffeur, définir driverId et driverName
                 driverId: data.user.role?.toLowerCase() === 'chauffeur' ? data.user.id : undefined,
                 driverName: data.user.role?.toLowerCase() === 'chauffeur' 
@@ -348,8 +350,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     name: `${profile.prenom || ''} ${profile.nom || ''}`.trim(),
                     magasin: profile.magasin,
                     storeId: profile.magasin?.id,
-                    storeName: profile.magasin?.nom,
-                    storeAddress: profile.magasin?.adresse,
+                    storeName: profile.magasin?.nom || profile.magasin?.name,
+                    storeAddress: profile.magasin?.adresse || profile.magasin?.address,
+                    storePhone: profile.magasin?.telephone || profile.magasin?.phone,
                 };
 
                 setUser(refreshedUser);

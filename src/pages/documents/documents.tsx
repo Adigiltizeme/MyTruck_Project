@@ -54,8 +54,21 @@ const DocumentsPage: React.FC = () => {
                             ...devis,
                             id: commande.id,
                             numeroDevis: commande.numeroCommande,
-                            client: commande.client || { nom: '', id: '' },
-                            magasin: commande.magasin || { id: '', name: '' }
+                            client: commande.client || {
+                                nom: '',
+                                prenom: '',
+                                nomComplet: '',
+                                telephone: { principal: '', secondaire: '' },
+                                adresse: {
+                                    type: 'Domicile',
+                                    ligne1: '',
+                                    batiment: '',
+                                    etage: '',
+                                    ascenseur: false,
+                                    interphone: ''
+                                }
+                            },
+                            magasin: commande.magasin || { id: '', name: '', address: '', phone: '', status: '' }
                         });
                     });
                 }
@@ -67,8 +80,21 @@ const DocumentsPage: React.FC = () => {
                             ...facture,
                             id: commande.id,
                             numeroFacture: commande.numeroCommande,
-                            client: commande.client || { nom: '', id: '' },
-                            magasin: commande.magasin || { id: '', name: '' }
+                            client: commande.client || {
+                                nom: '',
+                                prenom: '',
+                                nomComplet: '',
+                                telephone: { principal: '', secondaire: '' },
+                                adresse: {
+                                    type: 'Domicile',
+                                    ligne1: '',
+                                    batiment: '',
+                                    etage: '',
+                                    ascenseur: false,
+                                    interphone: ''
+                                }
+                            },
+                            magasin: commande.magasin || { id: '', name: '', address: '', phone: '', status: '' }
                         });
                     });
                 }
