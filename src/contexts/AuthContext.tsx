@@ -129,7 +129,15 @@ class ApiAuthService {
                 role: user.role?.toLowerCase() as UserRole,
                 token,
                 lastLogin: new Date(),
-                magasin: user.magasin,
+                magasin: user.magasin ? {
+                    ...user.magasin,
+                    name: user.magasin.nom || user.magasin.name || '',
+                    address: user.magasin.adresse || user.magasin.address || '',
+                    phone: user.magasin.telephone || user.magasin.phone || '',
+                    status: user.magasin.status || '',
+                    email: user.magasin.email || '',
+                    manager: user.magasin.manager || ''
+                } : undefined,
                 storeId: user.magasin?.id,
                 storeName: user.magasin?.nom || user.magasin?.name,
                 storeAddress: user.magasin?.adresse || user.magasin?.address,
@@ -221,7 +229,15 @@ class ApiAuthService {
                 role: data.user.role?.toLowerCase() as UserRole,
                 token: data.access_token,
                 lastLogin: new Date(),
-                magasin: data.user.magasin,
+                magasin: data.user.magasin ? {
+                    ...data.user.magasin,
+                    name: data.user.magasin.nom || data.user.magasin.name || '',
+                    address: data.user.magasin.adresse || data.user.magasin.address || '',
+                    phone: data.user.magasin.telephone || data.user.magasin.phone || '',
+                    status: data.user.magasin.status || '',
+                    email: data.user.magasin.email || '',
+                    manager: data.user.magasin.manager || ''
+                } : undefined,
                 storeId: data.user.magasin?.id,
                 storeName: data.user.magasin?.nom || data.user.magasin?.name,
                 storeAddress: data.user.magasin?.adresse || data.user.magasin?.address,
@@ -348,7 +364,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const refreshedUser: AuthUser = {
                     ...user,
                     name: `${profile.prenom || ''} ${profile.nom || ''}`.trim(),
-                    magasin: profile.magasin,
+                    magasin: profile.magasin ? {
+                        ...profile.magasin,
+                        name: profile.magasin.nom || profile.magasin.name || '',
+                        address: profile.magasin.adresse || profile.magasin.address || '',
+                        phone: profile.magasin.telephone || profile.magasin.phone || '',
+                        status: profile.magasin.status || '',
+                        email: profile.magasin.email || '',
+                        manager: profile.magasin.manager || ''
+                    } : undefined,
                     storeId: profile.magasin?.id,
                     storeName: profile.magasin?.nom || profile.magasin?.name,
                     storeAddress: profile.magasin?.adresse || profile.magasin?.address,
