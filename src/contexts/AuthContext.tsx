@@ -229,6 +229,9 @@ class ApiAuthService {
                 role: data.user.role?.toLowerCase() as UserRole,
                 token: data.access_token,
                 lastLogin: new Date(),
+                // DEBUG TEMPORAIRE - à supprimer après diagnostic
+                ...(data.user.magasin && console.log("[DIAGNOSTIC] Objet magasin brut du backend:", data.user.magasin)),
+                ...(data.user.magasin && console.log("[DIAGNOSTIC] Clés disponibles:", Object.keys(data.user.magasin))),
                 magasin: data.user.magasin ? {
                     ...data.user.magasin,
                     name: data.user.magasin.nom || data.user.magasin.name || '',
