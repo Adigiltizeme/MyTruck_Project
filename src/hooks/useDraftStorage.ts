@@ -209,7 +209,6 @@ export const useDraftStorage = () => {
         }
 
         console.log(`[SÉCURITÉ] Sauvegarde pour ${user.storeName} (${user.storeId}) avec dimensions:`, data.articles?.dimensions?.length || 0);
-        console.log(`[DEBUG] Données magasin dans useDraftStorage:`, data.magasin?.id);
 
         // Laisser le service DraftStorage gérer la validation de sécurité de manière intelligente
         const result = await draftService.saveDraft(data, user.storeId);

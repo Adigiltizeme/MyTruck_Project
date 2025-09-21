@@ -648,7 +648,6 @@ export class DraftStorageService {
                 .equals(storeId) // STRICTEMENT égal au storeId demandé
                 .first();
 
-            console.log(`[DEBUG] Brouillon trouvé:`, draft ? `ID: ${draft.id}` : 'Aucun');
 
             if (draft) {
                 // DOUBLE VÉRIFICATION de sécurité
