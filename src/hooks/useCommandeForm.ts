@@ -138,10 +138,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                                     dates: {
                                         ...updatedDraft.dates,
                                         commande: updatedDraft.dates?.commande || '',
-                                        misAJour: updatedDraft.dates?.misAJour.commande || updatedDraft.dates?.misAJour.livraison ? {
-                                            commande: updatedDraft.dates.misAJour.commande || '',
+                                        misAJour: {
+                                            commande: updatedDraft.dates?.misAJour?.commande || '',
                                             livraison: tomorrow.toISOString().split('T')[0]
-                                        } : {}
+                                        }
                                     }
                                 },
                                 isDirty: true

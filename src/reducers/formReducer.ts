@@ -6,7 +6,10 @@ export const initialFormState: FormState = {
         dates: {
             commande: new Date().toISOString(),
             livraison: '',
-            misAJour: new Date().toISOString()
+            misAJour: {
+                commande: new Date().toISOString(),
+                livraison: ''
+            }
         },
         client: {
             nom: '',
