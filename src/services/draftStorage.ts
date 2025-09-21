@@ -643,6 +643,15 @@ export class DraftStorageService {
 
             console.log(`[SÉCURITÉ] Chargement du brouillon pour le magasin: ${storeId}`);
 
+            // DIAGNOSTIC : Lister TOUS les brouillons en base
+            const allDrafts = await this.db.table('drafts').toArray();
+            console.log(`[DIAGNOSTIC] ${allDrafts.length} brouillons en base:`, allDrafts.map(d => ({
+                id: d.id,
+                storeId: d.storeId,
+                magasinId: d.data?.magasin?.id,
+                timestamp: new Date(d.timestamp).toLocaleString()
+            })));
+
             const draft = await this.db.table('drafts')
                 .where('storeId')
                 .equals(storeId) // STRICTEMENT égal au storeId demandé
