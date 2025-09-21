@@ -890,18 +890,7 @@ export class DraftStorageService {
                 }
             }
 
-            // 2. Essayer depuis le contexte du store
-            const storeInfoString = localStorage.getItem('currentStoreInfo');
-            if (storeInfoString) {
-                const storeInfo = JSON.parse(storeInfoString);
-                console.log("[DEBUG] getCurrentStoreId - currentStoreInfo trouvé:", storeInfo);
-                if (storeInfo.id) {
-                    console.log("[DEBUG] getCurrentStoreId - Retourne depuis currentStoreInfo:", storeInfo.id);
-                    return storeInfo.id;
-                }
-            }
-
-            // 3. Essayer le token JWT si disponible
+            // 2. Essayer le token JWT (plus fiable que currentStoreInfo)
             const token = localStorage.getItem('token');
             if (token) {
                 try {
@@ -913,6 +902,19 @@ export class DraftStorageService {
                     }
                 } catch (tokenError) {
                     console.warn("[SÉCURITÉ] Impossible de parser le token JWT");
+                }
+            }
+
+            // 3. EN DERNIER RECOURS: Essayer depuis le contexte du store
+            // (peut être obsolète en production)
+            const storeInfoString = localStorage.getItem('currentStoreInfo');
+            if (storeInfoString) {
+                const storeInfo = JSON.parse(storeInfoString);
+                console.log("[DEBUG] getCurrentStoreId - currentStoreInfo trouvé (fallback):", storeInfo);
+                if (storeInfo.id) {
+                    console.warn("[SÉCURITÉ] Utilisation fallback currentStoreInfo, vérifier cohérence");
+                    console.log("[DEBUG] getCurrentStoreId - Retourne depuis currentStoreInfo:", storeInfo.id);
+                    return storeInfo.id;
                 }
             }
 
