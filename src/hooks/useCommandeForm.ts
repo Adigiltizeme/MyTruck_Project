@@ -172,10 +172,14 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
     // Sauvegarde automatique du brouillon
     useEffect(() => {
+        console.log("[DEBUG] useCommandeForm - state.isDirty:", state.isDirty);
+
         if (state.isDirty) {
             const hasChanges = !deepEqual(state.data, initialFormState.data);
+            console.log("[DEBUG] useCommandeForm - hasChanges:", hasChanges);
 
             if (hasChanges) {
+                console.log("[DEBUG] useCommandeForm - Déclenche sauvegarde dans 2s");
                 const saveTimeout = setTimeout(() => {
                     // Créer une copie des données actuelles
                     const dataToSave = {
@@ -265,6 +269,9 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
+
+        console.log(`[DEBUG] handleInputChange - ${name}:`, value);
+        console.log(`[DEBUG] state.isDirty avant:`, state.isDirty);
 
         // Log spécial pour les véhicules
         if (name === 'livraison.vehicule') {
