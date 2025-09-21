@@ -448,7 +448,15 @@ export class DraftStorageService {
                 livraison: {
                     ...(data.livraison || {}),
                     // Préserver les détails de livraison (incluant canBeTilted)
-                    details: typeof data.livraison?.details === 'string' ? data.livraison.details : JSON.stringify(data.livraison?.details ?? {}),
+                    details: typeof data.livraison?.details === 'object' &&
+                        data.livraison.details !== null &&
+                        typeof data.livraison.details.hasElevator === 'boolean' &&
+                        typeof data.livraison.details.hasStairs === 'boolean' &&
+                        typeof data.livraison.details.stairCount === 'number' &&
+                        typeof data.livraison.details.parkingDistance === 'number' &&
+                        typeof data.livraison.details.deliveryToUpperFloor === 'number'
+                        ? data.livraison.details
+                        : undefined,
                     creneau: data.livraison?.creneau ?? '',
                     vehicule: data.livraison?.vehicule || '',
                     equipiers: typeof data.livraison?.equipiers === 'number' ? data.livraison.equipiers : 0,
