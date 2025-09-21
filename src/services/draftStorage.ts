@@ -652,11 +652,21 @@ export class DraftStorageService {
                 timestamp: new Date(d.timestamp).toLocaleString()
             })));
 
-            const draft = await this.db.table('drafts')
+            let draft = await this.db.table('drafts')
                 .where('storeId')
                 .equals(storeId) // STRICTEMENT égal au storeId demandé
                 .first();
 
+            // FALLBACK: Si pas trouvé, chercher par magasin.id dans les données
+            if (!draft) {
+                console.log(`[SÉCURITÉ] Recherche alternative par magasin.id pour ${storeId}`);
+                const allDraftsForFallback = await this.db.table('drafts').toArray();
+                draft = allDraftsForFallback.find(d => d.data?.magasin?.id === storeId);
+
+                if (draft) {
+                    console.log(`[SÉCURITÉ] Brouillon trouvé par fallback magasin.id, ID: ${draft.id}`);
+                }
+            }
 
             if (draft) {
                 // DOUBLE VÉRIFICATION de sécurité
