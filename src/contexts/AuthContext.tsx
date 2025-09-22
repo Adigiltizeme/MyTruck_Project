@@ -122,6 +122,19 @@ class ApiAuthService {
 
             const user = JSON.parse(userData);
 
+            // 🔍 DEBUG: Analyser la structure user stockée en localStorage
+            console.log('🔍 [AUTH] Analyse structure user localStorage:', {
+                userId: user.id,
+                userRole: user.role,
+                hasMagasin: !!user.magasin,
+                magasinStructure: user.magasin ? {
+                    id: user.magasin.id,
+                    nom: user.magasin.nom,
+                    adresse: user.magasin.adresse,
+                    hasAddress: !!user.magasin.adresse
+                } : 'AUCUN'
+            });
+
             const authUser = {
                 id: user.id,
                 email: user.email,
@@ -148,6 +161,14 @@ class ApiAuthService {
                     ? user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim()
                     : undefined,
             };
+
+            // 🔍 DEBUG: Vérifier les valeurs finales assignées depuis localStorage
+            console.log('🔍 [AUTH] AuthUser final (localStorage):', {
+                storeId: authUser.storeId,
+                storeName: authUser.storeName,
+                storeAddress: authUser.storeAddress,
+                magasinObject: !!authUser.magasin
+            });
 
             return authUser;
         } catch (error) {
@@ -221,6 +242,19 @@ class ApiAuthService {
             // Stocker les données
             this.storeUser(data.access_token, data.user);
 
+            // 🔍 DEBUG: Analyser la structure user retournée par l'API
+            console.log('🔍 [AUTH] Analyse structure user API:', {
+                userId: data.user.id,
+                userRole: data.user.role,
+                hasMagasin: !!data.user.magasin,
+                magasinStructure: data.user.magasin ? {
+                    id: data.user.magasin.id,
+                    nom: data.user.magasin.nom,
+                    adresse: data.user.magasin.adresse,
+                    hasAddress: !!data.user.magasin.adresse
+                } : 'AUCUN'
+            });
+
             // Transformer au format AuthUser
             const authUser: AuthUser = {
                 id: data.user.id,
@@ -248,6 +282,14 @@ class ApiAuthService {
                     ? `${data.user.prenom || ''} ${data.user.nom || ''}`.trim() 
                     : undefined,
             };
+
+            // 🔍 DEBUG: Vérifier les valeurs finales assignées
+            console.log('🔍 [AUTH] AuthUser final:', {
+                storeId: authUser.storeId,
+                storeName: authUser.storeName,
+                storeAddress: authUser.storeAddress,
+                magasinObject: !!authUser.magasin
+            });
 
             console.log('✅ Connexion réussie:', authUser.email);
             return authUser;
