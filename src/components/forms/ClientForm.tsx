@@ -43,16 +43,16 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
         return !isInForfaitZone;
     };
 
-    // Vérifier l'état initial de l'alerte au chargement seulement en mode édition avec adresse complète
+    // Vérifier l'état de l'alerte au chargement et lors du changement d'étape
     useEffect(() => {
-        if (isEditing) {
-            const currentAddress = adresseData.ligne1 || '';
-            if (currentAddress && currentAddress.length > 20) { // Adresse complète seulement
-                const requiresKmFee = checkKmFeeRequired(currentAddress);
-                setShowKmFeeAlert(requiresKmFee);
-            }
+        const currentAddress = adresseData.ligne1 || '';
+        if (currentAddress && currentAddress.length > 10) { // Adresse présente et suffisamment complète
+            const requiresKmFee = checkKmFeeRequired(currentAddress);
+            setShowKmFeeAlert(requiresKmFee);
+        } else {
+            setShowKmFeeAlert(false);
         }
-    }, [isEditing]); // Déclencher seulement au changement de mode édition
+    }, [data.client?.adresse?.ligne1]); // Réagir aux changements d'adresse
 
     // Cleanup du timeout au démontage
     useEffect(() => {

@@ -950,14 +950,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     }}
                     error={errors.articles?.nombre}
                     required
-                    readOnly={articleDimensions.length > 0}
+                    disabled
                 />
 
-                {articleDimensions.length > 0 && (
-                    <p className="text-sm text-gray-500 -mt-3">
-                        (Calculé automatiquement à partir des articles saisis)
-                    </p>
-                )}
+                <p className="text-sm text-gray-500 -mt-3">
+                    (Calculé automatiquement à partir des quantités saisies dans les dimensions)
+                </p>
 
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">Détails des articles</label>
