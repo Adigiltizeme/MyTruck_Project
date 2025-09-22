@@ -728,6 +728,19 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         }
 
         console.warn('🔴 [ADRESSE-MANQUANTE] Aucune adresse trouvée !');
+
+        // 🆘 FALLBACK TEMPORAIRE - Adresses par défaut selon le magasin
+        const fallbackAddresses: Record<string, string> = {
+            '9cc7dcd9-cb67-4620-8af6-1b1f932b7d1b': '2-8 Avenue de Verdun, 94200 Ivry-sur-Seine, France', // Truffaut Ivry
+            '07330bb2-959e-432c-b266-9b86bba066d7': '128 Avenue de la République, 94110 Arcueil, France' // Truffaut Arcueil
+        };
+
+        const fallbackAddress = fallbackAddresses[user?.storeId || ''];
+        if (fallbackAddress) {
+            console.log('🆘 [FALLBACK] Utilisation adresse par défaut:', fallbackAddress);
+            return fallbackAddress;
+        }
+
         return '';
     }, [data.magasin?.address, user?.storeId, user?.storeAddress, onChange]);
 
