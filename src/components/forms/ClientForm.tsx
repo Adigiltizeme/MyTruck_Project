@@ -3,17 +3,65 @@ import { ValidationErrors } from "../../types/validation.types";
 import { AddressSuggestion, ClientFormProps } from "../../types/form.types"; // Adjust the import path as necessary
 import FormInput from "./FormInput";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
+// Zones forfait Paris (même logique que tarification.service.ts)
+const VILLES_FORFAIT_PARIS = ['Ivry', 'Arcueil', 'Boulogne', 'Batignolles', 'Paris'];
+const CODES_POSTAUX_PARIS = [
+    '75001', '75002', '75003', '75004', '75005', '75006', '75007', '75008', '75009',
+    '75010', '75011', '75012', '75013', '75014', '75015', '75016', '75017', '75018',
+    '75019', '75020'
+];
 
 export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, addressSuggestions, handleAddressSelect, handleAddressSearch, setAddressSuggestions, isEditing }) => {
-    console.log('ClientForm data:', data); // Pour debug
-    console.log('onChange:', onChange); // Pour debug
     // Assurer que les données sont correctement initialisées
     const clientData: { adresse?: any } = data.client || {};
     const adresseData = clientData.adresse || {};
 
     const [editSuggestions, setEditSuggestions] = useState<AddressSuggestion[]>([]);
+    const [showKmFeeAlert, setShowKmFeeAlert] = useState(false);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Fonction pour vérifier si une adresse est hors zone forfait
+    const checkKmFeeRequired = (address: string): boolean => {
+        if (!address || address.trim() === '') return false;
+
+        // Extraire code postal et ville de l'adresse
+        const codePostalMatch = address.match(/\b\d{5}\b/);
+        const codePostal = codePostalMatch ? codePostalMatch[0] : '';
+
+        // Vérifier si c'est un code postal parisien
+        if (CODES_POSTAUX_PARIS.includes(codePostal)) return false;
+
+        // Vérifier si la ville est dans le forfait
+        const addressLower = address.toLowerCase();
+        const isInForfaitZone = VILLES_FORFAIT_PARIS.some(ville =>
+            addressLower.includes(ville.toLowerCase())
+        );
+
+        // Si hors forfait, des frais km s'appliquent
+        return !isInForfaitZone;
+    };
+
+    // Vérifier l'état initial de l'alerte au chargement seulement en mode édition avec adresse complète
+    useEffect(() => {
+        if (isEditing) {
+            const currentAddress = adresseData.ligne1 || '';
+            if (currentAddress && currentAddress.length > 20) { // Adresse complète seulement
+                const requiresKmFee = checkKmFeeRequired(currentAddress);
+                setShowKmFeeAlert(requiresKmFee);
+            }
+        }
+    }, [isEditing]); // Déclencher seulement au changement de mode édition
+
+    // Cleanup du timeout au démontage
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) {
+                clearTimeout(typingTimeoutRef.current);
+            }
+        };
+    }, []);
 
     // Fonction de recherche d'adresse pour le mode édition
     const searchEditAddress = async (query: string) => {
@@ -48,6 +96,10 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
             }
         });
         setEditSuggestions([]);
+
+        // Vérifier les frais km pour l'adresse sélectionnée en mode édition
+        const requiresKmFee = checkKmFeeRequired(suggestion.properties.label);
+        setShowKmFeeAlert(requiresKmFee);
     };
 
     return (
@@ -112,10 +164,23 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                                         value: e.target.value
                                     }
                                 });
+
+                                // Masquer l'alerte pendant la saisie en mode édition
+                                setShowKmFeeAlert(false);
+
+                                // Annuler le timeout précédent
+                                if (typingTimeoutRef.current) {
+                                    clearTimeout(typingTimeoutRef.current);
+                                }
+
                                 if (e.target.value.length > 3) {
                                     searchEditAddress(e.target.value);
                                 } else {
                                     setEditSuggestions([]);
+                                    // Si l'adresse est vide, masquer l'alerte
+                                    if (e.target.value.length === 0) {
+                                        setShowKmFeeAlert(false);
+                                    }
                                 }
                             }}
                             className={`mt-1 block w-full rounded-md border ${errors.client?.adresse?.ligne1 ? 'border-red-500' : 'border-gray-300'
@@ -140,6 +205,32 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                                 ))}
                             </div>
                         )}
+
+                        {/* Alerte frais kilométriques pour mode édition */}
+                        {showKmFeeAlert && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md"
+                            >
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className="text-sm font-medium text-orange-800">
+                                            Adresse hors zone forfait
+                                        </h3>
+                                        <div className="mt-1 text-sm text-orange-700">
+                                            Frais kilométriques appliqués selon la distance.
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
                     </div>
                 ) : (
                     // Champ d'adresse en mode ajout (approche originale)
@@ -150,10 +241,22 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                             value={adresseData.ligne1 || ''}
                             onChange={(e) => {
                                 onChange(e);
-                                console.log('onChange adresse:', e.target.value); // Debug
+
+                                // Masquer l'alerte pendant la saisie
+                                setShowKmFeeAlert(false);
+
+                                // Annuler le timeout précédent
+                                if (typingTimeoutRef.current) {
+                                    clearTimeout(typingTimeoutRef.current);
+                                }
+
                                 if (e.target.value.length > 3) {
-                                    console.log('Appel handleAddressSearch'); // Debug
                                     handleAddressSearch(e.target.value);
+                                } else {
+                                    // Si l'adresse est courte ou vide
+                                    if (e.target.value.length === 0) {
+                                        setShowKmFeeAlert(false);
+                                    }
                                 }
                             }}
                             onSearch={handleAddressSearch}
@@ -175,12 +278,42 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                                         onClick={() => {
                                             handleAddressSelect(suggestion);
                                             setAddressSuggestions([]); // Vider les suggestions après sélection
+
+                                            // Vérifier les frais km pour l'adresse sélectionnée
+                                            const requiresKmFee = checkKmFeeRequired(suggestion.properties.label);
+                                            setShowKmFeeAlert(requiresKmFee);
                                         }}
                                     >
                                         {suggestion.properties.label}
                                     </div>
                                 ))}
                             </div>
+                        )}
+
+                        {/* Alerte frais kilométriques */}
+                        {showKmFeeAlert && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md"
+                            >
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-orange-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <h3 className="text-sm font-medium text-orange-800">
+                                            Adresse hors zone forfait
+                                        </h3>
+                                        <div className="mt-1 text-sm text-orange-700">
+                                            Frais kilométriques appliqués selon la distance.
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
                         )}
                     </>
                 )}

@@ -175,14 +175,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
     // Sauvegarde automatique du brouillon
     useEffect(() => {
-        console.log("[DEBUG] useCommandeForm - state.isDirty:", state.isDirty);
-
         if (state.isDirty) {
             const hasChanges = !deepEqual(state.data, initialFormState.data);
-            console.log("[DEBUG] useCommandeForm - hasChanges:", hasChanges);
 
             if (hasChanges) {
-                console.log("[DEBUG] useCommandeForm - Déclenche sauvegarde dans 2s");
                 const saveTimeout = setTimeout(() => {
                     // Créer une copie des données actuelles
                     const dataToSave = {
@@ -273,20 +269,12 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
 
-        console.log(`[DEBUG] handleInputChange - ${name}:`, value);
-        console.log(`[DEBUG] state.isDirty avant:`, state.isDirty);
-
-        // Log spécial pour les véhicules
-        if (name === 'livraison.vehicule') {
-            console.log("🎛️ [COMMANDE-FORM] handleInputChange véhicule:", {
-                name,
-                value,
-                type: typeof value,
-                stateData: state.data.livraison?.vehicule
-            });
+        // Log seulement pour changements de véhicule significatifs
+        if (name === 'livraison.vehicule' && value && value !== state.data.livraison?.vehicule) {
+            console.log("🎛️ [VEHICULE] Sélection:", value);
         }
 
-        console.log(`Mise à jour de ${name} avec la valeur:`, value);
+        // Pas d'autres logs de détail pour éviter la verbosité
 
         // Si les dimensions des articles sont mises à jour
         if (name === 'articles.dimensions') {

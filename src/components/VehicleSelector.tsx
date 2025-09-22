@@ -97,8 +97,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       return { isRestricted: false, reasons: [] };
     }
 
-    console.log('🔍 [VEHICLE-SELECTOR] VALIDATION ÉQUIPIERS');
-
     const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
     
     // ✅ UTILISER LA FONCTION UTILITAIRE au lieu de recalculer
@@ -131,8 +129,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       deliveryConditions
     );
 
-    console.log('📊 [VEHICLE-SELECTOR] Résultat validation:', validation);
-
     return {
       isRestricted: !validation.isValid,
       reasons: validation.isValid ? [] : [
@@ -144,8 +140,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
   const calculateRecommendedCrewSize = useCallback((): number => {
     if (!articles || articles.length === 0) return 0;
-
-    console.log('🎯 [VEHICLE-SELECTOR] CALCUL ÉQUIPIERS - Version corrigée');
 
     const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
@@ -173,8 +167,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       complexAccess: false // À implémenter dans l'UI si nécessaire
     };
 
-    console.log('📋 [VEHICLE-SELECTOR] Conditions préparées:', deliveryConditions);
-
     // ✅ UTILISER VehicleValidationService.getRequiredCrewSize() au lieu de la logique manuelle
     const recommendedCrew = VehicleValidationService.getRequiredCrewSize(
       articles,
@@ -185,7 +177,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     // 🔍 DÉBOGAGE : Afficher le niveau détecté par la nouvelle logique hiérarchique
     if (recommendedCrew >= 1) {
-      console.log('🔍 [VEHICLE-SELECTOR] NIVEAU DÉTECTÉ PAR LA LOGIQUE HIÉRARCHIQUE:');
 
       const heaviestWeight = Math.max(...articles.map(a => a.poids || 0));
       const totalWeight = articles.reduce((sum, article) =>
@@ -410,7 +401,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
         if (canBeTiltedValue !== canBeTilted) {
           setCanBeTilted(canBeTiltedValue);
-          console.log('🔧 Restauration canBeTilted:', canBeTiltedValue);
         }
       } catch (e) {
         // Ignorer les erreurs de parsing
@@ -447,8 +437,6 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   const handleTiltChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.checked;
     setCanBeTilted(newValue);
-
-    console.log('🔧 [VEHICLE] CanBeTilted changé:', newValue);
 
     // ✅ DOUBLE MISE À JOUR
     if (onDeliveryDetailsChange) {

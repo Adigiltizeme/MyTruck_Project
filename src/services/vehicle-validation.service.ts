@@ -250,8 +250,6 @@ export class VehicleValidationService {
             return 0;
         }
 
-        console.log('🎯 NOUVELLE LOGIQUE ÉQUIPIERS - HIÉRARCHIQUE NON-CUMULATIVE');
-
         // 🔍 CALCULS DE BASE
         let heaviestIndividualWeight = 0;
         articles.forEach(article => {
@@ -288,16 +286,6 @@ export class VehicleValidationService {
             ) || false;
             return sum + (isPlantRelated ? (article.quantite || 1) : 0);
         }, 0);
-
-        console.log(`📊 Données calculées:`, {
-            heaviestIndividualWeight,
-            totalWeight,
-            totalItemCount,
-            plantArticleCount,
-            effectiveFloor,
-            hasElevator: deliveryConditions.hasElevator,
-            estimatedHandlingTime: deliveryConditions.estimatedHandlingTime
-        });
 
         const triggeredConditions: string[] = [];
 

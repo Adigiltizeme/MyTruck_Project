@@ -276,8 +276,7 @@ export class TarificationService {
                 };
             }
 
-            // Vérification des adresses (ajout de logs détaillés)
-            // IMPORTANT: Vérification et log de l'adresse du magasin
+            // Vérification et log des adresses
             if (!params.adresseMagasin) {
                 console.warn('⚠️ Adresse du magasin manquante dans calculerTarif!');
             } else {
@@ -285,7 +284,7 @@ export class TarificationService {
             }
 
             if (!params.adresseLivraison) {
-                console.warn(`⚠️ Adresse de livraison manquante dans calculerTarif!`);
+                console.warn('⚠️ Adresse de livraison manquante dans calculerTarif!');
             } else {
                 console.log('✅ Adresse livraison utilisée dans calculerTarif:', params.adresseLivraison);
             }
