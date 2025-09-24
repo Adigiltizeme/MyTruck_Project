@@ -108,59 +108,33 @@ export class ContactService {
    */
   async submitContact(formData: ContactFormData): Promise<ContactResponse> {
     try {
-      // Avant tout, tester la connectivité
-      console.log('🔍 Testing connectivity before submission...');
-      const isConnected = await this.testConnectivity();
-      console.log('🔍 Connectivity test result:', isConnected);
-
       // Route publique - utiliser fetch directement pour éviter les conflits d'auth
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
-      console.log('🔍 Environment check:');
-      console.log('  - VITE_API_URL:', import.meta.env.VITE_API_URL);
-      console.log('  - baseUrl computed:', baseUrl);
-      console.log('  - Current origin:', window.location.origin);
-      console.log('  - Full URL:', `${baseUrl}/contacts`);
+      console.log('📤 Envoi du formulaire de contact vers:', `${baseUrl}/contacts`);
 
-      console.log('📤 Envoi vers:', `${baseUrl}/contacts`);
-      console.log('📤 Données:', formData);
-      console.log('📤 JSON stringified:', JSON.stringify(formData));
-
-      const requestOptions = {
+      const response = await fetch(`${baseUrl}/contacts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         },
         body: JSON.stringify(formData),
-      };
+      });
 
-      console.log('📤 Request options:', requestOptions);
-
-      const response = await fetch(`${baseUrl}/contacts`, requestOptions);
-
-      console.log('📥 Response received:');
-      console.log('  - Status:', response.status);
-      console.log('  - StatusText:', response.statusText);
-      console.log('  - Headers:', Object.fromEntries(response.headers.entries()));
-      console.log('  - OK:', response.ok);
+      console.log('📥 Réponse reçue - Status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('📥 Error response body:', errorText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+        console.error('📥 Erreur réponse:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('✅ Success result:', result);
+      console.log('✅ Contact envoyé avec succès');
       return result;
     } catch (error) {
-      console.error('❌ Complete error details:');
-      console.error('  - Error type:', error.constructor.name);
-      console.error('  - Error message:', error instanceof Error ? error.message : String(error));
-      console.error('  - Error stack:', error instanceof Error ? error.stack : 'No stack available');
-      console.error('  - Full error object:', error);
-
+      console.error('❌ Erreur lors de la soumission du contact:', error);
       return {
         success: false,
         message: 'Une erreur de connexion s\'est produite. Veuillez réessayer.',
