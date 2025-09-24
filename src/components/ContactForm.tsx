@@ -281,6 +281,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
       // Appel à l'API réelle
       const response = await contactService.submitContact(contactData);
 
+      console.log('📥 Réponse du service:', response);
+
       if (response.success) {
         setSubmitStatus('success');
         setTimeout(() => {
