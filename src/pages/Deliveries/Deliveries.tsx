@@ -519,7 +519,7 @@ const Deliveries = () => {
     };
 
     return (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
             {/* Indicateur de mode hors ligne - sans l'OfflineIndicator qui est déjà dans App */}
             {/* {!isOnline && (
                 <div className="mb-4 bg-yellow-100 text-yellow-800 p-3 rounded">
@@ -533,14 +533,14 @@ const Deliveries = () => {
                 </div>
             )}
 
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                <h1 className="text-xl sm:text-2xl font-bold">
                     {user?.role === 'admin' && 'Direction My Truck - Toutes les commandes'}
                     {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
                     {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
                 </h1>
                 <select
-                    className="border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                    className="border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
                     value={rowsPerPage}
                     onChange={(e) => {
                         setCurrentPage(1);
@@ -558,7 +558,7 @@ const Deliveries = () => {
 
             <div className="mb-8">
                 {/* Barre de recherche */}
-                <div className="flex gap-4 items-center mb-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center mb-4">
                     <div className="relative flex-1">
                         <input
                             type="text"
@@ -577,24 +577,28 @@ const Deliveries = () => {
                         )}
                     </div>
 
-                    {user?.role !== 'chauffeur' && (
-                        <button
-                            onClick={() => setShowNewCommandeModal(true)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-                        >
-                            Nouvelle commande
-                        </button>
-                    )}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        {user?.role !== 'chauffeur' && (
+                            <button
+                                onClick={() => setShowNewCommandeModal(true)}
+                                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 whitespace-nowrap"
+                            >
+                                <span className="sm:hidden">Nouvelle commande</span>
+                                <span className="hidden sm:inline">Nouvelle commande</span>
+                            </button>
+                        )}
 
-                    {user?.role === 'admin' && (
-                        <button
-                            onClick={checkExpiredCommandes}
-                            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
-                            title="Vérifier et traiter les commandes expirées"
-                        >
-                            Traiter les expirées
-                        </button>
-                    )}
+                        {user?.role === 'admin' && (
+                            <button
+                                onClick={checkExpiredCommandes}
+                                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 whitespace-nowrap"
+                                title="Vérifier et traiter les commandes expirées"
+                            >
+                                <span className="sm:hidden">Expirées</span>
+                                <span className="hidden sm:inline">Traiter les expirées</span>
+                            </button>
+                        )}
+                    </div>
 
                     <Modal
                         isOpen={showNewCommandeModal}
@@ -619,31 +623,32 @@ const Deliveries = () => {
 
                 {/* ✅ FILTRES TEMPORELS - Onglets de filtrage */}
                 <div className="mb-6">
-                    <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                    <div className="grid grid-cols-2 sm:flex sm:space-x-1 gap-1 sm:gap-0 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                         {[
-                            { key: 'all', label: `Toutes (${temporalCounts.all})`, desc: 'Toutes les commandes' },
-                            { key: 'today', label: `Aujourd'hui (${temporalCounts.today})`, desc: 'Commandes du jour' },
-                            { key: 'upcoming', label: `À venir (${temporalCounts.upcoming})`, desc: 'Commandes à venir' },
-                            { key: 'history', label: `Historique (${temporalCounts.history})`, desc: 'Commandes terminées' },
-                        ].map(({ key, label, desc }) => (
+                            { key: 'all', label: `Toutes (${temporalCounts.all})`, shortLabel: `Toutes`, desc: 'Toutes les commandes' },
+                            { key: 'today', label: `Aujourd'hui (${temporalCounts.today})`, shortLabel: `Aujourd'hui`, desc: 'Commandes du jour' },
+                            { key: 'upcoming', label: `À venir (${temporalCounts.upcoming})`, shortLabel: `À venir`, desc: 'Commandes à venir' },
+                            { key: 'history', label: `Historique (${temporalCounts.history})`, shortLabel: `Historique`, desc: 'Commandes terminées' },
+                        ].map(({ key, label, shortLabel, desc }) => (
                             <button
                                 key={key}
                                 onClick={() => setTemporalFilter(key as typeof temporalFilter)}
-                                className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${temporalFilter === key
+                                className={`flex-1 px-2 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors text-center ${temporalFilter === key
                                     ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-sm'
                                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-white/50 dark:hover:bg-gray-700/50'
                                     }`}
                                 title={desc}
                             >
-                                {label}
+                                <span className="sm:hidden">{shortLabel}</span>
+                                <span className="hidden sm:inline">{label}</span>
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {/* Sélecteur de dates */}
-                <div className="flex items-center gap-4 mb-4">
-                    <span className="text-sm text-gray-500">Date:</span>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-4">
+                    <span className="text-sm text-gray-500 shrink-0">Date:</span>
                     <select
                         value={dateRange.mode}
                         onChange={(e) => setDateRange(prev => ({
@@ -654,7 +659,7 @@ const Deliveries = () => {
                             end: null,
                             singleDate: null
                         }))}
-                        className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                        className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
                     >
                         <option value="range">Période</option>
                         <option value="single">Date unique</option>
@@ -670,22 +675,22 @@ const Deliveries = () => {
                                 start: e.target.value,
                                 end: e.target.value
                             }))}
-                            className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                            className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
                         />
                     ) : (
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                             <input
                                 type="date"
                                 value={dateRange.start || ''}
                                 onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
                             />
-                            <span className="text-gray-500 content-center dark:text-gray-100">à</span>
+                            <span className="text-gray-500 text-center sm:content-center dark:text-gray-100">à</span>
                             <input
                                 type="date"
                                 value={dateRange.end || ''}
                                 onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                                className="border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
                             />
                         </div>
                     )}
@@ -699,7 +704,7 @@ const Deliveries = () => {
                                     mode: dateRange.mode,
                                     singleDate: null
                                 })}
-                                className="text-sm text-gray-500 hover:text-gray-700"
+                                className="text-sm text-gray-500 hover:text-gray-700 whitespace-nowrap"
                             >
                                 Réinitialiser
                             </button>
@@ -707,30 +712,32 @@ const Deliveries = () => {
                 </div>
 
                 {/* Système de tri */}
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Trier par:</span>
-                    {sortableFields.map((key) => {
-                        const handleClick = () => setSortConfig({
-                            key,
-                            direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
-                        });
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="text-sm text-gray-500 shrink-0">Trier par:</span>
+                    <div className="flex flex-wrap gap-2">
+                        {sortableFields.map((key) => {
+                            const handleClick = () => setSortConfig({
+                                key,
+                                direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+                            });
 
-                        return (
-                            <button
-                                key={key}
-                                onClick={handleClick}
-                                className={`px-3 py-1 rounded-lg text-sm ${sortConfig.key === key ? 'bg-red-100 text-red-800' : 'bg-gray-100 dark:bg-gray-800'
-                                    }`}
-                            >
-                                {key.charAt(0).toUpperCase() + key.slice(1)}
-                                {sortConfig.key === key && (
-                                    <span className="ml-1">
-                                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
+                            return (
+                                <button
+                                    key={key}
+                                    onClick={handleClick}
+                                    className={`px-3 py-1 rounded-lg text-sm ${sortConfig.key === key ? 'bg-red-100 text-red-800' : 'bg-gray-100 dark:bg-gray-800'
+                                        }`}
+                                >
+                                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                                    {sortConfig.key === key && (
+                                        <span className="ml-1">
+                                            {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
@@ -782,7 +789,76 @@ const Deliveries = () => {
                         </div>
                     )}
 
-                    <div className="overflow-x-auto">
+                    {/* Version mobile - cartes */}
+                    <div className="block sm:hidden space-y-4">
+                        {(paginatedItems as CommandeMetier[]).map((commande: CommandeMetier) => (
+                            <div key={commande.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                                            {commande.numeroCommande || 'N/A'}
+                                        </h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                                            {commande?.client?.nom?.toUpperCase() || 'N/A'} {commande.client?.prenom}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setExpandedRow(
+                                            expandedRow === commande.id ? null : (commande.id || null)
+                                        )}
+                                        className="text-gray-500 hover:text-gray-700 p-1"
+                                    >
+                                        {expandedRow === commande.id ? '▼' : '▶'}
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                        <span className="text-gray-500">Date:</span>
+                                        <div className="font-medium">
+                                            {(commande.dates?.livraison) ?
+                                                formatDateValue(commande.dates?.livraison) : 'N/A'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Créneau:</span>
+                                        <div className="font-medium">{commande.livraison?.creneau || 'N/A'}</div>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Statut commande:</span>
+                                        <div>
+                                            <span className={getStatutCommandeStyle(commande.statuts?.commande || 'En attente')}>
+                                                {commande.statuts?.commande || 'En attente'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="text-gray-500">Statut livraison:</span>
+                                        <div>
+                                            <span className={getStatutLivraisonStyle(commande.statuts?.livraison || 'EN ATTENTE')}>
+                                                {commande.statuts?.livraison || 'EN ATTENTE'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {expandedRow === commande.id && (
+                                    <div className="mt-4 pt-4 border-t">
+                                        <CommandeDetails
+                                            commande={commande}
+                                            onUpdate={(updatedCommande) => {
+                                                setData(prevData => prevData.map(c => c.id === updatedCommande.id ? updatedCommande : c));
+                                            }}
+                                            onRefresh={refreshWithContext}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Version desktop - tableau */}
+                    <div className="hidden sm:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 dark:bg-gray-800">
                             <thead className="bg-gray-50 dark:bg-gray-700">
                                 <tr>
@@ -933,12 +1009,13 @@ const Deliveries = () => {
                                 ))}
                             </tbody>
                         </table>
-                        {showSuccess && (
-                            <div className="fixed bottom-5 left-5 bg-green-400 text-white px-6 py-3 rounded shadow-lg z-50">
-                                Commande créée avec succès !
-                            </div>
-                        )}
                     </div>
+                </div>
+            )}
+
+            {showSuccess && (
+                <div className="fixed bottom-5 left-5 bg-green-400 text-white px-6 py-3 rounded shadow-lg z-50">
+                    Commande créée avec succès !
                 </div>
             )}
 

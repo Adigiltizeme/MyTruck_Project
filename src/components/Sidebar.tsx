@@ -10,7 +10,8 @@ import {
   ShoppingBagIcon,
   ArrowsRightLeftIcon,
   ClockIcon,
-  BuildingStorefrontIcon
+  BuildingStorefrontIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { Clock, LogOutIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -116,9 +117,21 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['admin'],
     },
     {
+      name: 'Gestion Contacts',
+      icon: ChatBubbleLeftRightIcon,
+      href: '/contacts',
+      roles: ['admin'],
+    },
+    {
       name: 'Gestion Clients',
       icon: UsersIcon,
       href: '/clients',
+      roles: ['admin', 'magasin'],
+    },
+    {
+      name: 'Documents',
+      icon: DocumentIcon,
+      href: '/documents',
       roles: ['admin', 'magasin'],
     },
     {
@@ -137,15 +150,6 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['admin'],
     });
   }
-
-  // if (user?.role === 'admin') {
-  //   baseNavItems.push({
-  //     name: 'Documents',
-  //     icon: DocumentIcon,
-  //     href: '/documents',
-  //     roles: ['admin'],
-  //   });
-  // }
 
   // Filtrer les éléments de navigation selon le rôle de l'utilisateur
   const navItems = baseNavItems.filter(item =>
@@ -175,15 +179,15 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         key={item.name}
         to={item.href}
         className={({ isActive }) =>
-          `flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1 ${isActive
+          `flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-[15px] font-medium rounded-lg transition-colors my-1 ${isActive
             ? 'bg-primary text-white'
             : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
           }`
         }
         onClick={isMobile ? onCloseMobile : undefined}
       >
-        <item.icon className={`h-5 w-5 mr-3 flex-shrink-0`} />
-        <span>{item.name}</span>
+        <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0`} />
+        <span className="truncate">{item.name}</span>
       </NavLink>
     );
   };

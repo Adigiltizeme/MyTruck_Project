@@ -471,7 +471,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             case 'informations':
                 return (
                     // Section Informations existante
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Magasin */}
                         <div className="space-y-4">
                             <h3 className="font-medium text-lg">Magasin</h3>
@@ -1141,32 +1141,36 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         <div className="bg-white rounded-xl shadow-lg overflow-hidden dark:bg-gray-800" data-commande-id={commande.id}>
             {/* En-tête avec informations principales */}
             <div className="bg-gray-50 p-4 border-b dark:bg-gray-700 dark:border-gray-600">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-semibold">
                         Commande #{commande.numeroCommande || 'Non spécifiée'}
                     </h2>
-                    <span className={`ml-2 ${getStatutCommandeStyle(commande.statuts?.commande || 'En attente')}`}>
-                        {commande.statuts?.commande || 'En attente'}
-                    </span>
-                    <span className={`ml-2 ${getStatutLivraisonStyle(commande.statuts?.livraison || 'EN ATTENTE')}`}>
-                        {commande.statuts?.livraison || 'EN ATTENTE'}
-                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <span className={`text-sm ${getStatutCommandeStyle(commande.statuts?.commande || 'En attente')}`}>
+                            {commande.statuts?.commande || 'En attente'}
+                        </span>
+                        <span className={`text-sm ${getStatutLivraisonStyle(commande.statuts?.livraison || 'EN ATTENTE')}`}>
+                            {commande.statuts?.livraison || 'EN ATTENTE'}
+                        </span>
+                    </div>
                 </div>
             </div>
 
             {/* Navigation par onglets */}
             <div className="border-b">
-                <nav className="flex">
+                <nav className="flex overflow-x-auto scrollbar-hide">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => handleTabChange(tab.id)}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors
+                            className={`flex-shrink-0 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap
                                 ${activeTab === tab.id
                                     ? 'border-red-600 text-red-600'
                                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
                         >
-                            {tab.icon} {tab.label}
+                            <span className="sm:hidden">{tab.icon}</span>
+                            <span className="hidden sm:inline">{tab.icon} {tab.label}</span>
+                            <span className="sm:hidden ml-1 text-xs">{tab.label.split(' ')[0]}</span>
                         </button>
                     ))}
                 </nav>

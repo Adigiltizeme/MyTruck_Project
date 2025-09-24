@@ -193,7 +193,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
 
             // ✅ NOTIFICATION SUCCÈS
             setError(null);
-            
+
             toast.success('Bon de commande généré avec succès !');
 
         } catch (error) {
@@ -203,27 +203,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
             setLoading(null);
         }
     };
-
-    // const handleGenerateBonCommande = async () => {
-    //     try {
-    //         setLoading('bon-commande');
-    //         setError(null);
-
-    //         // ✅ UTILISER LA MÉTHODE AVEC REFRESH INTÉGRÉ
-    //         const updatedCommande = await dataService.generateBonCommandeWithRefresh(commande.id);
-
-    //         console.log('✅ Document généré et commande rafraîchie');
-
-    //         // ✅ METTRE À JOUR DIRECT (pattern chauffeurs)
-    //         onUpdate(updatedCommande);
-
-    //     } catch (error) {
-    //         console.error('❌ Erreur génération bon commande:', error);
-    //         setError('Impossible de générer le bon de commande. Veuillez réessayer.');
-    //     } finally {
-    //         setLoading(null);
-    //     }
-    // };
 
     const handleGenerateDevis = async () => {
         try {
@@ -302,7 +281,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
 
     const canGenerateDevis = user?.role === 'admin' && (
         (commande.livraison?.equipiers && commande.livraison.equipiers > 2) ||
-        commande.financier?.devisObligatoire
+        commande.financier?.devisObligatoire ||
+        parseFloat(commande.financier?.tarifHT?.toString() || '0') > 200
     );
 
     const canGenerateFacture = user?.role === 'admin' &&

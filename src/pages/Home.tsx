@@ -1,12 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useInView, useAnimation } from 'framer-motion';
 import { AnimatedSection, AnimatedTitle, AnimatedCard, AnimatedText } from '../components/animations/AnimatedSection';
 import StakeholdersCarousel from '../components/StakeholdersCarousel';
+import ContactForm from '../components/ContactForm';
 
 const HomePage: React.FC = () => {
     const controls = useAnimation();
     const ref = useRef(null);
     const isInView = useInView(ref);
+    const [showContactForm, setShowContactForm] = useState(false);
 
     useEffect(() => {
         if (isInView) {
@@ -24,6 +26,10 @@ const HomePage: React.FC = () => {
                 ease: "easeOut"
             }
         }
+    };
+
+    const handleContactClick = () => {
+        setShowContactForm(true);
     };
 
     return (
@@ -168,6 +174,7 @@ const HomePage: React.FC = () => {
                         leurs livraisons d'articles volumineux.
                     </motion.p>
                     <motion.button
+                        onClick={handleContactClick}
                         className="bg-red-600 text-white px-8 py-4 rounded-lg text-lg font-semibold
                                  hover:bg-red-700 transition-colors"
                         variants={fadeInVariants}
@@ -180,6 +187,131 @@ const HomePage: React.FC = () => {
                     </motion.button>
                 </div>
             </section>
+
+            {/* Footer professionnel */}
+            <footer className="bg-gray-900 text-white">
+                {/* Footer principal */}
+                <div className="max-w-7xl mx-auto px-4 py-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {/* Informations entreprise */}
+                        <div className="lg:col-span-2">
+                            <div className="flex items-center mb-4">
+                                <img
+                                    src="/my-truck-logo.jpg"
+                                    alt="My Truck"
+                                    className="h-12 w-auto mr-4"
+                                />
+                                <div>
+                                    <h3 className="text-xl font-bold text-red-500">MY TRUCK</h3>
+                                    <p className="text-sm text-gray-300">Transport et Livraison</p>
+                                </div>
+                            </div>
+                            <p className="text-gray-300 mb-4 max-w-md">
+                                Votre partenaire de confiance pour le transport et la livraison d'articles volumineux.
+                                Une expertise reconnue au service de votre satisfaction.
+                            </p>
+                            <div className="space-y-2 text-sm text-gray-300">
+                                <p className="flex items-center">
+                                    <span className="mr-2">📍</span>
+                                    139, Bd de Stalingrad, 94400 VITRY SUR SEINE
+                                </p>
+                                <p className="flex items-center">
+                                    <span className="mr-2">📞</span>
+                                    06 22 15 62 60
+                                </p>
+                                <p className="flex items-center">
+                                    <span className="mr-2">✉️</span>
+                                    mytruck.transport@gmail.com
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Services */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-4 text-red-500">Nos Services</h4>
+                            <ul className="space-y-2 text-sm text-gray-300">
+                                <li>Transport d'articles volumineux</li>
+                                <li>Livraison de plantes et jardinage</li>
+                                <li>Transport de meubles</li>
+                                <li>Livraison express</li>
+                                <li>Service équipiers supplémentaires</li>
+                                <li>Manutention spécialisée</li>
+                            </ul>
+                        </div>
+
+                        {/* Contact & Horaires */}
+                        <div>
+                            <h4 className="text-lg font-semibold mb-4 text-red-500">Contact</h4>
+                            <div className="space-y-3 text-sm text-gray-300">
+                                <div>
+                                    <p className="font-medium text-white">Devis & Renseignements</p>
+                                    <button
+                                        onClick={handleContactClick}
+                                        className="text-red-400 hover:text-red-300 transition-colors"
+                                    >
+                                        Contactez-nous en ligne
+                                    </button>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-white">Horaires</p>
+                                    <p>Lundi - Vendredi : 8h - 18h</p>
+                                    <p>Samedi : 8h - 17h</p>
+                                    <p>Dimanche : Sur demande</p>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-white">Zone de couverture</p>
+                                    <p>Île-de-France et périphérie</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Barre de séparation */}
+                <div className="border-t border-red-600"></div>
+
+                {/* Footer légal */}
+                <div className="max-w-7xl mx-auto px-4 py-6">
+                    <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                        <div className="text-sm text-gray-400 text-center md:text-left">
+                            <p className="mb-1">
+                                <strong className="text-white">MY TRUCK TRANSPORT ET LIVRAISON</strong>
+                            </p>
+                            <p>
+                                RCS Créteil: 851 349 357 | SIRET: [à compléter] | TVA: [à compléter]
+                            </p>
+                        </div>
+                        <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6 text-sm text-gray-400">
+                            <button className="hover:text-white transition-colors">
+                                Mentions légales
+                            </button>
+                            <button className="hover:text-white transition-colors">
+                                Conditions générales
+                            </button>
+                            <button className="hover:text-white transition-colors">
+                                Politique de confidentialité
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Copyright */}
+                    <div className="mt-4 pt-4 border-t border-gray-700 text-center text-xs text-gray-500">
+                        <p>
+                            © {new Date().getFullYear()} My Truck Transport et Livraison. Tous droits réservés.
+                        </p>
+                        <p className="mt-1">
+                            Conçu pour l'excellence dans le transport d'articles volumineux.
+                        </p>
+                    </div>
+                </div>
+            </footer>
+
+            {/* Formulaire de contact */}
+            <ContactForm
+                isOpen={showContactForm}
+                onClose={() => setShowContactForm(false)}
+                reason="RENSEIGNEMENTS"
+            />
         </div>
     );
 };

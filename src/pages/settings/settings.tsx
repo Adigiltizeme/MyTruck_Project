@@ -115,36 +115,6 @@ export default function Settings() {
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow mb-6">
-                <h2 className="text-xl font-semibold mb-4">Gestion des données</h2>
-
-                {user?.role === 'admin' && (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-medium mb-2">Actions administrateur</h3>
-                            <div className="flex gap-4 flex-wrap">
-                                <button
-                                    onClick={() => window.open('/admin/magasins', '_blank')}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                >
-                                    Gérer les magasins
-                                </button>
-                                <button
-                                    onClick={() => window.open('/admin/chauffeurs', '_blank')}
-                                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                >
-                                    Gérer les chauffeurs
-                                </button>
-                                <button
-                                    onClick={() => window.open('/admin/commandes', '_blank')}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
-                                >
-                                    Vue globale commandes
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 <div className="mt-4">
                     <h3 className="font-medium mb-2">Informations système</h3>
                     <div className="text-sm text-gray-600 dark:text-gray-400">

@@ -442,6 +442,7 @@ import { AlertTriangle, Info } from "lucide-react";
 import { SlotsService } from "../../services/slots.service";
 import { SlotAvailability } from "../../types/slots.types";
 import { SlotsInfo } from "../SlotsInfo";
+import ContactForm from "../ContactForm";
 
 export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false }) => {
     const [selectedVehicleLong, setSelectedVehicleLong] = useState('');
@@ -482,6 +483,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [slotsError, setSlotsError] = useState<string | null>(null);
     const [useDynamicSlots, setUseDynamicSlots] = useState(true);
+    const [showContactForm, setShowContactForm] = useState(false);
 
     const slotsService = new SlotsService();
 
@@ -1567,19 +1569,18 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                                     Raison : Distance supérieure à 50km
                                 </p>
                             )}
-                            {errors.livraison?.equipiers && (
-                                <div className="mt-1 flex items-center">
-                                    <span className="text-red-500 text-sm">{ERROR_MESSAGES.equipiers?.max}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => window.location.href = 'mailto:commercial@mytruck.fr'}
-                                        // onClick={() => navigate('/devis')}
-                                        className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
-                                    >
-                                        Ou demandez votre devis ici
-                                    </button>
-                                </div>
-                            )}
+                            <div className="mt-3 flex items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowContactForm(true)}
+                                    className="text-blue-600 hover:text-blue-800 text-sm underline"
+                                >
+                                    Demandez votre devis ici
+                                </button>
+                                <span className="ml-2 text-gray-500 text-sm">
+                                    ou contactez-nous au 01 23 45 67 89
+                                </span>
+                            </div>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -1612,6 +1613,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     A REGLER LE RETOUR AINSI QUE LA NOUVELLE LIVRAISON
                 </p>
             </div>
+
+            {/* Formulaire de contact pour les devis */}
+            <ContactForm
+                isOpen={showContactForm}
+                onClose={() => setShowContactForm(false)}
+                reason="DEVIS"
+                prefilledData={data}
+            />
 
             {/* Modal d'aide sur les véhicules */}
             {showVehicleHelpModal && (
