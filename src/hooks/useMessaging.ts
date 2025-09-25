@@ -92,7 +92,18 @@ export const useMessaging = ({
       return;
     }
 
-    const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+    // En production, forcer l'URL Railway si VITE_WS_URL n'est pas définie
+    const defaultWsUrl = import.meta.env.NODE_ENV === 'production'
+      ? 'https://mytruckprojectbackend-production.up.railway.app'
+      : 'http://localhost:3000';
+
+    const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
+    console.log('🌐 WebSocket config debug:', {
+      VITE_WS_URL: import.meta.env.VITE_WS_URL,
+      NODE_ENV: import.meta.env.NODE_ENV,
+      MODE: import.meta.env.MODE,
+      resolvedUrl: wsUrl
+    });
     console.log('🌐 Attempting WebSocket connection to:', wsUrl);
 
     try {
@@ -111,7 +122,6 @@ export const useMessaging = ({
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
         secure: wsUrl.startsWith('https'),
-        withCredentials: true,
         // Options spécifiques pour Railway
         ...(isRailway && {
           upgrade: true,

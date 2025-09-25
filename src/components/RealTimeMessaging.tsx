@@ -22,6 +22,7 @@ const RealTimeMessaging: React.FC = () => {
     selectedConversation: currentConversation,
     messages,
     isConnected,
+    isLoading,
     onlineUsers,
     typingUsers,
     sendMessage,
@@ -39,10 +40,13 @@ const RealTimeMessaging: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
-  // Initialize conversations on component mount
+  // Initialize conversations on component mount - wait for hook to load first
   useEffect(() => {
-    createDefaultConversations();
-  }, [user]);
+    // Attendre que le hook ait fini de charger les conversations initiales
+    if (user && !isLoading) {
+      createDefaultConversations();
+    }
+  }, [user, isLoading]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -92,9 +96,8 @@ const RealTimeMessaging: React.FC = () => {
         const data = await response.json();
         console.log('Response data:', data);
 
-        // Recharger les conversations pour afficher la nouvelle conversation
-        console.log('🔄 Rechargement des conversations...');
-        await loadConversations();
+        // Pas besoin de recharger ici - le hook useMessaging le fait déjà
+        console.log('✅ Conversation prête - pas de rechargement nécessaire');
       }
     } catch (error) {
       console.error('❌ Erreur lors de la création des conversations par défaut:', error);
@@ -151,6 +154,16 @@ const RealTimeMessaging: React.FC = () => {
     (conv.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.participantIds.some((p: string) => p.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Debug pour voir l'état des conversations
+  useEffect(() => {
+    console.log('📊 Conversations state:', {
+      total: conversations.length,
+      filtered: filteredConversations.length,
+      isLoading,
+      conversations: conversations.map(c => ({ id: c.id, name: c.name, type: c.type }))
+    });
+  }, [conversations, filteredConversations, isLoading]);
 
   const conversationMessages = selectedConversationId
     ? messages.filter(msg => msg.conversationId === selectedConversationId)
