@@ -96,17 +96,27 @@ export const useMessaging = ({
     console.log('🌐 Attempting WebSocket connection to:', wsUrl);
 
     try {
+      // Configuration spéciale pour Railway
+      const isRailway = wsUrl.includes('railway.app');
+
       const socket = io(wsUrl, {
         auth: {
           token: token
         },
-        transports: ['websocket', 'polling'],
+        // Sur Railway, commencer par polling puis passer à websocket si possible
+        transports: isRailway ? ['polling', 'websocket'] : ['websocket', 'polling'],
         forceNew: true,
         timeout: 20000,
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        secure: wsUrl.startsWith('https')
+        secure: wsUrl.startsWith('https'),
+        withCredentials: true,
+        // Options spécifiques pour Railway
+        ...(isRailway && {
+          upgrade: true,
+          rememberUpgrade: true
+        })
       });
 
       console.log('🔧 WebSocket instance created');
