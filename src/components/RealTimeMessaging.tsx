@@ -7,6 +7,16 @@ import { Conversation, Message } from '../services/messaging.service';
 
 const RealTimeMessaging: React.FC = () => {
   const { user } = useAuth();
+
+  // Debug de l'utilisateur au montage
+  useEffect(() => {
+    console.log('📱 RealTimeMessaging mounted with user:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userRole: user?.role,
+      userEmail: user?.email
+    });
+  }, [user]);
   const {
     conversations,
     selectedConversation: currentConversation,
@@ -50,25 +60,39 @@ const RealTimeMessaging: React.FC = () => {
   };
 
   const createDefaultConversations = async () => {
-    if (!user) return;
+    console.log('🏗️ createDefaultConversations called with user:', { hasUser: !!user, userId: user?.id });
+
+    if (!user) {
+      console.warn('❌ No user found, skipping default conversations');
+      return;
+    }
 
     try {
+      const token = localStorage.getItem('authToken');
+      console.log('🔑 Token for API call:', { hasToken: !!token });
+
       // Créer automatiquement la conversation avec la Direction pour tous les utilisateurs
       const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/user-direction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${token}`
         }
       });
 
+      console.log('📡 API response status:', response.status);
+
       if (!response.ok) {
-        console.warn('Impossible de créer la conversation Direction');
+        console.warn('❌ Impossible de créer la conversation Direction, status:', response.status);
+        const errorText = await response.text();
+        console.warn('Error details:', errorText);
       } else {
-        console.log('Conversation Direction créée/récupérée avec succès');
+        console.log('✅ Conversation Direction créée/récupérée avec succès');
+        const data = await response.json();
+        console.log('Response data:', data);
       }
     } catch (error) {
-      console.error('Erreur lors de la création des conversations par défaut:', error);
+      console.error('❌ Erreur lors de la création des conversations par défaut:', error);
     }
   };
 

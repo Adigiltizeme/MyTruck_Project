@@ -77,18 +77,26 @@ export const useMessaging = ({
   }, [conversationId]);
 
   const connectWebSocket = useCallback(() => {
-    if (!user?.id || socketRef.current?.connected) return;
+    console.log('🔌 connectWebSocket called:', { hasUserId: !!user?.id, isConnected: socketRef.current?.connected });
 
-    const token = localStorage.getItem('authToken') || user.token;
-    if (!token) {
-      console.warn('No auth token available, skipping WebSocket connection');
+    if (!user?.id || socketRef.current?.connected) {
+      console.log('⏭️ Skipping WebSocket connection:', { noUser: !user?.id, alreadyConnected: socketRef.current?.connected });
       return;
     }
 
-    console.log('Attempting WebSocket connection to:', import.meta.env.VITE_WS_URL || 'http://localhost:3000');
+    const token = localStorage.getItem('authToken') || user.token;
+    console.log('🔑 Token check:', { hasToken: !!token, tokenSource: localStorage.getItem('authToken') ? 'localStorage' : 'user.token' });
+
+    if (!token) {
+      console.warn('❌ No auth token available, skipping WebSocket connection');
+      return;
+    }
+
+    const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+    console.log('🌐 Attempting WebSocket connection to:', wsUrl);
 
     try {
-      const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3000', {
+      const socket = io(wsUrl, {
         auth: {
           token: token
         },
@@ -96,13 +104,16 @@ export const useMessaging = ({
         forceNew: true
       });
 
+      console.log('🔧 WebSocket instance created');
+
       // Événements de connexion
       socket.on('connect', () => {
-        console.log('WebSocket connected');
+        console.log('✅ WebSocket connected successfully!');
         setIsConnected(true);
         setError(null);
 
         // Rejoindre la room utilisateur
+        console.log('🚪 Joining user room:', { userId: user.id, userType: user.role });
         socket.emit('join-room', {
           userId: user.id,
           userType: user.role
@@ -110,12 +121,12 @@ export const useMessaging = ({
       });
 
       socket.on('disconnect', () => {
-        console.log('WebSocket disconnected');
+        console.log('❌ WebSocket disconnected');
         setIsConnected(false);
       });
 
       socket.on('connect_error', (error: Error) => {
-        console.error('WebSocket connection error:', error);
+        console.error('❌ WebSocket connection error:', error);
         setError('Erreur de connexion temps réel');
         setIsConnected(false);
       });
@@ -232,18 +243,30 @@ export const useMessaging = ({
   }, []);
 
   const markAsRead = useCallback(async (convId: string) => {
+    console.log('🔍 markAsRead called with:', { convId, userId: user?.id, hasUser: !!user });
+
+    if (!user?.id) {
+      console.warn('❌ markAsRead: userId is undefined, skipping');
+      return;
+    }
+
     try {
+      console.log('📡 Calling markConversationAsRead API...');
       await messagingService.current.markConversationAsRead(convId);
+      console.log('✅ markConversationAsRead API success');
 
       // Notifier via WebSocket
       if (socketRef.current?.connected) {
+        console.log('🔌 Emitting mark-messages-read via WebSocket:', { conversationId: convId, userId: user.id });
         socketRef.current.emit('mark-messages-read', {
           conversationId: convId,
-          userId: user?.id
+          userId: user.id
         });
+      } else {
+        console.warn('❌ WebSocket not connected, skipping mark-messages-read emit');
       }
     } catch (err) {
-      console.error('Erreur lors du marquage comme lu:', err);
+      console.error('❌ Erreur lors du marquage comme lu:', err);
     }
   }, [user]);
 
