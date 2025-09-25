@@ -3,17 +3,13 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
 import { ContactService, Contact } from '../services/contact.service';
-import { MessagingService } from '../services/messaging.service';
 import { Modal } from './Modal';
-import MessagingCenter from './MessagingCenter';
 
 interface ContactMessageRowProps {
   contact: Contact;
-  onReply: (contact: Contact) => void;
-  onConvertToMessage: (contact: Contact) => void;
 }
 
-const ContactMessageRow: React.FC<ContactMessageRowProps> = ({ contact, onReply, onConvertToMessage }) => {
+const ContactMessageRow: React.FC<ContactMessageRowProps> = ({ contact }) => {
   const getStatusBadge = (status: string) => {
     const statusStyles = {
       NOUVEAU: 'bg-red-100 text-red-800 border-red-200',
@@ -92,113 +88,24 @@ const ContactMessageRow: React.FC<ContactMessageRowProps> = ({ contact, onReply,
       )}
 
       <div className="flex justify-end space-x-2">
-        <button
-          onClick={() => onConvertToMessage(contact)}
-          className="px-4 py-2 rounded-md text-sm font-medium bg-green-500 text-white hover:bg-green-600"
-        >
-          💬 Messagerie
-        </button>
-        <button
-          onClick={() => onReply(contact)}
-          className={`px-4 py-2 rounded-md text-sm font-medium ${
-            contact.statut === 'TRAITE'
-              ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-500 text-white hover:bg-blue-600'
-          }`}
-          disabled={contact.statut === 'TRAITE'}
-        >
-          {contact.statut === 'TRAITE' ? 'Déjà traité' : 'Répondre'}
-        </button>
+        <div className={`px-4 py-2 rounded-md text-sm font-medium text-center ${
+          contact.statut === 'TRAITE'
+            ? 'bg-green-100 text-green-800'
+            : contact.statut === 'EN_COURS'
+            ? 'bg-yellow-100 text-yellow-800'
+            : 'bg-blue-100 text-blue-800'
+        }`}>
+          {contact.statut === 'TRAITE'
+            ? '✓ Traité par My Truck'
+            : contact.statut === 'EN_COURS'
+            ? '⏳ En cours de traitement'
+            : '📧 Demande envoyée'}
+        </div>
       </div>
     </div>
   );
 };
 
-interface ReplyModalProps {
-  contact: Contact | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (response: string) => Promise<void>;
-}
-
-const ReplyModal: React.FC<ReplyModalProps> = ({ contact, isOpen, onClose, onSubmit }) => {
-  const [response, setResponse] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && contact) {
-      setResponse(contact.response || '');
-    }
-  }, [isOpen, contact]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!response.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      await onSubmit(response);
-      setResponse('');
-      onClose();
-    } catch (error) {
-      console.error('Erreur lors de la soumission:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (!contact) return null;
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Répondre au message</h3>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-semibold text-gray-900 mb-2">Message original:</h4>
-          <p className="text-sm text-gray-700">{contact.message}</p>
-          <div className="mt-2 text-xs text-gray-500">
-            De: {contact.email} • {format(new Date(contact.createdAt), 'dd MMMM yyyy')}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="response" className="block text-sm font-medium text-gray-700 mb-2">
-              Votre réponse:
-            </label>
-            <textarea
-              id="response"
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
-              rows={4}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Tapez votre réponse ici..."
-              required
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-              disabled={isSubmitting}
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
-              disabled={isSubmitting || !response.trim()}
-            >
-              {isSubmitting ? 'Envoi...' : 'Envoyer la réponse'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </Modal>
-  );
-};
 
 const MagasinContactMessages: React.FC = () => {
   const { user } = useAuth();
@@ -206,15 +113,10 @@ const MagasinContactMessages: React.FC = () => {
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
-  const [isReplyModalOpen, setIsReplyModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [raisonFilter, setRaisonFilter] = useState<string>('all');
-  const [showMessaging, setShowMessaging] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const contactService = new ContactService();
-  const messagingService = new MessagingService();
 
   useEffect(() => {
     loadContacts();
@@ -262,51 +164,7 @@ const MagasinContactMessages: React.FC = () => {
     setFilteredContacts(filtered);
   };
 
-  const handleReply = (contact: Contact) => {
-    setSelectedContact(contact);
-    setIsReplyModalOpen(true);
-  };
 
-  const handleSubmitReply = async (response: string) => {
-    if (!selectedContact) return;
-
-    try {
-      const result = await contactService.replyToMyContact(selectedContact.id, response);
-
-      if (result.success) {
-        // Mettre à jour le contact dans la liste locale
-        setContacts(prev => prev.map(contact =>
-          contact.id === selectedContact.id
-            ? { ...contact, statut: 'TRAITE' as const, response, treatedAt: new Date().toISOString() }
-            : contact
-        ));
-      } else {
-        throw new Error('Erreur lors de la soumission de la réponse');
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-      throw error;
-    }
-  };
-
-  const handleConvertToMessage = async (contact: Contact) => {
-    try {
-      // Vérifier si une conversion est déjà en cours
-      if (showMessaging) return;
-
-      const result = await messagingService.convertContactToMessage(contact.id);
-
-      if (result.success && result.data) {
-        setConversationId(result.data.conversation.id);
-        setShowMessaging(true);
-      } else {
-        alert('Erreur lors de la conversion en messagerie');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la conversion:', error);
-      alert('Erreur lors de la conversion en messagerie');
-    }
-  };
 
   if (loading) {
     return (
@@ -339,22 +197,6 @@ const MagasinContactMessages: React.FC = () => {
     );
   }
 
-  if (showMessaging && conversationId) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Messagerie</h1>
-          <button
-            onClick={() => setShowMessaging(false)}
-            className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
-          >
-            ← Retour aux contacts
-          </button>
-        </div>
-        <MessagingCenter initialConversationId={conversationId} />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -432,24 +274,12 @@ const MagasinContactMessages: React.FC = () => {
               <ContactMessageRow
                 key={contact.id}
                 contact={contact}
-                onReply={handleReply}
-                onConvertToMessage={handleConvertToMessage}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Modal de réponse */}
-      <ReplyModal
-        contact={selectedContact}
-        isOpen={isReplyModalOpen}
-        onClose={() => {
-          setIsReplyModalOpen(false);
-          setSelectedContact(null);
-        }}
-        onSubmit={handleSubmitReply}
-      />
     </div>
   );
 };

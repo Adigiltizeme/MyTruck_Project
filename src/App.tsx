@@ -35,6 +35,7 @@ import MagasinManagement from './pages/admin/MagasinManagement';
 import ContactsManagement from './pages/admin/ContactsManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
 import MagasinContactMessages from './components/MagasinContactMessages';
+import RealTimeMessaging from './components/RealTimeMessaging';
 
 const App = () => {
 
@@ -298,6 +299,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['magasin']}>
                   <MagasinContactMessages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/messagerie"
+              element={
+                <ProtectedRoute allowedRoles={['magasin', 'admin', 'chauffeur']}>
+                  <RealTimeMessaging />
                 </ProtectedRoute>
               }
             />

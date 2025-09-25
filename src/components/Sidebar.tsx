@@ -141,6 +141,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['magasin']
     },
     {
+      name: 'Messagerie',
+      icon: ChatBubbleLeftRightIcon,
+      href: '/messagerie',
+      roles: ['magasin', 'admin', 'chauffeur']
+    },
+    {
       name: 'Profil',
       icon: UserCircleIcon,
       href: '/profile',
