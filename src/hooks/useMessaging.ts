@@ -101,7 +101,12 @@ export const useMessaging = ({
           token: token
         },
         transports: ['websocket', 'polling'],
-        forceNew: true
+        forceNew: true,
+        timeout: 20000,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        secure: wsUrl.startsWith('https')
       });
 
       console.log('🔧 WebSocket instance created');
