@@ -253,4 +253,15 @@ export class ContactService {
   }> {
     return this.apiService.get('/contacts/magasin/my-contacts');
   }
+
+  /**
+   * Répondre à un contact en tant que magasin
+   */
+  async replyToMyContact(id: string, response: string): Promise<{
+    success: boolean;
+    message: string;
+    data: Contact;
+  }> {
+    return this.apiService.patch(`/contacts/magasin/${id}/reply`, { response });
+  }
 }

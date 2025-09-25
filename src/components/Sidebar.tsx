@@ -13,7 +13,7 @@ import {
   BuildingStorefrontIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
-import { Clock, LogOutIcon } from 'lucide-react';
+import { Clock, LogOutIcon, MessageCircleIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { SlotsManagement } from './admin/SlotsManagement';
@@ -133,6 +133,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       icon: DocumentIcon,
       href: '/documents',
       roles: ['admin', 'magasin'],
+    },
+    {
+      name: 'Mes Messages',
+      icon: MessageCircleIcon,
+      href: '/mes-messages',
+      roles: ['magasin']
     },
     {
       name: 'Profil',

@@ -1,0 +1,397 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { MessagingService, Conversation, Message } from '../services/messaging.service';
+import io from 'socket.io-client';
+
+interface UseMessagingProps {
+  conversationId?: string;
+  autoConnect?: boolean;
+}
+
+interface UseMessagingReturn {
+  // État des conversations
+  conversations: Conversation[];
+  selectedConversation: Conversation | null;
+  messages: Message[];
+
+  // État de connexion
+  isConnected: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  // Fonctions de gestion des conversations
+  selectConversation: (conversation: Conversation) => void;
+  loadConversations: () => Promise<void>;
+  createConversation: (data: any) => Promise<Conversation | null>;
+
+  // Fonctions de gestion des messages
+  sendMessage: (content: string, messageType?: string) => Promise<void>;
+  markAsRead: (conversationId: string) => Promise<void>;
+
+  // État temps réel
+  onlineUsers: string[];
+  typingUsers: { [conversationId: string]: string[] };
+
+  // Fonctions temps réel
+  startTyping: (conversationId: string) => void;
+  stopTyping: (conversationId: string) => void;
+
+  // Fonctions utilitaires
+  refreshMessages: () => Promise<void>;
+  disconnect: () => void;
+}
+
+export const useMessaging = ({
+  conversationId,
+  autoConnect = true
+}: UseMessagingProps = {}): UseMessagingReturn => {
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [typingUsers, setTypingUsers] = useState<{ [conversationId: string]: string[] }>({});
+
+  const socketRef = useRef<any>(null);
+  const messagingService = useRef(new MessagingService());
+
+  // Initialisation WebSocket
+  useEffect(() => {
+    if (autoConnect && user) {
+      connectWebSocket();
+    }
+
+    return () => {
+      disconnect();
+    };
+  }, [user, autoConnect]);
+
+  // Chargement de la conversation initiale
+  useEffect(() => {
+    if (conversationId) {
+      loadConversation(conversationId);
+    }
+  }, [conversationId]);
+
+  const connectWebSocket = useCallback(() => {
+    if (!user?.id || socketRef.current?.connected) return;
+
+    const token = localStorage.getItem('authToken') || user.token;
+    if (!token) {
+      console.warn('No auth token available, skipping WebSocket connection');
+      return;
+    }
+
+    console.log('Attempting WebSocket connection to:', import.meta.env.VITE_WS_URL || 'http://localhost:3000');
+
+    try {
+      const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:3000', {
+        auth: {
+          token: token
+        },
+        transports: ['websocket', 'polling'],
+        forceNew: true
+      });
+
+      // Événements de connexion
+      socket.on('connect', () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        setError(null);
+
+        // Rejoindre la room utilisateur
+        socket.emit('join-room', {
+          userId: user.id,
+          userType: user.role
+        });
+      });
+
+      socket.on('disconnect', () => {
+        console.log('WebSocket disconnected');
+        setIsConnected(false);
+      });
+
+      socket.on('connect_error', (error: Error) => {
+        console.error('WebSocket connection error:', error);
+        setError('Erreur de connexion temps réel');
+        setIsConnected(false);
+      });
+
+      // Événements de messagerie
+      socket.on('new-message', (data: { message: Message; timestamp: string }) => {
+        setMessages(prev => {
+          // Éviter les doublons
+          const exists = prev.find(msg => msg.id === data.message.id);
+          if (exists) return prev;
+
+          return [...prev, data.message].sort((a, b) =>
+            new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
+          );
+        });
+
+        // Mettre à jour la dernière activité des conversations
+        setConversations(prev =>
+          prev.map(conv =>
+            conv.id === data.message.conversationId
+              ? { ...conv, lastMessageAt: data.timestamp }
+              : conv
+          )
+        );
+      });
+
+      socket.on('new-conversation', (data: { conversation: Conversation; timestamp: string }) => {
+        setConversations(prev => {
+          const exists = prev.find(conv => conv.id === data.conversation.id);
+          if (exists) return prev;
+          return [...prev, data.conversation];
+        });
+      });
+
+      socket.on('messages-read', (data: { conversationId: string; userId: string; timestamp: string }) => {
+        if (data.userId !== user.id) {
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.conversationId === data.conversationId && !msg.readBy.includes(data.userId)
+                ? { ...msg, readBy: [...msg.readBy, data.userId], isRead: true }
+                : msg
+            )
+          );
+        }
+      });
+
+      socket.on('user-typing', (data: { userId: string; userName: string; conversationId: string; isTyping: boolean }) => {
+        if (data.userId !== user.id) {
+          setTypingUsers(prev => {
+            const conversationTyping = prev[data.conversationId] || [];
+
+            if (data.isTyping) {
+              if (!conversationTyping.includes(data.userName)) {
+                return {
+                  ...prev,
+                  [data.conversationId]: [...conversationTyping, data.userName]
+                };
+              }
+            } else {
+              return {
+                ...prev,
+                [data.conversationId]: conversationTyping.filter(name => name !== data.userName)
+              };
+            }
+
+            return prev;
+          });
+        }
+      });
+
+      socket.on('user-joined-conversation', (data: { userId: string; conversationId: string }) => {
+        if (!onlineUsers.includes(data.userId)) {
+          setOnlineUsers(prev => [...prev, data.userId]);
+        }
+      });
+
+      socket.on('user-left-conversation', (data: { userId: string; conversationId: string }) => {
+        setOnlineUsers(prev => prev.filter(id => id !== data.userId));
+      });
+
+      socketRef.current = socket;
+    } catch (error) {
+      console.error('Erreur lors de la connexion WebSocket:', error);
+      setError('Impossible de se connecter au service de messagerie temps réel');
+    }
+  }, [user, onlineUsers]);
+
+  const disconnect = useCallback(() => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      setIsConnected(false);
+    }
+  }, []);
+
+  const loadConversations = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await messagingService.current.getConversations({ isActive: true });
+
+      if (result.success) {
+        setConversations(result.data);
+      } else {
+        setError('Erreur lors du chargement des conversations');
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des conversations:', err);
+      setError('Erreur lors du chargement des conversations');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const markAsRead = useCallback(async (convId: string) => {
+    try {
+      await messagingService.current.markConversationAsRead(convId);
+
+      // Notifier via WebSocket
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('mark-messages-read', {
+          conversationId: convId,
+          userId: user?.id
+        });
+      }
+    } catch (err) {
+      console.error('Erreur lors du marquage comme lu:', err);
+    }
+  }, [user]);
+
+  const loadConversation = useCallback(async (convId: string) => {
+    try {
+      const result = await messagingService.current.getConversation(convId);
+
+      if (result.success && result.data) {
+        setSelectedConversation(result.data);
+        setMessages(result.data.messages || []);
+
+        // Rejoindre la room WebSocket
+        if (socketRef.current?.connected && user?.id) {
+          socketRef.current.emit('join-conversation', {
+            conversationId: convId,
+            userId: user.id
+          });
+        }
+
+        // Marquer comme lu seulement si user.id existe
+        if (user?.id) {
+          await markAsRead(convId);
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement de la conversation:', err);
+      setError('Erreur lors du chargement de la conversation');
+    }
+  }, [user, markAsRead]);
+
+  const selectConversation = useCallback((conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    loadConversation(conversation.id);
+  }, [loadConversation]);
+
+  const createConversation = useCallback(async (data: any): Promise<Conversation | null> => {
+    try {
+      const result = await messagingService.current.createConversation(data);
+
+      if (result.success && result.data) {
+        setConversations(prev => [...prev, result.data!]);
+        return result.data;
+      }
+
+      return null;
+    } catch (err) {
+      console.error('Erreur lors de la création de la conversation:', err);
+      setError('Erreur lors de la création de la conversation');
+      return null;
+    }
+  }, []);
+
+  const sendMessage = useCallback(async (content: string, messageType = 'TEXT') => {
+    if (!selectedConversation || !content.trim()) return;
+
+    try {
+      // Envoi via WebSocket si connecté, sinon via API
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('send-message', {
+          conversationId: selectedConversation.id,
+          senderId: user?.id,
+          senderType: user?.role === 'magasin' ? 'MAGASIN' : user?.role === 'chauffeur' ? 'CHAUFFEUR' : 'ADMIN',
+          content: content.trim(),
+          messageType
+        });
+      } else {
+        // Fallback API
+        const result = await messagingService.current.sendMessage({
+          conversationId: selectedConversation.id,
+          content: content.trim(),
+          messageType: messageType as any
+        });
+
+        if (result.success && result.data) {
+          setMessages(prev => [...prev, result.data!]);
+        }
+      }
+    } catch (err) {
+      console.error('Erreur lors de l\'envoi du message:', err);
+      setError('Erreur lors de l\'envoi du message');
+    }
+  }, [selectedConversation, user]);
+
+  const startTyping = useCallback((convId: string) => {
+    if (socketRef.current?.connected && user) {
+      socketRef.current.emit('typing-start', {
+        conversationId: convId,
+        userId: user.id,
+        userName: `${user.name}`
+      });
+    }
+  }, [user]);
+
+  const stopTyping = useCallback((convId: string) => {
+    if (socketRef.current?.connected && user) {
+      socketRef.current.emit('typing-stop', {
+        conversationId: convId,
+        userId: user.id
+      });
+    }
+  }, [user]);
+
+  const refreshMessages = useCallback(async () => {
+    if (selectedConversation) {
+      await loadConversation(selectedConversation.id);
+    }
+  }, [selectedConversation, loadConversation]);
+
+  // Chargement initial
+  useEffect(() => {
+    if (user?.id) {
+      console.log('User authenticated with ID:', user.id);
+      loadConversations();
+    } else {
+      console.warn('User not authenticated or missing ID:', user);
+    }
+  }, [user, loadConversations]);
+
+  return {
+    // État des conversations
+    conversations,
+    selectedConversation,
+    messages,
+
+    // État de connexion
+    isConnected,
+    isLoading,
+    error,
+
+    // Fonctions de gestion des conversations
+    selectConversation,
+    loadConversations,
+    createConversation,
+
+    // Fonctions de gestion des messages
+    sendMessage,
+    markAsRead,
+
+    // État temps réel
+    onlineUsers,
+    typingUsers,
+
+    // Fonctions temps réel
+    startTyping,
+    stopTyping,
+
+    // Fonctions utilitaires
+    refreshMessages,
+    disconnect
+  };
+};
