@@ -28,7 +28,8 @@ const RealTimeMessaging: React.FC = () => {
     markAsRead,
     startTyping,
     stopTyping,
-    selectConversation
+    selectConversation,
+    loadConversations
   } = useMessaging();
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -90,6 +91,10 @@ const RealTimeMessaging: React.FC = () => {
         console.log('✅ Conversation Direction créée/récupérée avec succès');
         const data = await response.json();
         console.log('Response data:', data);
+
+        // Recharger les conversations pour afficher la nouvelle conversation
+        console.log('🔄 Rechargement des conversations...');
+        await loadConversations();
       }
     } catch (error) {
       console.error('❌ Erreur lors de la création des conversations par défaut:', error);
