@@ -92,8 +92,12 @@ export const useMessaging = ({
       return;
     }
 
-    // En production, forcer l'URL Railway si VITE_WS_URL n'est pas définie
-    const defaultWsUrl = import.meta.env.NODE_ENV === 'production'
+    // Détection automatique production vs développement
+    const isProduction = import.meta.env.NODE_ENV === 'production' ||
+                          window.location.hostname.includes('vercel.app') ||
+                          window.location.hostname.includes('mytrucktransport');
+
+    const defaultWsUrl = isProduction
       ? 'https://mytruckprojectbackend-production.up.railway.app'
       : 'http://localhost:3000';
 
@@ -102,6 +106,9 @@ export const useMessaging = ({
       VITE_WS_URL: import.meta.env.VITE_WS_URL,
       NODE_ENV: import.meta.env.NODE_ENV,
       MODE: import.meta.env.MODE,
+      hostname: window.location.hostname,
+      isProduction,
+      defaultWsUrl,
       resolvedUrl: wsUrl
     });
     console.log('🌐 Attempting WebSocket connection to:', wsUrl);
