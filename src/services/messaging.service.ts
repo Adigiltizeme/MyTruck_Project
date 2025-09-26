@@ -117,6 +117,11 @@ export class MessagingService {
         data: response
       });
 
+      if (Array.isArray(response) && response.length === 0) {
+        console.warn('⚠️ API returned empty array - investigating...');
+        console.log('🔍 Request details:', { url, filters });
+      }
+
       return { success: true, data: Array.isArray(response) ? response : [] };
     } catch (error) {
       console.error('❌ Erreur lors de la récupération des conversations:', error);

@@ -410,10 +410,11 @@ export const useMessaging = ({
   // Chargement initial
   useEffect(() => {
     if (user?.id) {
-      console.log('User authenticated with ID:', user.id);
+      console.log('🔍 User authenticated with ID:', user.id);
+      console.log('🧾 Full user object for debugging:', user);
       loadConversations();
     } else {
-      console.warn('User not authenticated or missing ID:', user);
+      console.warn('❌ User not authenticated or missing ID:', user);
     }
   }, [user, loadConversations]);
 

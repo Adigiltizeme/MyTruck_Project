@@ -7,6 +7,7 @@ import { Conversation, Message } from '../services/messaging.service';
 
 const RealTimeMessaging: React.FC = () => {
   const { user } = useAuth();
+  const [conversationCreated, setConversationCreated] = useState(false);
 
   // Debug de l'utilisateur au montage
   useEffect(() => {
@@ -14,7 +15,8 @@ const RealTimeMessaging: React.FC = () => {
       hasUser: !!user,
       userId: user?.id,
       userRole: user?.role,
-      userEmail: user?.email
+      userEmail: user?.email,
+      fullUser: user
     });
   }, [user]);
   const {
@@ -43,10 +45,10 @@ const RealTimeMessaging: React.FC = () => {
   // Initialize conversations on component mount - wait for hook to load first
   useEffect(() => {
     // Attendre que le hook ait fini de charger les conversations initiales
-    if (user && !isLoading) {
+    if (user && !isLoading && !conversationCreated) {
       createDefaultConversations();
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, conversationCreated]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -94,10 +96,14 @@ const RealTimeMessaging: React.FC = () => {
       } else {
         console.log('✅ Conversation Direction créée/récupérée avec succès');
         const data = await response.json();
-        console.log('Response data:', data);
+        console.log('🎯 CONVERSATION CRÉÉE - Response data:', data);
+        console.log('🔍 Participants dans la conversation créée:', data.participantIds);
+        console.log('🆔 ID de la conversation créée:', data.id);
 
-        // Pas besoin de recharger ici - le hook useMessaging le fait déjà
-        console.log('✅ Conversation prête - pas de rechargement nécessaire');
+        // Forcer le rechargement des conversations après création
+        console.log('🔄 Rechargement forcé des conversations après création...');
+        setConversationCreated(true);
+        await loadConversations();
       }
     } catch (error) {
       console.error('❌ Erreur lors de la création des conversations par défaut:', error);
