@@ -107,18 +107,27 @@ export class MessagingService {
       if (filters?.isActive !== undefined) queryParams.append('isActive', filters.isActive.toString());
       if (filters?.participantId) queryParams.append('participantId', filters.participantId);
 
-      const response = await this.apiService.get(`/messaging/conversations?${queryParams.toString()}`);
-      return { success: true, data: response };
+      const url = `/messaging/conversations?${queryParams.toString()}`;
+      console.log('🔍 getConversations API call:', { url, filters });
+
+      const response = await this.apiService.get(url) as Conversation[];
+      console.log('📡 getConversations API response:', {
+        success: true,
+        dataLength: Array.isArray(response) ? response.length : 0,
+        data: response
+      });
+
+      return { success: true, data: Array.isArray(response) ? response : [] };
     } catch (error) {
-      console.error('Erreur lors de la récupération des conversations:', error);
+      console.error('❌ Erreur lors de la récupération des conversations:', error);
       return { success: false, data: [] };
     }
   }
 
   async getConversation(id: string): Promise<{ success: boolean; data: Conversation | null }> {
     try {
-      const response = await this.apiService.get(`/messaging/conversations/${id}`);
-      return { success: true, data: response };
+      const response = await this.apiService.get(`/messaging/conversations/${id}`) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la récupération de la conversation:', error);
       return { success: false, data: null };
@@ -127,8 +136,8 @@ export class MessagingService {
 
   async createConversation(data: CreateConversationRequest): Promise<{ success: boolean; data: Conversation | null }> {
     try {
-      const response = await this.apiService.post('/messaging/conversations', data);
-      return { success: true, data: response };
+      const response = await this.apiService.post('/messaging/conversations', data) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la création de la conversation:', error);
       return { success: false, data: null };
@@ -151,8 +160,8 @@ export class MessagingService {
 
   async sendMessage(data: CreateMessageRequest): Promise<{ success: boolean; data: Message | null }> {
     try {
-      const response = await this.apiService.post('/messaging/messages', data);
-      return { success: true, data: response };
+      const response = await this.apiService.post('/messaging/messages', data) as Message;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message:', error);
       return { success: false, data: null };
@@ -171,8 +180,8 @@ export class MessagingService {
       if (filters?.dateDebut) queryParams.append('dateDebut', filters.dateDebut);
       if (filters?.dateFin) queryParams.append('dateFin', filters.dateFin);
 
-      const response = await this.apiService.get(`/messaging/messages?${queryParams.toString()}`);
-      return { success: true, data: response };
+      const response = await this.apiService.get(`/messaging/messages?${queryParams.toString()}`) as Message[];
+      return { success: true, data: Array.isArray(response) ? response : [] };
     } catch (error) {
       console.error('Erreur lors de la récupération des messages:', error);
       return { success: false, data: [] };
@@ -185,8 +194,8 @@ export class MessagingService {
 
   async createMagasinDirectionConversation(magasinId: string): Promise<{ success: boolean; data: Conversation | null }> {
     try {
-      const response = await this.apiService.post(`/messaging/conversations/magasin-direction/${magasinId}`, {});
-      return { success: true, data: response };
+      const response = await this.apiService.post(`/messaging/conversations/magasin-direction/${magasinId}`, {}) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la création de la conversation magasin-direction:', error);
       return { success: false, data: null };
@@ -198,8 +207,8 @@ export class MessagingService {
       const response = await this.apiService.post(`/messaging/conversations/commande-group/${commandeId}`, {
         magasinId,
         chauffeurId
-      });
-      return { success: true, data: response };
+      }) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la création de la conversation de groupe:', error);
       return { success: false, data: null };
@@ -208,8 +217,8 @@ export class MessagingService {
 
   async createDirectionChauffeurConversation(chauffeurId: string): Promise<{ success: boolean; data: Conversation | null }> {
     try {
-      const response = await this.apiService.post(`/messaging/conversations/direction-chauffeur/${chauffeurId}`, {});
-      return { success: true, data: response };
+      const response = await this.apiService.post(`/messaging/conversations/direction-chauffeur/${chauffeurId}`, {}) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la création de la conversation direction-chauffeur:', error);
       return { success: false, data: null };
@@ -222,8 +231,8 @@ export class MessagingService {
 
   async convertContactToMessage(contactId: string): Promise<{ success: boolean; data: { conversation: Conversation; initialMessage: Message } | null }> {
     try {
-      const response = await this.apiService.post(`/messaging/contacts/${contactId}/convert`, {});
-      return { success: true, data: response };
+      const response = await this.apiService.post(`/messaging/contacts/${contactId}/convert`, {}) as { conversation: Conversation; initialMessage: Message };
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la conversion du contact:', error);
       return { success: false, data: null };
@@ -236,8 +245,8 @@ export class MessagingService {
 
   async getConversationsForMagasin(magasinId: string): Promise<{ success: boolean; data: Conversation[] }> {
     try {
-      const response = await this.apiService.get(`/messaging/conversations/for-magasin/${magasinId}`);
-      return { success: true, data: response };
+      const response = await this.apiService.get(`/messaging/conversations/for-magasin/${magasinId}`) as Conversation[];
+      return { success: true, data: Array.isArray(response) ? response : [] };
     } catch (error) {
       console.error('Erreur lors de la récupération des conversations du magasin:', error);
       return { success: false, data: [] };
@@ -246,8 +255,8 @@ export class MessagingService {
 
   async getConversationForCommande(commandeId: string): Promise<{ success: boolean; data: Conversation | null }> {
     try {
-      const response = await this.apiService.get(`/messaging/conversations/for-commande/${commandeId}`);
-      return { success: true, data: response };
+      const response = await this.apiService.get(`/messaging/conversations/for-commande/${commandeId}`) as Conversation;
+      return { success: true, data: response || null };
     } catch (error) {
       console.error('Erreur lors de la récupération de la conversation de commande:', error);
       return { success: false, data: null };
@@ -256,8 +265,8 @@ export class MessagingService {
 
   async getConversationsForChauffeur(chauffeurId: string): Promise<{ success: boolean; data: Conversation[] }> {
     try {
-      const response = await this.apiService.get(`/messaging/conversations/for-chauffeur/${chauffeurId}`);
-      return { success: true, data: response };
+      const response = await this.apiService.get(`/messaging/conversations/for-chauffeur/${chauffeurId}`) as Conversation[];
+      return { success: true, data: Array.isArray(response) ? response : [] };
     } catch (error) {
       console.error('Erreur lors de la récupération des conversations du chauffeur:', error);
       return { success: false, data: [] };
