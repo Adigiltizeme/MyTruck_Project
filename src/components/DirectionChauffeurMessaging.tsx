@@ -43,7 +43,9 @@ const DirectionChauffeurMessaging: React.FC<DirectionChauffeurMessagingProps> = 
         // Prendre la conversation privée avec la direction
         const directionConversation = existingConversations.data.find(conv =>
           conv.type === 'PRIVATE' &&
-          conv.participantIds.includes('DIRECTION')
+          (conv.participantIds.includes('DIRECTION')
+          || conv.participantIds.includes('admin')
+          || conv.participantIds.includes('ADMIN'))
         );
 
         if (directionConversation) {
