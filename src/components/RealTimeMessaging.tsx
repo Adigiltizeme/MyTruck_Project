@@ -45,10 +45,16 @@ const RealTimeMessaging: React.FC = () => {
   // Initialize conversations on component mount - wait for hook to load first
   useEffect(() => {
     // Attendre que le hook ait fini de charger les conversations initiales
-    if (user && !isLoading && !conversationCreated) {
+    if (user && !isLoading && !conversationCreated && conversations.length === 0) {
+      console.log('🔍 Checking for default conversation creation:', {
+        hasUser: !!user,
+        isLoading,
+        conversationCreated,
+        conversationsCount: conversations.length
+      });
       createDefaultConversations();
     }
-  }, [user, isLoading, conversationCreated]);
+  }, [user, isLoading, conversationCreated, conversations.length]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -74,9 +80,23 @@ const RealTimeMessaging: React.FC = () => {
       return;
     }
 
+    // Marquer immédiatement pour éviter les appels multiples
+    setConversationCreated(true);
+
     try {
       const token = localStorage.getItem('authToken');
       console.log('🔑 Token for API call:', { hasToken: !!token });
+
+      // Vérifier d'abord si une conversation Direction existe déjà
+      const existingDirectionConv = conversations.find(conv =>
+        conv.type === 'PRIVATE' &&
+        conv.name?.includes('My Truck Direction')
+      );
+
+      if (existingDirectionConv) {
+        console.log('✅ Conversation Direction déjà existante:', existingDirectionConv.id);
+        return;
+      }
 
       // Créer automatiquement la conversation avec la Direction pour tous les utilisateurs
       const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/user-direction`, {
@@ -93,6 +113,8 @@ const RealTimeMessaging: React.FC = () => {
         console.warn('❌ Impossible de créer la conversation Direction, status:', response.status);
         const errorText = await response.text();
         console.warn('Error details:', errorText);
+        // Permettre de réessayer en cas d'erreur
+        setConversationCreated(false);
       } else {
         console.log('✅ Conversation Direction créée/récupérée avec succès');
         const data = await response.json();
@@ -102,11 +124,12 @@ const RealTimeMessaging: React.FC = () => {
 
         // Forcer le rechargement des conversations après création
         console.log('🔄 Rechargement forcé des conversations après création...');
-        setConversationCreated(true);
         await loadConversations();
       }
     } catch (error) {
       console.error('❌ Erreur lors de la création des conversations par défaut:', error);
+      // Permettre de réessayer en cas d'erreur
+      setConversationCreated(false);
     }
   };
 

@@ -165,11 +165,16 @@ export const useMessaging = ({
 
       // Événements de messagerie
       socket.on('new-message', (data: { message: Message; timestamp: string }) => {
+        console.log('📨 Received new message via WebSocket:', data);
         setMessages(prev => {
           // Éviter les doublons
           const exists = prev.find(msg => msg.id === data.message.id);
-          if (exists) return prev;
+          if (exists) {
+            console.log('🔄 Message already exists, skipping duplicate:', data.message.id);
+            return prev;
+          }
 
+          console.log('➕ Adding new message to state:', data.message.id);
           return [...prev, data.message].sort((a, b) =>
             new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()
           );
@@ -185,10 +190,20 @@ export const useMessaging = ({
         );
       });
 
+      // Événement d'erreur pour l'envoi de messages
+      socket.on('message-error', (data: { error: string; details?: any }) => {
+        console.error('❌ Message send error from server:', data);
+        setError(`Erreur d'envoi: ${data.error}`);
+      });
+
       socket.on('new-conversation', (data: { conversation: Conversation; timestamp: string }) => {
         setConversations(prev => {
           const exists = prev.find(conv => conv.id === data.conversation.id);
-          if (exists) return prev;
+          if (exists) {
+            console.log('🔄 Conversation already exists, skipping duplicate:', data.conversation.id);
+            return prev;
+          }
+          console.log('➕ Adding new conversation from WebSocket:', data.conversation.id);
           return [...prev, data.conversation];
         });
       });
@@ -352,32 +367,69 @@ export const useMessaging = ({
   }, []);
 
   const sendMessage = useCallback(async (content: string, messageType = 'TEXT') => {
-    if (!selectedConversation || !content.trim()) return;
+    if (!selectedConversation || !content.trim()) {
+      console.warn('❌ sendMessage: missing required data:', {
+        hasConversation: !!selectedConversation,
+        hasContent: !!content.trim(),
+        conversationId: selectedConversation?.id
+      });
+      return;
+    }
+
+    console.log('📤 Sending message:', {
+      conversationId: selectedConversation.id,
+      content: content.trim(),
+      messageType,
+      userId: user?.id,
+      userRole: user?.role,
+      isConnected: socketRef.current?.connected
+    });
 
     try {
-      // Envoi via WebSocket si connecté, sinon via API
-      if (socketRef.current?.connected) {
+      // Mapping correct du rôle utilisateur vers senderType
+      let senderType = 'DIRECTION'; // par défaut
+      if (user?.role === 'magasin') senderType = 'MAGASIN';
+      else if (user?.role === 'chauffeur') senderType = 'CHAUFFEUR';
+      else if (user?.role === 'admin' || user?.role === 'direction') senderType = 'DIRECTION';
+
+      console.log('👤 Sender type mapping:', { userRole: user?.role, senderType });
+
+      // TEMPORAIRE: Forcer l'utilisation de l'API à cause des problèmes WebSocket
+      // TODO: Restaurer WebSocket quand l'erreur "server.handleUpgrade() was called more than once" sera résolue
+      const FORCE_API_FALLBACK = true;
+
+      if (!FORCE_API_FALLBACK && socketRef.current?.connected && isConnected) {
+        console.log('🔌 Sending via WebSocket...');
         socketRef.current.emit('send-message', {
           conversationId: selectedConversation.id,
           senderId: user?.id,
-          senderType: user?.role === 'magasin' ? 'MAGASIN' : user?.role === 'chauffeur' ? 'CHAUFFEUR' : 'ADMIN',
+          senderType,
           content: content.trim(),
           messageType
         });
       } else {
+        console.log('📡 Using API fallback for message sending...');
         // Fallback API
         const result = await messagingService.current.sendMessage({
           conversationId: selectedConversation.id,
+          senderId: user?.id,
+          senderType: senderType as any,
           content: content.trim(),
           messageType: messageType as any
         });
 
+        console.log('📡 API sendMessage result:', result);
+
         if (result.success && result.data) {
           setMessages(prev => [...prev, result.data!]);
+          console.log('✅ Message sent successfully via API');
+        } else {
+          console.error('❌ API sendMessage failed:', result);
+          setError('Erreur lors de l\'envoi du message via API');
         }
       }
     } catch (err) {
-      console.error('Erreur lors de l\'envoi du message:', err);
+      console.error('❌ Erreur lors de l\'envoi du message:', err);
       setError('Erreur lors de l\'envoi du message');
     }
   }, [selectedConversation, user]);

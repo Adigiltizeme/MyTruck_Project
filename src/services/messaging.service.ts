@@ -65,6 +65,8 @@ export interface CreateConversationRequest {
 
 export interface CreateMessageRequest {
   conversationId: string;
+  senderId?: string;
+  senderType?: 'MAGASIN' | 'DIRECTION' | 'CHAUFFEUR' | 'SYSTEM';
   content: string;
   messageType?: 'TEXT' | 'DEVIS_REQUEST' | 'DEVIS_RESPONSE' | 'COMMANDE_UPDATE' | 'SYSTEM_NOTIFICATION';
   contactId?: string;
@@ -104,7 +106,10 @@ export class MessagingService {
       if (filters?.magasinId) queryParams.append('magasinId', filters.magasinId);
       if (filters?.commandeId) queryParams.append('commandeId', filters.commandeId);
       if (filters?.chauffeurId) queryParams.append('chauffeurId', filters.chauffeurId);
-      if (filters?.isActive !== undefined) queryParams.append('isActive', filters.isActive.toString());
+      if (filters?.isActive !== undefined) {
+        // Envoyer directement le booléen dans l'URL pour que le backend le reçoive correctement
+        queryParams.append('isActive', filters.isActive ? 'true' : 'false');
+      }
       if (filters?.participantId) queryParams.append('participantId', filters.participantId);
 
       const url = `/messaging/conversations?${queryParams.toString()}`;
@@ -180,7 +185,10 @@ export class MessagingService {
       if (filters?.conversationId) queryParams.append('conversationId', filters.conversationId);
       if (filters?.senderType) queryParams.append('senderType', filters.senderType);
       if (filters?.messageType) queryParams.append('messageType', filters.messageType);
-      if (filters?.isRead !== undefined) queryParams.append('isRead', filters.isRead.toString());
+      if (filters?.isRead !== undefined) {
+        // Envoyer directement le booléen dans l'URL pour que le backend le reçoive correctement
+        queryParams.append('isRead', filters.isRead ? 'true' : 'false');
+      }
       if (filters?.search) queryParams.append('search', filters.search);
       if (filters?.dateDebut) queryParams.append('dateDebut', filters.dateDebut);
       if (filters?.dateFin) queryParams.append('dateFin', filters.dateFin);
