@@ -944,6 +944,74 @@ const RealTimeMessaging: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ✅ Modal de création de conversation */}
+      {showCreateConversationModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-lg">
+            <h3 className="text-lg font-semibold mb-4">Créer une nouvelle conversation</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de conversation
+                </label>
+                <select
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  defaultValue=""
+                >
+                  <option value="">Sélectionner un type</option>
+                  <option value="MAGASIN_DIRECTION">Discussion avec un magasin</option>
+                  <option value="PRIVATE">Discussion privée avec un chauffeur</option>
+                  <option value="COMMANDE_GROUP">Groupe de livraison (commande)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Participant
+                </label>
+                <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+                  <option value="">Sélectionner un participant</option>
+                  {allMagasins.map(magasin => (
+                    <option key={magasin.id} value={magasin.id}>
+                      {(magasin as any).nom || magasin.name} (Magasin)
+                    </option>
+                  ))}
+                  {allChauffeurs.map(chauffeur => (
+                    <option key={chauffeur.id} value={chauffeur.id}>
+                      {chauffeur.nom} {chauffeur.prenom} (Chauffeur)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="text-sm text-gray-500">
+                ℹ️ Cette fonctionnalité sera disponible dans une prochaine version.
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setShowCreateConversationModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  // TODO: Implémenter la création
+                  alert('Fonctionnalité en cours de développement');
+                  setShowCreateConversationModal(false);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

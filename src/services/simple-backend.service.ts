@@ -6,6 +6,14 @@ export class SimpleBackendService {
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const token = localStorage.getItem('authToken');
 
+        // ✅ DEBUG: Log détaillé pour diagnostic
+        console.log('🔍 SimpleBackendService.request:', {
+            endpoint,
+            hasToken: !!token,
+            tokenLength: token?.length,
+            method: options.method || 'GET'
+        });
+
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'ngrok-skip-browser-warning': 'true',
@@ -14,6 +22,8 @@ export class SimpleBackendService {
 
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('⚠️ SimpleBackendService: Aucun token disponible pour', endpoint);
         }
 
         const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -22,6 +32,18 @@ export class SimpleBackendService {
         });
 
         if (!response.ok) {
+            // ✅ DIAGNOSTIC détaillé pour erreurs d'authentification
+            if (response.status === 401) {
+                console.error('❌ SimpleBackendService 401:', {
+                    endpoint,
+                    hasToken: !!token,
+                    tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
+                    localStorage: {
+                        authToken: !!localStorage.getItem('authToken'),
+                        user: !!localStorage.getItem('user')
+                    }
+                });
+            }
             throw new Error(`API Error: ${response.status}`);
         }
 

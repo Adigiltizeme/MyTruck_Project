@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { ContactService, Contact, ContactFilters, ContactStats } from '../../services/contact.service';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNotifications } from '../../contexts/NotificationContext';
 
 interface ContactDetailModalProps {
   contact: Contact | null;
@@ -248,6 +249,7 @@ export default function ContactsManagement() {
   const [showStats, setShowStats] = useState(false);
 
   const contactService = new ContactService();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     loadContacts();
@@ -292,6 +294,7 @@ export default function ContactsManagement() {
   };
 
   const handleDeleteContact = async (id: string) => {
+    const contactToDelete = contacts.find(c => c.id === id);
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) return;
 
     try {
@@ -299,9 +302,17 @@ export default function ContactsManagement() {
       if (response.success) {
         await loadContacts();
         await loadStats();
+        addNotification({
+          message: `Contact "${contactToDelete?.nomMagasin || 'supprimé'}" supprimé avec succès`,
+          type: 'success'
+        });
       }
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
+      addNotification({
+        message: 'Erreur lors de la suppression du contact',
+        type: 'error'
+      });
     }
   };
 
@@ -543,9 +554,17 @@ export default function ContactsManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           setSelectedContact(contact);
                           setShowDetailModal(true);
+                          // Marquer automatiquement comme LU si c'est NOUVEAU
+                          if (contact.statut === 'NOUVEAU') {
+                            await handleContactUpdate(contact.id, { statut: 'LU' });
+                            addNotification({
+                              message: `Contact "${contact.nomMagasin}" marqué comme lu`,
+                              type: 'success'
+                            });
+                          }
                         }}
                         className="text-blue-600 hover:text-blue-900"
                         title="Voir les détails"

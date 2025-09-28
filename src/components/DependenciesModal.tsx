@@ -14,11 +14,13 @@ import { useApi } from '../services/api.service';
 interface DependenciesModalProps {
     isOpen: boolean;
     onClose: () => void;
-    entityType: 'magasin' | 'chauffeur';
+    entityType: 'magasin' | 'chauffeur' | 'admin';
     entityId: string;
     entityName: string;
     onForceDelete: () => void;
     showDeleteButton?: boolean;
+    title: string;
+    mode: 'delete' | 'view';
 }
 
 interface Dependency {

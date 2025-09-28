@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
     PlusIcon,
-    PencilIcon,
     TrashIcon,
     UserIcon,
     PhoneIcon,
     EnvelopeIcon,
-    EyeIcon,
     KeyIcon,
     ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { useApi } from '../../services/api.service';
-import DependenciesModal from '../../components/DependenciesModal';
 
 interface AdminInfo {
     id: string;
@@ -53,10 +50,10 @@ export default function AdminManagement() {
     const [admins, setAdmins] = useState<AdminInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [editingAdmin, setEditingAdmin] = useState<AdminInfo | null>(null);
-    const [showDependenciesModal, setShowDependenciesModal] = useState(false);
-    const [selectedAdminForDependencies, setSelectedAdminForDependencies] = useState<AdminInfo | null>(null);
-    const [modalMode, setModalMode] = useState<'view' | 'delete'>('view');
+    // ✅ SUPPRIMÉ: editingAdmin - La modification se fait dans Profile.tsx
+    // Variables d'état pour gestion modale suppression avec dépendances
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deletingAdmin, setDeletingAdmin] = useState<AdminInfo | null>(null);
     const [formData, setFormData] = useState<AdminFormData>({
         nom: '',
         prenom: '',
@@ -83,10 +80,32 @@ export default function AdminManagement() {
             console.log('🔑 Chargement des admins...');
 
             // Appel à l'endpoint users avec filtre role=ADMIN
-            const rawData = await apiService.get('/users?role=ADMIN') as { data: BackendAdmin[] };
+            const rawData = await apiService.get('/users?role=ADMIN');
+            console.log('🔍 Réponse API brute:', rawData);
+
+            // ✅ Gestion robuste des différents formats de réponse
+            let adminsList: BackendAdmin[] = [];
+
+            if (Array.isArray(rawData)) {
+                // Format direct : tableau d'admins
+                adminsList = rawData;
+                console.log('📋 Format direct détecté:', adminsList.length, 'admins');
+            } else if (
+                rawData &&
+                typeof rawData === 'object' &&
+                'data' in rawData &&
+                Array.isArray((rawData as { data?: unknown }).data)
+            ) {
+                // Format avec wrapper : { data: [...] }
+                adminsList = (rawData as { data: BackendAdmin[] }).data;
+                console.log('📦 Format wrapper détecté:', adminsList.length, 'admins');
+            } else {
+                console.warn('⚠️ Format de réponse non reconnu:', rawData);
+                adminsList = [];
+            }
 
             // Transformation des données backend → frontend
-            const transformedAdmins = rawData.data.map(transformBackendAdmin);
+            const transformedAdmins = adminsList.map(transformBackendAdmin);
             console.log('✅ Admins transformés:', transformedAdmins.length);
 
             setAdmins(transformedAdmins);
@@ -131,18 +150,16 @@ export default function AdminManagement() {
 
     const handleSubmit = async () => {
         try {
+            // Nettoyer les données - supprimer les champs non acceptés par le backend
+            const { generatePassword, ...cleanFormData } = formData;
             const adminData = {
-                ...formData,
+                ...cleanFormData,
                 role: 'ADMIN'
             };
 
-            if (editingAdmin) {
-                await apiService.put(`/users/${editingAdmin.id}`, adminData);
-                console.log('✅ Admin mis à jour');
-            } else {
-                await apiService.post('/users', adminData);
-                console.log('✅ Admin créé');
-            }
+            // Seule la création est gérée ici - Modification dans Profile.tsx
+            await apiService.post('/users', adminData);
+            console.log('✅ Admin créé');
 
             await loadAdmins();
             closeModal();
@@ -152,6 +169,10 @@ export default function AdminManagement() {
     };
 
     const handleDelete = async (id: string) => {
+        // Confirmation de suppression
+        const confirmDelete = window.confirm('Êtes-vous sûr de vouloir supprimer cet administrateur ?');
+        if (!confirmDelete) return;
+
         try {
             await apiService.delete(`/users/${id}`);
             await loadAdmins();
@@ -159,21 +180,20 @@ export default function AdminManagement() {
             if (error.message.includes('données liées') || error.message.includes('400')) {
                 const admin = admins.find(a => a.id === id);
                 if (admin) {
-                    setSelectedAdminForDependencies(admin);
-                    setModalMode('delete');
-                    setShowDependenciesModal(true);
+                    setDeletingAdmin(admin);
+                    setShowDeleteConfirm(true);
                 }
             }
         }
     };
 
     const handleForceDelete = async () => {
-        if (selectedAdminForDependencies) {
+        if (deletingAdmin) {
             try {
-                await apiService.delete(`/users/${selectedAdminForDependencies.id}?force=true`);
-                setShowDependenciesModal(false);
+                await apiService.delete(`/users/${deletingAdmin.id}?force=true`);
+                setShowDeleteConfirm(false);
                 await loadAdmins();
-                setSelectedAdminForDependencies(null);
+                setDeletingAdmin(null);
             } catch (forceError: any) {
                 console.error('❌ Erreur suppression forcée:', forceError);
                 alert('Erreur lors de la suppression forcée: ' + forceError.message);
@@ -181,38 +201,20 @@ export default function AdminManagement() {
         }
     };
 
-    const handleViewDependencies = (admin: AdminInfo) => {
-        setSelectedAdminForDependencies(admin);
-        setModalMode('view');
-        setShowDependenciesModal(true);
-    };
+    // ✅ SUPPRIMÉ: handleViewDependencies - Les admins n'ont pas de dépendances à consulter
 
-    const openModal = (admin?: AdminInfo) => {
-        if (admin) {
-            setEditingAdmin(admin);
-            setFormData({
-                nom: admin.nom || '',
-                prenom: admin.prenom || '',
-                email: admin.email,
-                telephone: admin.telephone || '',
-                status: admin.status as 'actif' | 'inactif',
-                password: '',
-                generatePassword: false
-            });
-            setShowPasswordFields(false);
-        } else {
-            setEditingAdmin(null);
-            setFormData({
-                nom: '',
-                prenom: '',
-                email: '',
-                telephone: '',
-                status: 'actif',
-                password: '',
-                generatePassword: false
-            });
-            setShowPasswordFields(true);
-        }
+    const openModal = () => {
+        // Seulement pour création - modification via Profile.tsx
+        setFormData({
+            nom: '',
+            prenom: '',
+            email: '',
+            telephone: '',
+            status: 'actif',
+            password: '',
+            generatePassword: false
+        });
+        setShowPasswordFields(true);
         setGeneratedPassword('');
         setPasswordConfirmation('');
         setShowModal(true);
@@ -220,7 +222,6 @@ export default function AdminManagement() {
 
     const closeModal = () => {
         setShowModal(false);
-        setEditingAdmin(null);
         setFormData({
             nom: '',
             prenom: '',
@@ -323,20 +324,8 @@ export default function AdminManagement() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <div className="flex justify-end space-x-2">
-                                            <button
-                                                onClick={() => handleViewDependencies(admin)}
-                                                className="text-blue-600 hover:text-blue-900"
-                                                title="Voir les dépendances"
-                                            >
-                                                <EyeIcon className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => openModal(admin)}
-                                                className="text-indigo-600 hover:text-indigo-900"
-                                                title="Modifier"
-                                            >
-                                                <PencilIcon className="h-4 w-4" />
-                                            </button>
+                                            {/* ✅ SUPPRIMÉ: Bouton dépendances - Non applicable pour les admins */}
+                                            {/* ✅ SUPPRIMÉ: Bouton modifier - Utiliser Profile.tsx pour les modifications */}
                                             <button
                                                 onClick={() => handleDelete(admin.id)}
                                                 className="text-red-600 hover:text-red-900"
@@ -370,7 +359,7 @@ export default function AdminManagement() {
                         <div className="mt-3">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-lg font-medium text-gray-900">
-                                    {editingAdmin ? 'Modifier l\'administrateur' : 'Nouvel administrateur'}
+                                    Nouvel administrateur
                                 </h3>
                                 <button
                                     onClick={closeModal}
@@ -476,35 +465,21 @@ export default function AdminManagement() {
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Mot de passe {!editingAdmin && '*'}
+                                                Mot de passe *
                                             </label>
                                             <input
                                                 type="password"
                                                 value={formData.password}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                required={!editingAdmin}
-                                                placeholder={editingAdmin ? "Laissez vide pour ne pas changer" : ""}
+                                                required
+                                                placeholder="Saisissez le mot de passe"
                                             />
                                         </div>
                                     </div>
                                 )}
 
-                                {editingAdmin && (
-                                    <div className="border-t pt-4">
-                                        <label className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                checked={showPasswordFields}
-                                                onChange={(e) => setShowPasswordFields(e.target.checked)}
-                                                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                                            />
-                                            <span className="ml-2 text-sm text-gray-700">
-                                                Changer le mot de passe
-                                            </span>
-                                        </label>
-                                    </div>
-                                )}
+                                {/* ✅ SUPPRIMÉ: Section modification mot de passe - Seulement création */}
                             </div>
 
                             <div className="flex justify-end space-x-3 mt-6">
@@ -518,7 +493,7 @@ export default function AdminManagement() {
                                     onClick={handleSubmit}
                                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md"
                                 >
-                                    {editingAdmin ? 'Mettre à jour' : 'Créer'}
+                                    Créer
                                 </button>
                             </div>
                         </div>
@@ -526,21 +501,35 @@ export default function AdminManagement() {
                 </div>
             )}
 
-            {/* Modal de dépendances */}
-            {showDependenciesModal && selectedAdminForDependencies && (
-                <DependenciesModal
-                    isOpen={showDependenciesModal}
-                    onClose={() => setShowDependenciesModal(false)}
-                    title={modalMode === 'delete' ?
-                        `Supprimer l'administrateur ${selectedAdminForDependencies.nom}` :
-                        `Dépendances de ${selectedAdminForDependencies.nom}`
-                    }
-                    entityId={selectedAdminForDependencies.id}
-                    entityType="admin"
-                    entityName={`${selectedAdminForDependencies.nom} ${selectedAdminForDependencies.prenom}`}
-                    onForceDelete={modalMode === 'delete' ? handleForceDelete : undefined}
-                    mode={modalMode}
-                />
+            {/* Modal de confirmation suppression */}
+            {showDeleteConfirm && deletingAdmin && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                    <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                        <div className="mt-3">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                Confirmer la suppression
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-6">
+                                Êtes-vous sûr de vouloir supprimer l'administrateur {deletingAdmin.nom} {deletingAdmin.prenom} ?
+                                Cette action est irréversible.
+                            </p>
+                            <div className="flex justify-end space-x-4">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    onClick={handleForceDelete}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                >
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

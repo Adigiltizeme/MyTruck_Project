@@ -20,6 +20,8 @@ import { SlotsManagement } from './admin/SlotsManagement';
 import { useOffline } from '../contexts/OfflineContext';
 import { useState, useEffect } from 'react';
 import { normalizeMagasin, normalizeChauffeur } from '../utils/data-normalization';
+import { useUnreadCounts } from '../hooks/useUnreadCounts';
+import { UnreadBadge } from './UnreadBadge';
 
 interface SidebarProps {
   onCloseMobile?: () => void;
@@ -31,6 +33,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   const { dataService } = useOffline();
   const navigate = useNavigate();
   const [displayUserData, setDisplayUserData] = useState<any>(null);
+  const { messages: unreadMessages, contacts: unreadContacts } = useUnreadCounts();
 
   // Charger les données réelles selon le rôle sélectionné
   useEffect(() => {
@@ -141,13 +144,13 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['admin', 'magasin'],
     },
     {
-      name: 'Mes Messages',
+      name: 'Contact My Truck',
       icon: MessageCircleIcon,
-      href: '/mes-messages',
+      href: '/contact-mytruck',
       roles: ['magasin']
     },
     {
-      name: 'Messagerie',
+      name: 'Messagerie Realtime',
       icon: ChatBubbleLeftRightIcon,
       href: '/messagerie',
       roles: ['magasin', 'admin', 'chauffeur']
@@ -192,20 +195,40 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   };
 
   const renderNavLink = (item: any) => {
+    // Déterminer le nombre de notifications pour ce lien
+    const getUnreadCount = () => {
+      switch (item.href) {
+        case '/contacts':
+          return unreadContacts;
+        case '/contact-mytruck':
+        case '/messagerie':
+          return unreadMessages;
+        default:
+          return 0;
+      }
+    };
+
+    const unreadCount = getUnreadCount();
+
     return (
       <NavLink
         key={item.name}
         to={item.href}
         className={({ isActive }) =>
-          `flex items-center px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-[15px] font-medium rounded-lg transition-colors my-1 ${isActive
+          `flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-[15px] font-medium rounded-lg transition-colors my-1 relative ${isActive
             ? 'bg-primary text-white'
             : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'
           }`
         }
         onClick={isMobile ? onCloseMobile : undefined}
       >
-        <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3 flex-shrink-0`} />
-        <span className="truncate">{item.name}</span>
+        <div className="flex items-center">
+          <item.icon className={`h-4 w-4 sm:h-5 sm:w-5 mr-2 sm:mr-3`} />
+          <span className="truncate">{item.name}</span>
+        </div>
+        <div className="relative flex-shrink-0 mb-3">
+          <UnreadBadge count={unreadCount} />
+        </div>
       </NavLink>
     );
   };

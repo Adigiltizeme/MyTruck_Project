@@ -1,17 +1,100 @@
 import React, { Fragment } from 'react';
 import { Menu, MenuButton, MenuItems, Transition } from '@headlessui/react';
-import { BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { BellIcon, CheckIcon, XMarkIcon, ChatBubbleLeftRightIcon, UsersIcon } from '@heroicons/react/24/outline';
 import { useNotifications, Notification } from '../contexts/NotificationContext';
+import { useUnreadCounts } from '../hooks/useUnreadCounts';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { apiService } from '../services/api.service';
 
 export const NotificationPanel: React.FC = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
     const {
         notifications,
         unreadCount,
         markAsRead,
         markAllAsRead,
         clearNotifications,
-        removeNotification
+        removeNotification,
+        addNotification
     } = useNotifications();
+    const { messages: unreadMessages, contacts: unreadContacts, refreshCounts } = useUnreadCounts();
+
+    // Calculer le nombre total de notifications (app + messages + contacts)
+    const totalUnreadCount = unreadCount + unreadMessages + unreadContacts;
+
+    // Fonction pour marquer tous les contacts nouveaux comme lus
+    const markAllContactsAsRead = async () => {
+        if (!user || (user.role !== 'admin' && user.role !== 'magasin')) return;
+
+        try {
+            // Récupérer tous les contacts NOUVEAU
+            const contactsResponse = await apiService.get('/contacts');
+            const contacts = (contactsResponse as { data?: any[] })?.data || [];
+
+            // Filtrer selon le rôle
+            const newContacts = contacts.filter(contact => {
+                if (contact.statut !== 'NOUVEAU') return false;
+
+                if (user.role === 'admin') {
+                    return true; // Les admins voient tous les contacts
+                } else if (user.role === 'magasin') {
+                    // Les magasins voient seulement leurs propres contacts
+                    return contact.magasinId === user.storeId || contact.nomMagasin === user.storeName;
+                }
+                return false;
+            });
+
+            // Marquer chacun comme LU
+            for (const contact of newContacts) {
+                await apiService.patch(`/contacts/${contact.id}`, { statut: 'LU' });
+            }
+
+            // Actualiser les compteurs
+            refreshCounts();
+
+            // Ajouter une notification de succès
+            addNotification({
+                message: `${newContacts.length} contact(s) marqué(s) comme lu(s)`,
+                type: 'success'
+            });
+        } catch (error) {
+            console.error('Erreur lors du marquage des contacts:', error);
+            addNotification({
+                message: 'Erreur lors du marquage des contacts',
+                type: 'error'
+            });
+        }
+    };
+
+    // Fonction pour naviguer vers les messages
+    const handleMessagesClick = () => {
+        navigate('/messagerie');
+        addNotification({
+            message: 'Redirection vers la messagerie',
+            type: 'info'
+        });
+    };
+
+    // Fonction pour naviguer vers les contacts et marquer comme lus
+    const handleContactsClick = async () => {
+        if (unreadContacts > 0) {
+            await markAllContactsAsRead();
+        }
+
+        // Redirection selon le rôle
+        if (user?.role === 'admin') {
+            navigate('/contacts');
+        } else if (user?.role === 'magasin') {
+            navigate('/contact-mytruck');
+        }
+
+        addNotification({
+            message: 'Redirection vers les contacts',
+            type: 'info'
+        });
+    };
 
     const formatTimestamp = (date: Date): string => {
         const now = new Date();
@@ -62,9 +145,9 @@ export const NotificationPanel: React.FC = () => {
             <MenuButton className="relative p-2 text-gray-500 rounded-full hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
                 <span className="sr-only">Notifications</span>
                 <BellIcon className="h-6 w-6" />
-                {unreadCount > 0 && (
+                {totalUnreadCount > 0 && (
                     <span className="absolute top-0 right-0 -mt-1 -mr-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white">
-                        {unreadCount}
+                        {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                     </span>
                 )}
             </MenuButton>
@@ -102,7 +185,43 @@ export const NotificationPanel: React.FC = () => {
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">
-                        {notifications.length === 0 ? (
+                        {/* Section messages et contacts non lus */}
+                        {(unreadMessages > 0 || unreadContacts > 0) && (
+                            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-100 dark:border-gray-700">
+                                <div className="space-y-2">
+                                    {unreadMessages > 0 && (
+                                        <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/30 cursor-pointer transition-colors"
+                                             onClick={handleMessagesClick}>
+                                            <div className="flex items-center space-x-2">
+                                                <ChatBubbleLeftRightIcon className="h-4 w-4 text-blue-600" />
+                                                <span className="text-gray-700 dark:text-gray-300">Messages non lus</span>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                                    {unreadMessages}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {unreadContacts > 0 && (user?.role === 'admin' || user?.role === 'magasin') && (
+                                        <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 cursor-pointer transition-colors"
+                                             onClick={handleContactsClick}>
+                                            <div className="flex items-center space-x-2">
+                                                <UsersIcon className="h-4 w-4 text-green-600" />
+                                                <span className="text-gray-700 dark:text-gray-300">Nouveaux contacts</span>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <span className="bg-green-600 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                                    {unreadContacts}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {notifications.length === 0 && unreadMessages === 0 && unreadContacts === 0 ? (
                             <div className="py-6 px-4 text-center text-gray-500 dark:text-gray-400">
                                 <p>Pas de notifications</p>
                             </div>

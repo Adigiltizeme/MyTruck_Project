@@ -167,6 +167,14 @@ class ApiAuthService {
         localStorage.setItem('preferredDataSource', 'backend_api');
         localStorage.setItem('userSource', 'backend');
 
+        // ✅ CORRECTION CRITIQUE: Mettre à jour l'instance ApiService avec le nouveau token
+        import('../services/api.service').then(({ apiService }) => {
+            apiService.setToken(token);
+            console.log('✅ Token mis à jour dans ApiService');
+        }).catch(error => {
+            console.warn('⚠️ Erreur mise à jour token ApiService:', error);
+        });
+
         // ✅ VÉRIFICATION IMMÉDIATE
         setTimeout(() => {
             console.log('💾 STOCKAGE FORCÉ - Après 0ms:', {

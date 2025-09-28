@@ -73,8 +73,47 @@ const Profile = () => {
             role: normalized.role
           };
         }
+      } else if (user.role === 'admin') {
+        // Utilisateur admin - charger depuis l'API comme AdminManagement
+        try {
+          const rawData = await apiService.get('/users?role=ADMIN');
+          console.log('👤 Chargement données admin depuis API...');
+
+          // Gestion robuste des formats de réponse (comme AdminManagement)
+          let adminsList = [];
+          if (Array.isArray(rawData)) {
+            adminsList = rawData;
+          } else if (rawData && typeof rawData === 'object' && 'data' in rawData && Array.isArray(rawData.data)) {
+            adminsList = rawData.data;
+          }
+
+          // Trouver l'admin actuel par ID
+          const currentAdmin = adminsList.find(admin => admin.id === user.id);
+          if (currentAdmin) {
+            actualData = {
+              name: `${currentAdmin.prenom || ''} ${currentAdmin.nom}`.trim(),
+              email: currentAdmin.email || '',
+              phone: currentAdmin.telephone || ''
+            };
+            console.log('✅ Données admin chargées depuis API:', actualData);
+          } else {
+            console.warn('⚠️ Admin actuel non trouvé dans la liste, fallback vers données contexte');
+            actualData = {
+              name: user.name || '',
+              email: user.email || '',
+              phone: user.storePhone || ''
+            };
+          }
+        } catch (error) {
+          console.error('❌ Erreur chargement admin API, fallback vers contexte:', error);
+          actualData = {
+            name: user.name || '',
+            email: user.email || '',
+            phone: user.storePhone || ''
+          };
+        }
       } else {
-        // Utilisateur admin - données d'origine
+        // Autres types d'utilisateurs - données contexte
         actualData = {
           name: user.name || '',
           email: user.email || '',
@@ -127,70 +166,23 @@ const Profile = () => {
       let endpoint;
       let updateData;
 
-      // ✅ APPROCHE UNIFIÉE : Utiliser /me/profile pour tous les utilisateurs
-      console.log('👤 Mise à jour du profil avec endpoint unifié /me/profile...');
-      
-      try {
-        // Endpoint unique pour tous les types d'utilisateurs
-        const profileData = {
-          name: userData.name,
-          email: userData.email,
-          phone: userData.phone,
-          address: userData.address,
-          manager: userData.manager,
-          statut: userData.statut
-        };
-        
-        await apiService.patch('/me/profile', profileData);
-        console.log('✅ Mise à jour du profil réussie !');
-        
-        // Mettre à jour le contexte utilisateur
-        await updateUserInfo(profileData);
-        
-      } catch (error: any) {
-        console.log('❌ Endpoint /me/profile non disponible, tentative avec /auth/me/profile...');
-        
-        // Fallback : essayer avec préfixe auth
-        try {
-          const profileData = {
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone
-          };
-          
-          await apiService.patch('/auth/me/profile', profileData);
-          console.log('✅ Mise à jour du profil réussie avec fallback !');
-          
-          // Mettre à jour le contexte utilisateur
-          await updateUserInfo(profileData);
-          
-        } catch (fallbackError: any) {
-          console.error('❌ Tous les endpoints /me/profile ont échoué:', fallbackError.message);
-          
-          // Message informatif pour le développeur
-          const message = `Endpoint requis non implémenté dans le backend.
+      // ✅ ENDPOINT CORRIGÉ : Utiliser directement /auth/me/profile
+      console.log('👤 Mise à jour du profil avec endpoint corrigé /auth/me/profile...');
 
-📋 Endpoints à créer :
-• PATCH /api/v1/me/profile  
-• OU PATCH /api/v1/auth/me/profile
+      const profileData = {
+        name: userData.name,
+        email: userData.email,
+        phone: userData.phone,
+        address: userData.address,
+        manager: userData.manager,
+        statut: userData.statut
+      };
 
-📝 Format attendu :
-{
-  "name": "Nom Complet",
-  "email": "email@exemple.com", 
-  "phone": "0123456789"
-}
+      await apiService.patch('/auth/me/profile', profileData);
+      console.log('✅ Mise à jour du profil réussie !');
 
-🔄 Le backend doit :
-1. Identifier le type d'utilisateur depuis le token
-2. Adapter les champs selon le type :
-   - Chauffeur: name → prenom + nom, phone → telephone
-   - Magasin: name → nom, phone → telephone  
-   - Admin: données directes`;
-          
-          throw new Error(message);
-        }
-      }
+      // Mettre à jour le contexte utilisateur
+      await updateUserInfo(profileData);
 
       // 🔄 Recharger les données actualisées depuis le backend
       await loadUserData();

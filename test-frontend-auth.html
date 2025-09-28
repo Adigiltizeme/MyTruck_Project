@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Authentification Frontend</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { border: 1px solid #ccc; margin: 10px 0; padding: 15px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnostic Authentification Frontend</h1>
+
+    <div class="section">
+        <h2>📋 État localStorage</h2>
+        <div id="localStorage-status"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔑 Test Connexion</h2>
+        <button onclick="testLogin()">Se connecter admin@mytruck.com</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>📡 Test API Commandes</h2>
+        <button onclick="testCommandes()">Tester GET /commandes</button>
+        <div id="commandes-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Actions</h2>
+        <button onclick="clearAll()">Vider localStorage</button>
+        <button onclick="refreshDiagnostic()">Rafraîchir diagnostic</button>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api/v1';
+
+        function displayLocalStorageStatus() {
+            const authToken = localStorage.getItem('authToken');
+            const user = localStorage.getItem('user');
+
+            let html = '<h3>Contenu localStorage:</h3>';
+            html += `<p><strong>authToken:</strong> ${authToken ? '✅ Présent (' + authToken.substring(0, 20) + '...)' : '❌ Absent'}</p>`;
+            html += `<p><strong>user:</strong> ${user ? '✅ Présent' : '❌ Absent'}</p>`;
+
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    html += '<h4>Données utilisateur:</h4>';
+                    html += `<pre>${JSON.stringify(userData, null, 2)}</pre>`;
+                } catch (e) {
+                    html += '<p class="error">❌ user JSON invalide</p>';
+                }
+            }
+
+            if (authToken) {
+                try {
+                    const payload = JSON.parse(atob(authToken.split('.')[1]));
+                    html += '<h4>Payload JWT:</h4>';
+                    html += `<pre>${JSON.stringify(payload, null, 2)}</pre>`;
+
+                    const now = Math.floor(Date.now() / 1000);
+                    const expiry = payload.exp;
+                    const isExpired = now > expiry;
+
+                    html += `<p><strong>Expiration:</strong> ${new Date(expiry * 1000).toLocaleString()}</p>`;
+                    html += `<p><strong>État:</strong> ${isExpired ? '<span class="error">❌ Expiré</span>' : '<span class="success">✅ Valide</span>'}</p>`;
+                } catch (e) {
+                    html += '<p class="error">❌ JWT invalide</p>';
+                }
+            }
+
+            document.getElementById('localStorage-status').innerHTML = html;
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '<p>🔄 Test de connexion...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'admin@mytruck.com',
+                        password: 'MyTruckNew2024!'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Sauvegarder dans localStorage
+                    localStorage.setItem('authToken', data.access_token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ Connexion réussie!</p>
+                        <h4>Réponse:</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+
+                    // Rafraîchir le diagnostic
+                    displayLocalStorageStatus();
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<p class="error">❌ Erreur ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Erreur: ${error.message}</p>`;
+            }
+        }
+
+        async function testCommandes() {
+            const resultDiv = document.getElementById('commandes-result');
+            resultDiv.innerHTML = '<p>🔄 Test API commandes...</p>';
+
+            const token = localStorage.getItem('authToken');
+
+            if (!token) {
+                resultDiv.innerHTML = '<p class="error">❌ Aucun token disponible. Connectez-vous d\'abord.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/commandes?take=5`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ API commandes fonctionne!</p>
+                        <h4>Nombre de commandes:</h4>
+                        <p>${data.data ? data.data.length : 'N/A'}</p>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `<p class="error">❌ Erreur ${response.status}: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Erreur: ${error.message}</p>`;
+            }
+        }
+
+        function clearAll() {
+            localStorage.clear();
+            displayLocalStorageStatus();
+            document.getElementById('login-result').innerHTML = '';
+            document.getElementById('commandes-result').innerHTML = '';
+        }
+
+        function refreshDiagnostic() {
+            displayLocalStorageStatus();
+        }
+
+        // Diagnostic initial
+        displayLocalStorageStatus();
+    </script>
+</body>
+</html>

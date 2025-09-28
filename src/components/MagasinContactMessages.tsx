@@ -203,7 +203,7 @@ const MagasinContactMessages: React.FC = () => {
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Mes Messages de Contact</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Contact My Truck</h1>
             <p className="text-gray-600 mt-1">
               {filteredContacts.length} message{filteredContacts.length > 1 ? 's' : ''} reçu{filteredContacts.length > 1 ? 's' : ''}
             </p>

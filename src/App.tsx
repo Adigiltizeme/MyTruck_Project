@@ -304,7 +304,7 @@ const App = () => {
               }
             />
             <Route
-              path="/mes-messages"
+              path="/contact-mytruck"
               element={
                 <ProtectedRoute allowedRoles={['magasin']}>
                   <MagasinContactMessages />
