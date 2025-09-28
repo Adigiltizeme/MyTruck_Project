@@ -430,10 +430,10 @@ const RealTimeMessaging: React.FC = () => {
   return (
     <div className="h-screen flex bg-gray-50">
       {/* Debug Component - Admin only */}
-      <ConversationDebugger />
+      {/* <ConversationDebugger /> */}
 
       {/* Cleanup Component - Admin only */}
-      <CleanupConversations />
+      {/* <CleanupConversations /> */}
 
       {/* Sidebar - Liste des conversations */}
       <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
