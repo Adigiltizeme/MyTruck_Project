@@ -102,66 +102,49 @@ export const useUnreadCounts = () => {
     }
   };
 
-  // DÉSACTIVÉ TEMPORAIREMENT - Vérifier que l'utilisateur est prêt pour les requêtes API
+  // Version robuste - Attendre que l'AuthContext soit stable
   useEffect(() => {
-    // Désactiver complètement le hook pour éviter les erreurs d'authentification
-    console.log('🔔 useUnreadCounts: Hook temporairement désactivé pour éviter les erreurs d\'authentification');
-    setIsReady(false);
-    setCounts({ messages: 0, contacts: 0, loading: false });
-    return;
-
-    // Code original commenté :
-    /*
     if (!user?.id || !user?.token) {
       setIsReady(false);
+      setCounts({ messages: 0, contacts: 0, loading: false });
       return;
     }
 
-    // Vérifier que le token est aussi présent dans localStorage
-    const storedToken = localStorage.getItem('authToken');
-    if (!storedToken) {
-      console.log('🔔 useUnreadCounts: En attente du token localStorage...');
-      setIsReady(false);
-      return;
-    }
+    // Attendre un délai pour s'assurer que l'API service est synchronisé
+    const checkAuthState = async () => {
+      try {
+        // Test simple pour vérifier que l'authentification fonctionne
+        const testResponse = await apiService.get('/auth/me');
+        if (testResponse) {
+          console.log('🔔 useUnreadCounts: Authentification vérifiée, activation du hook');
+          setIsReady(true);
+        }
+      } catch (error) {
+        console.log('🔔 useUnreadCounts: Authentification pas encore prête, attente...');
+        setIsReady(false);
+        setCounts({ messages: 0, contacts: 0, loading: false });
+      }
+    };
 
-    // Vérifier que les deux tokens correspondent
-    if (user.token !== storedToken) {
-      console.log('🔔 useUnreadCounts: Tokens non synchronisés, attente...');
-      setIsReady(false);
-      return;
-    }
-
-    console.log('🔔 useUnreadCounts: Utilisateur prêt pour les requêtes API');
-    setIsReady(true);
-    */
+    // Délai pour laisser l'AuthContext se stabiliser
+    const timer = setTimeout(checkAuthState, 2000);
+    return () => clearTimeout(timer);
   }, [user?.id, user?.role, user?.token]);
 
-  // DÉSACTIVÉ - Charger les compteurs quand l'utilisateur est prêt
+  // Charger les compteurs quand l'utilisateur est prêt
   useEffect(() => {
-    // Désactivé pour éviter les erreurs
-    return;
-
-    // Code original commenté :
-    /*
     if (!isReady) return;
 
     console.log('🔔 useUnreadCounts: Démarrage fetchUnreadCounts...');
     const timer = setTimeout(() => {
       fetchUnreadCounts();
-    }, 100); // Délai minimal
+    }, 500); // Délai de sécurité
 
     return () => clearTimeout(timer);
-    */
   }, [isReady]);
 
-  // DÉSACTIVÉ - Actualiser les compteurs périodiquement (toutes les 30 secondes)
+  // Actualiser les compteurs périodiquement (toutes les 30 secondes)
   useEffect(() => {
-    // Désactivé pour éviter les erreurs
-    return;
-
-    // Code original commenté :
-    /*
     if (!isReady) return;
 
     const interval = setInterval(() => {
@@ -173,7 +156,6 @@ export const useUnreadCounts = () => {
     }, 30000);
 
     return () => clearInterval(interval);
-    */
   }, [isReady, user?.id]);
 
   // DÉSACTIVÉ - Initialiser et nettoyer WebSocket
@@ -196,10 +178,12 @@ export const useUnreadCounts = () => {
 
   // Fonction pour forcer un rechargement (appelée après lecture de messages)
   const refreshCounts = () => {
-    // Vérifier que l'utilisateur est connecté et a un token valide
-    const token = localStorage.getItem('authToken');
-    if (user?.id && token) {
+    // Vérifier que l'utilisateur est connecté et prêt
+    if (isReady && user?.id && localStorage.getItem('authToken')) {
+      console.log('🔔 useUnreadCounts: Actualisation forcée...');
       fetchUnreadCounts();
+    } else {
+      console.log('🔔 useUnreadCounts: refreshCounts ignoré - pas prêt');
     }
   };
 
