@@ -4,10 +4,54 @@ import { fr } from 'date-fns/locale';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../hooks/useMessaging';
 import { Conversation, Message } from '../services/messaging.service';
+import { useApi } from '../services/api.service';
+import { MagasinInfo, PersonnelInfo } from '../types/business.types';
+import CleanupConversations from './CleanupConversations';
+import ConversationDebugger from './ConversationDebugger';
 
 const RealTimeMessaging: React.FC = () => {
   const { user } = useAuth();
+  const apiService = useApi();
   const [conversationCreated, setConversationCreated] = useState(false);
+
+  // États pour les données des participants (méthode éprouvée)
+  const [allMagasins, setAllMagasins] = useState<MagasinInfo[]>([]);
+  const [allChauffeurs, setAllChauffeurs] = useState<PersonnelInfo[]>([]);
+  const [participantsLoaded, setParticipantsLoaded] = useState(false);
+
+  // Fonction pour charger tous les participants (méthode éprouvée de MagasinManagement/ChauffeurManagement)
+  const loadAllParticipants = async () => {
+    try {
+      console.log('📊 Chargement des participants avec méthodes éprouvées...');
+
+      // Méthode exacte de MagasinManagement.tsx
+      const magasinsResponse = await apiService.get('/magasins') as { data: MagasinInfo[] };
+      const magasinsData = Array.isArray(magasinsResponse) ? magasinsResponse : magasinsResponse.data;
+      setAllMagasins(magasinsData || []);
+
+      // Méthode exacte de ChauffeurManagement.tsx
+      const chauffeursResponse = await apiService.get('/chauffeurs') as { data: PersonnelInfo[] } | PersonnelInfo[];
+      const chauffeursData = Array.isArray(chauffeursResponse) ? chauffeursResponse : chauffeursResponse.data;
+      setAllChauffeurs(chauffeursData || []);
+
+      setParticipantsLoaded(true);
+      console.log('✅ Participants chargés:', {
+        magasins: magasinsData?.length || 0,
+        chauffeurs: chauffeursData?.length || 0
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur chargement participants:', error);
+      setParticipantsLoaded(true); // Continue même en cas d'erreur
+    }
+  };
+
+  // Charger les participants au montage
+  useEffect(() => {
+    if (user) {
+      loadAllParticipants();
+    }
+  }, [user]);
 
   // Debug de l'utilisateur au montage
   useEffect(() => {
@@ -52,9 +96,17 @@ const RealTimeMessaging: React.FC = () => {
         conversationCreated,
         conversationsCount: conversations.length
       });
-      createDefaultConversations();
+
+      // Éviter les créations multiples avec un délai
+      const timer = setTimeout(() => {
+        if (!conversationCreated) {
+          createDefaultConversations();
+        }
+      }, 1000);
+
+      return () => clearTimeout(timer);
     }
-  }, [user, isLoading, conversationCreated, conversations.length]);
+  }, [user, isLoading]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -73,10 +125,17 @@ const RealTimeMessaging: React.FC = () => {
   };
 
   const createDefaultConversations = async () => {
-    console.log('🏗️ createDefaultConversations called with user:', { hasUser: !!user, userId: user?.id });
+    console.log('🏗️ createDefaultConversations called with user:', { hasUser: !!user, userId: user?.id, role: user?.role });
 
     if (!user) {
       console.warn('❌ No user found, skipping default conversations');
+      return;
+    }
+
+    // Les admins/direction n'ont pas besoin de conversation avec eux-mêmes
+    if (user.role === 'admin') {
+      console.log('👑 Admin/Direction detected - no self-conversation needed');
+      setConversationCreated(true);
       return;
     }
 
@@ -87,15 +146,38 @@ const RealTimeMessaging: React.FC = () => {
       const token = localStorage.getItem('authToken');
       console.log('🔑 Token for API call:', { hasToken: !!token });
 
-      // Vérifier d'abord si une conversation Direction existe déjà
+      // Vérifier d'abord si une conversation Direction existe déjà dans les conversations chargées
       const existingDirectionConv = conversations.find(conv =>
-        conv.type === 'PRIVATE' &&
-        conv.name?.includes('My Truck Direction')
+        (conv.type === 'PRIVATE' || conv.type === 'MAGASIN_DIRECTION') &&
+        (conv.name?.includes('My Truck Direction') || conv.name?.includes('Discussion avec My Truck Direction'))
       );
 
       if (existingDirectionConv) {
         console.log('✅ Conversation Direction déjà existante:', existingDirectionConv.id);
+        setConversationCreated(true);
         return;
+      }
+
+      // Double-vérification côté API avant création
+      const checkResponse = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations?isActive=true`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (checkResponse.ok) {
+        const existingConversations = await checkResponse.json();
+        const hasDirectionConv = existingConversations.some((conv: any) =>
+          (conv.type === 'PRIVATE' || conv.type === 'MAGASIN_DIRECTION') &&
+          (conv.name?.includes('My Truck Direction') || conv.name?.includes('Discussion avec My Truck Direction'))
+        );
+
+        if (hasDirectionConv) {
+          console.log('✅ Conversation Direction trouvée via API - éviter duplication');
+          setConversationCreated(true);
+          await loadConversations();
+          return;
+        }
       }
 
       // Créer automatiquement la conversation avec la Direction pour tous les utilisateurs
@@ -236,9 +318,73 @@ const RealTimeMessaging: React.FC = () => {
     }
   };
 
+  // Fonction intelligente pour identifier le type de conversation PRIVATE et obtenir le bon titre
   const getConversationTitle = (conversation: Conversation): string => {
-    if (conversation.name) return conversation.name;
-    if (conversation.type === 'MAGASIN_DIRECTION') return 'Discussion avec My Truck Direction';
+    console.log('🔍 getConversationTitle called:', {
+      conversationId: conversation.id.slice(0, 8),
+      type: conversation.type,
+      name: conversation.name,
+      userRole: user?.role,
+      participantIds: conversation.participantIds,
+      participantsLoaded
+    });
+
+    // Pour les conversations de type MAGASIN_DIRECTION (anciennes)
+    if (conversation.type === 'MAGASIN_DIRECTION') {
+      if (user?.role === 'admin') {
+        const magasinName = conversation.magasin?.nom || `Magasin ${conversation.magasinId}`;
+        return `Discussion avec ${magasinName}`;
+      } else {
+        return 'Discussion avec My Truck Direction';
+      }
+    }
+
+    // Pour les conversations PRIVATE (nouvelles) - identifier le type selon les participants
+    if (conversation.type === 'PRIVATE' && participantsLoaded && conversation.participantIds?.length === 2) {
+      const otherParticipantId = conversation.participantIds.find(id => id !== user?.id);
+
+      if (otherParticipantId) {
+        // Chercher dans les magasins
+        const magasin = allMagasins.find(m => m.id === otherParticipantId);
+        if (magasin) {
+          // Conversation My Truck ↔ Magasin
+          if (user?.role === 'admin') {
+            const magasinName = (magasin as any).nom || magasin.name;
+            return `Discussion avec ${magasinName}`;
+          } else {
+            return 'Discussion avec My Truck Direction';
+          }
+        }
+
+        // Chercher dans les chauffeurs
+        const chauffeur = allChauffeurs.find(c => c.id === otherParticipantId);
+        if (chauffeur) {
+          // Conversation My Truck ↔ Chauffeur
+          if (user?.role === 'admin') {
+            return `Discussion avec ${chauffeur.nom} ${chauffeur.prenom}`.trim();
+          } else {
+            return 'Discussion avec My Truck Direction';
+          }
+        }
+
+        // Si c'est entre chauffeur et magasin (ni l'un ni l'autre n'est l'admin)
+        if (user?.role === 'chauffeur') {
+          const magasinForChauffeur = allMagasins.find(m => m.id === otherParticipantId);
+          if (magasinForChauffeur) {
+            const magasinName = (magasinForChauffeur as any).nom || magasinForChauffeur.name;
+            return `Discussion avec ${magasinName}`;
+          }
+        } else if (user?.role === 'magasin') {
+          const chauffeurForMagasin = allChauffeurs.find(c => c.id === otherParticipantId);
+          if (chauffeurForMagasin) {
+            return `Discussion avec ${chauffeurForMagasin.nom} ${chauffeurForMagasin.prenom}`.trim();
+          }
+        }
+      }
+    }
+
+    // Fallbacks pour autres types
+    if (conversation.name && conversation.name.trim() !== '') return conversation.name;
     if (conversation.type === 'COMMANDE_GROUP') return `Commande ${conversation.commandeId}`;
     return 'Conversation privée';
   };
@@ -247,12 +393,48 @@ const RealTimeMessaging: React.FC = () => {
     return conversation._count?.messages || 0;
   };
 
+  const getSenderName = (message: any, conversation: Conversation): string => {
+    // Si c'est l'utilisateur actuel
+    if (message.senderId === user?.id) {
+      return 'Moi';
+    }
+
+    // Utiliser les données chargées pour identifier l'expéditeur
+    if (participantsLoaded && message.senderId) {
+      // Chercher dans les magasins
+      const magasin = allMagasins.find(m => m.id === message.senderId);
+      if (magasin) {
+        return (magasin as any).nom || magasin.name;
+      }
+
+      // Chercher dans les chauffeurs
+      const chauffeur = allChauffeurs.find(c => c.id === message.senderId);
+      if (chauffeur) {
+        return `${chauffeur.nom} ${chauffeur.prenom}`.trim();
+      }
+    }
+
+    // Fallback vers les données de conversation si disponibles
+    if (message.senderType === 'MAGASIN' && conversation.magasin?.nom) {
+      return conversation.magasin.nom;
+    }
+
+    // Fallback vers le type d'expéditeur
+    return message.senderType;
+  };
+
   const getCurrentTypingUsers = (conversationId: string): string[] => {
     return typingUsers[conversationId] || [];
   };
 
   return (
     <div className="h-screen flex bg-gray-50">
+      {/* Debug Component - Admin only */}
+      <ConversationDebugger />
+
+      {/* Cleanup Component - Admin only */}
+      <CleanupConversations />
+
       {/* Sidebar - Liste des conversations */}
       <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
         {/* Header */}
@@ -370,7 +552,7 @@ const RealTimeMessaging: React.FC = () => {
                   }`}>
                     {message.senderId !== user?.id && (
                       <div className={`text-xs mb-1 ${getSenderTypeColor(message.senderType)}`}>
-                        {message.senderType}
+                        {getSenderName(message, currentConversation)}
                       </div>
                     )}
                     <div className="flex items-center space-x-1">

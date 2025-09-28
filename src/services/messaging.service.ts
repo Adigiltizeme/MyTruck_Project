@@ -119,7 +119,15 @@ export class MessagingService {
       console.log('📡 getConversations API response:', {
         success: true,
         dataLength: Array.isArray(response) ? response.length : 0,
-        data: response
+        data: response,
+        firstConversation: response[0] ? {
+          id: response[0].id,
+          type: response[0].type,
+          name: response[0].name,
+          magasinId: response[0].magasinId,
+          magasin: response[0].magasin,
+          hasMagasinData: !!response[0].magasin
+        } : null
       });
 
       if (Array.isArray(response) && response.length === 0) {
