@@ -32,6 +32,7 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { SlotsManagement } from './components/admin/SlotsManagement';
 import ChauffeurManagement from './pages/admin/ChauffeurManagement';
 import MagasinManagement from './pages/admin/MagasinManagement';
+import AdminManagement from './pages/admin/AdminManagement';
 import ContactsManagement from './pages/admin/ContactsManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
 import MagasinContactMessages from './components/MagasinContactMessages';
@@ -267,6 +268,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin']}>
                   <MagasinManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admins"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminManagement />
                 </ProtectedRoute>
               }
             />

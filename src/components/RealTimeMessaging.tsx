@@ -14,6 +14,12 @@ const RealTimeMessaging: React.FC = () => {
   const apiService = useApi();
   const [conversationCreated, setConversationCreated] = useState(false);
 
+  // ✅ États pour la gestion admin des conversations
+  const [selectedConversations, setSelectedConversations] = useState<Set<string>>(new Set());
+  const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showCreateConversationModal, setShowCreateConversationModal] = useState(false);
+
   // États pour les données des participants (méthode éprouvée)
   const [allMagasins, setAllMagasins] = useState<MagasinInfo[]>([]);
   const [allChauffeurs, setAllChauffeurs] = useState<PersonnelInfo[]>([]);
@@ -143,8 +149,9 @@ const RealTimeMessaging: React.FC = () => {
     setConversationCreated(true);
 
     try {
-      const token = localStorage.getItem('authToken');
-      console.log('🔑 Token for API call:', { hasToken: !!token });
+      // ✅ Utiliser user.token au lieu de localStorage pour plus de fiabilité (comme spécifié dans CLAUDE.md)
+      const token = user?.token || localStorage.getItem('authToken');
+      console.log('🔑 Token for API call:', { hasToken: !!token, userRole: user?.role });
 
       // Vérifier d'abord si une conversation Direction existe déjà dans les conversations chargées
       const existingDirectionConv = conversations.find(conv =>
@@ -164,6 +171,15 @@ const RealTimeMessaging: React.FC = () => {
           'Authorization': `Bearer ${token}`
         }
       });
+
+      console.log('🔍 Check API response status:', checkResponse.status);
+
+      if (!checkResponse.ok) {
+        console.warn('⚠️ Erreur lors de la vérification des conversations:', checkResponse.status);
+        if (checkResponse.status === 401) {
+          console.error('🚫 Token invalide lors de la vérification - continuer avec création directe');
+        }
+      }
 
       if (checkResponse.ok) {
         const existingConversations = await checkResponse.json();
@@ -195,6 +211,19 @@ const RealTimeMessaging: React.FC = () => {
         console.warn('❌ Impossible de créer la conversation Direction, status:', response.status);
         const errorText = await response.text();
         console.warn('Error details:', errorText);
+
+        // ✅ Diagnostic spécifique pour 401/403
+        if (response.status === 401) {
+          console.error('🚫 Token invalide ou expiré - vérifier l\'authentification');
+          console.error('🔍 User role:', user?.role);
+          console.error('🔍 Token exists:', !!token);
+          console.error('🔍 Token preview:', token ? token.substring(0, 20) + '...' : 'null');
+        } else if (response.status === 403) {
+          console.error('🚫 Permissions insuffisantes - vérifier les droits utilisateur');
+          console.error('🔍 User role:', user?.role);
+          console.error('🔍 Entity type expected:', user?.role === 'chauffeur' ? 'chauffeur' : user?.role === 'magasin' ? 'magasin' : 'user');
+        }
+
         // Permettre de réessayer en cas d'erreur
         setConversationCreated(false);
       } else {
@@ -229,6 +258,176 @@ const RealTimeMessaging: React.FC = () => {
       setIsTyping(false);
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message:', error);
+    }
+  };
+
+  // ✅ FONCTIONS DE GESTION DES MESSAGES DE GROUPE (COMMANDE_GROUP)
+
+  // Fonction pour créer une conversation de groupe pour une commande
+  const createCommandeGroupConversation = async (commandeId: string, magasinId: string, chauffeurId: string) => {
+    try {
+      const token = user?.token || localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/commande-group/${commandeId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ magasinId, chauffeurId })
+      });
+
+      if (response.ok) {
+        const newConversation = await response.json();
+        console.log('✅ Conversation de groupe créée:', newConversation);
+        await loadConversations(); // Recharger la liste
+        return newConversation;
+      } else {
+        console.error('❌ Erreur lors de la création de la conversation de groupe:', response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de la conversation de groupe:', error);
+      return null;
+    }
+  };
+
+  // Fonction pour gérer l'état d'une conversation de commande selon les statuts
+  const manageCommandeConversation = async (commandeId: string, magasinId: string, chauffeurId: string) => {
+    try {
+      const token = user?.token || localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/manage-commande/${commandeId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ magasinId, chauffeurId })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Conversation de commande gérée:', result);
+        await loadConversations(); // Recharger la liste
+        return result;
+      } else {
+        console.error('❌ Erreur lors de la gestion de la conversation de commande:', response.status);
+        return null;
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la gestion de la conversation de commande:', error);
+      return null;
+    }
+  };
+
+  // Fonction helper pour identifier les conversations de groupe
+  const isGroupConversation = (conversation: Conversation): boolean => {
+    return conversation.type === 'COMMANDE_GROUP';
+  };
+
+  // Fonction pour obtenir les détails d'une conversation de groupe
+  const getGroupConversationDetails = (conversation: Conversation) => {
+    if (!isGroupConversation(conversation)) return null;
+
+    return {
+      commandeId: conversation.commandeId,
+      participantCount: conversation.participantIds.length,
+      hasActiveCommande: !!conversation.commande,
+      statutCommande: conversation.commande?.statutCommande,
+      statutLivraison: conversation.commande?.statutLivraison
+    };
+  };
+
+  // ✅ FONCTIONS DE GESTION ADMIN DES CONVERSATIONS (suivant le pattern de Deliveries.tsx)
+
+  // Gestion de la sélection des conversations
+  const handleConversationSelection = (conversationId: string, checked: boolean) => {
+    setSelectedConversations(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(conversationId);
+      } else {
+        newSet.delete(conversationId);
+      }
+      return newSet;
+    });
+  };
+
+  // Sélectionner/désélectionner toutes les conversations
+  const handleSelectAllConversations = (checked: boolean) => {
+    if (checked) {
+      setSelectedConversations(new Set(filteredConversations.map(c => c.id)));
+    } else {
+      setSelectedConversations(new Set());
+    }
+  };
+
+  // Supprimer une conversation individuelle
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.')) {
+      try {
+        const token = user?.token || localStorage.getItem('authToken');
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/${conversationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          console.log('✅ Conversation supprimée:', conversationId);
+          await loadConversations(); // Recharger la liste
+          if (selectedConversationId === conversationId) {
+            setSelectedConversationId(null); // Désélectionner si c'était la conversation active
+          }
+        } else {
+          console.error('❌ Erreur lors de la suppression:', response.status);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la suppression de la conversation:', error);
+      }
+    }
+  };
+
+  // Supprimer plusieurs conversations
+  const handleMultipleDeleteConversations = async () => {
+    if (selectedConversations.size === 0) return;
+
+    const confirmMessage = `Êtes-vous sûr de vouloir supprimer ${selectedConversations.size} conversation(s) sélectionnée(s) ? Cette action est irréversible.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsDeleting(true);
+    try {
+      const token = user?.token || localStorage.getItem('authToken');
+      const conversationsToDelete = Array.from(selectedConversations);
+
+      for (const conversationId of conversationsToDelete) {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/${conversationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          console.log('✅ Conversation supprimée:', conversationId);
+        } else {
+          console.error('❌ Erreur lors de la suppression:', conversationId, response.status);
+        }
+      }
+
+      // Recharger les conversations et réinitialiser la sélection
+      await loadConversations();
+      setSelectedConversations(new Set());
+
+      // Désélectionner la conversation active si elle a été supprimée
+      if (selectedConversationId && selectedConversations.has(selectedConversationId)) {
+        setSelectedConversationId(null);
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la suppression multiple:', error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -457,6 +656,45 @@ const RealTimeMessaging: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+
+          {/* ✅ Contrôles Admin pour la gestion des conversations */}
+          {user?.role === 'admin' && (
+            <>
+              {/* Boutons de gestion admin */}
+              <div className="mt-3 space-y-2">
+                <button
+                  onClick={() => setShowCreateConversationModal(true)}
+                  className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center space-x-2"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  <span>Nouvelle conversation</span>
+                </button>
+
+                {/* Contrôles de sélection et suppression */}
+                {filteredConversations.length > 0 && (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleSelectAllConversations(selectedConversations.size !== filteredConversations.length)}
+                      className="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 text-xs"
+                    >
+                      {selectedConversations.size === filteredConversations.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                    </button>
+                    {selectedConversations.size > 0 && (
+                      <button
+                        onClick={handleMultipleDeleteConversations}
+                        disabled={isDeleting}
+                        className="flex-1 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 text-xs"
+                      >
+                        {isDeleting ? 'Suppression...' : `Supprimer (${selectedConversations.size})`}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Conversations list */}
@@ -473,33 +711,82 @@ const RealTimeMessaging: React.FC = () => {
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  onClick={() => handleSelectConversation(conversation)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                  className={`group p-3 rounded-lg transition-colors ${
                     selectedConversationId === conversation.id
                       ? 'bg-blue-50 border border-blue-200'
                       : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-medium text-gray-900 text-sm truncate">
-                      {getConversationTitle(conversation)}
-                    </h3>
-                    {getUnreadCount(conversation) > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-2">
-                        {getUnreadCount(conversation)}
-                      </span>
+                  <div className="flex items-start space-x-3">
+                    {/* ✅ Checkbox de sélection pour admin */}
+                    {user?.role === 'admin' && (
+                      <input
+                        type="checkbox"
+                        checked={selectedConversations.has(conversation.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleConversationSelection(conversation.id, e.target.checked);
+                        }}
+                        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
                     )}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">
-                      {conversation.lastMessageAt && format(new Date(conversation.lastMessageAt), 'dd/MM/yyyy HH:mm')}
-                    </p>
-                    {conversation.type === 'COMMANDE_GROUP' && conversation.commandeId && (
-                      <div className="text-xs text-blue-600 mt-1">
-                        Commande #{conversation.commandeId}
-                        {conversation.commande && ` • ${conversation.commande.statutCommande}`}
+
+                    {/* Contenu de la conversation (cliquable) */}
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => handleSelectConversation(conversation)}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-medium text-gray-900 text-sm truncate">
+                          {getConversationTitle(conversation)}
+                        </h3>
+                        <div className="flex items-center space-x-2">
+                          {getUnreadCount(conversation) > 0 && (
+                            <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                              {getUnreadCount(conversation)}
+                            </span>
+                          )}
+                          {/* Bouton supprimer individuel pour admin */}
+                          {user?.role === 'admin' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteConversation(conversation.id);
+                              }}
+                              className="text-red-600 hover:text-red-800 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Supprimer cette conversation"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-xs text-gray-500">
+                          {conversation.lastMessageAt && format(new Date(conversation.lastMessageAt), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                        {conversation.type === 'COMMANDE_GROUP' && conversation.commandeId && (
+                          <div className="text-xs mt-1 space-y-1">
+                            <div className="text-blue-600">
+                              📦 Commande #{conversation.commandeId}
+                              {conversation.commande && ` • ${conversation.commande.statutCommande}`}
+                            </div>
+                            {conversation.commande?.statutLivraison && (
+                              <div className="text-purple-600">
+                                🚛 Livraison: {conversation.commande.statutLivraison}
+                              </div>
+                            )}
+                            <div className="text-gray-500">
+                              👥 {conversation.participantIds.length} participant(s)
+                            </div>
+                            {/* Indicateur de conversation de groupe */}
+                            <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                              Groupe
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -515,19 +802,69 @@ const RealTimeMessaging: React.FC = () => {
             {/* Chat header */}
             <div className="p-4 bg-white border-b border-gray-200">
               <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="font-semibold text-gray-900">
-                    {filteredConversations.find(c => c.id === selectedConversationId)?.name || 'Conversation'}
-                  </h2>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <h2 className="font-semibold text-gray-900">
+                      {filteredConversations.find(c => c.id === selectedConversationId)?.name || 'Conversation'}
+                    </h2>
+                    {/* ✅ Indicateur spécial pour conversations de groupe */}
+                    {(() => {
+                      const selectedConv = filteredConversations.find(c => c.id === selectedConversationId);
+                      if (selectedConv?.type === 'COMMANDE_GROUP') {
+                        return (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                            👥 Groupe
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+
+                  <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
                     <span>
                       {filteredConversations.find(c => c.id === selectedConversationId)?.participantIds.length} participant(s)
                     </span>
                     {onlineUsers.length > 0 && (
                       <span>• {onlineUsers.length} en ligne</span>
                     )}
+
+                    {/* ✅ Détails spéciaux pour conversations de groupe */}
+                    {(() => {
+                      const selectedConv = filteredConversations.find(c => c.id === selectedConversationId);
+                      if (selectedConv?.type === 'COMMANDE_GROUP' && selectedConv.commande) {
+                        return (
+                          <>
+                            <span>• 📦 {selectedConv.commande.statutCommande}</span>
+                            {selectedConv.commande.statutLivraison && (
+                              <span>• 🚛 {selectedConv.commande.statutLivraison}</span>
+                            )}
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
+
+                {/* ✅ Boutons d'action pour admin sur conversations de groupe */}
+                {user?.role === 'admin' && (() => {
+                  const selectedConv = filteredConversations.find(c => c.id === selectedConversationId);
+                  if (selectedConv?.type === 'COMMANDE_GROUP' && selectedConv.commandeId) {
+                    return (
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => manageCommandeConversation(selectedConv.commandeId!, selectedConv.magasinId!, selectedConv.chauffeurId!)}
+                          className="text-blue-600 hover:text-blue-800 text-xs px-2 py-1 border border-blue-300 rounded"
+                          title="Gérer l'état de la conversation"
+                        >
+                          ⚙️ Gérer
+                        </button>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Typing indicators */}
