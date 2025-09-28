@@ -26,25 +26,15 @@ export const NotificationPanel: React.FC = () => {
 
     // Fonction pour marquer tous les contacts nouveaux comme lus
     const markAllContactsAsRead = async () => {
-        if (!user || (user.role !== 'admin' && user.role !== 'magasin')) return;
+        if (!user || user.role !== 'admin') return;
 
         try {
             // Récupérer tous les contacts NOUVEAU
             const contactsResponse = await apiService.get('/contacts');
             const contacts = (contactsResponse as { data?: any[] })?.data || [];
 
-            // Filtrer selon le rôle
-            const newContacts = contacts.filter(contact => {
-                if (contact.statut !== 'NOUVEAU') return false;
-
-                if (user.role === 'admin') {
-                    return true; // Les admins voient tous les contacts
-                } else if (user.role === 'magasin') {
-                    // Les magasins voient seulement leurs propres contacts
-                    return contact.magasinId === user.storeId || contact.nomMagasin === user.storeName;
-                }
-                return false;
-            });
+            // Filtrer seulement les contacts NOUVEAU (admin uniquement)
+            const newContacts = contacts.filter(contact => contact.statut === 'NOUVEAU');
 
             // Marquer chacun comme LU
             for (const contact of newContacts) {
@@ -77,19 +67,15 @@ export const NotificationPanel: React.FC = () => {
         });
     };
 
-    // Fonction pour naviguer vers les contacts et marquer comme lus
+    // Fonction pour naviguer vers les contacts et marquer comme lus (admin uniquement)
     const handleContactsClick = async () => {
+        if (user?.role !== 'admin') return;
+
         if (unreadContacts > 0) {
             await markAllContactsAsRead();
         }
 
-        // Redirection selon le rôle
-        if (user?.role === 'admin') {
-            navigate('/contacts');
-        } else if (user?.role === 'magasin') {
-            navigate('/contact-mytruck');
-        }
-
+        navigate('/contacts');
         addNotification({
             message: 'Redirection vers les contacts',
             type: 'info'
@@ -203,7 +189,7 @@ export const NotificationPanel: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    {unreadContacts > 0 && (user?.role === 'admin' || user?.role === 'magasin') && (
+                                    {unreadContacts > 0 && user?.role === 'admin' && (
                                         <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 cursor-pointer transition-colors"
                                              onClick={handleContactsClick}>
                                             <div className="flex items-center space-x-2">

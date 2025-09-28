@@ -67,28 +67,21 @@ export const useUnreadCounts = () => {
         console.warn('📨 Erreur chargement messages non lus:', error);
       }
 
-      // Compteur contacts non lus (admins et magasins)
+      // Compteur contacts non lus (uniquement pour les admins)
       let unreadContacts = 0;
-      if (user.role === 'admin' || user.role === 'magasin') {
+      if (user.role === 'admin') {
         try {
           const contactsResponse = await apiService.get('/contacts') as { data?: any[] };
           const contacts = contactsResponse?.data || [];
 
-          // Filtrer selon le rôle
-          if (user.role === 'admin') {
-            // Les admins voient tous les contacts NOUVEAU
-            unreadContacts = contacts.filter(contact => contact.statut === 'NOUVEAU').length;
-          } else if (user.role === 'magasin') {
-            // Les magasins voient seulement leurs propres contacts NOUVEAU
-            unreadContacts = contacts.filter(contact =>
-              contact.statut === 'NOUVEAU' &&
-              (contact.magasinId === user.storeId || contact.nomMagasin === user.storeName)
-            ).length;
-          }
+          // Les admins voient tous les contacts NOUVEAU
+          unreadContacts = contacts.filter(contact => contact.statut === 'NOUVEAU').length;
         } catch (error) {
-          console.warn('📋 Erreur chargement contacts non lus:', error);
+          console.warn('📋 Erreur chargement contacts non lus (admin):', error);
         }
       }
+      // Note: Les magasins n'ont pas accès à l'endpoint /contacts
+      // Leurs notifications de contact seront gérées différemment
 
       setCounts({
         messages: unreadMessages,
@@ -239,10 +232,10 @@ export const useUnreadCounts = () => {
         refreshCounts();
       });
 
-      // Écouter les événements de nouveaux contacts (pour admins et magasins)
+      // Écouter les événements de nouveaux contacts (pour admins seulement)
       socket.on('new-contact', (data: any) => {
         console.log('📋 Nouveau contact reçu via WebSocket:', data);
-        if (user.role === 'admin' || user.role === 'magasin') {
+        if (user.role === 'admin') {
           // Actualiser les compteurs en temps réel
           refreshCounts();
         }
