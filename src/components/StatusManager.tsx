@@ -48,16 +48,16 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
     };
 
     // ✅ RÈGLE 1 RÉTABLIE : Auto-confirmation (compatible avec dates indépendantes)
-    useEffect(() => {
-        const autoConfirmCommande = async () => {
-            if (commande.statuts?.commande === 'En attente' && user?.role === 'magasin') {
-                setTimeout(async () => {
-                    await handleQuickStatusUpdate('commande', 'Confirmée');
-                }, 2000);
-            }
-        };
-        autoConfirmCommande();
-    }, [commande.id]);
+    // useEffect(() => {
+    //     const autoConfirmCommande = async () => {
+    //         if (commande.statuts?.commande === 'En attente' && user?.role === 'magasin') {
+    //             setTimeout(async () => {
+    //                 await handleQuickStatusUpdate('commande', 'Confirmée');
+    //             }, 2000);
+    //         }
+    //     };
+    //     autoConfirmCommande();
+    // }, [commande.id]);
 
     // ✅ Mise à jour rapide (boutons individuels)
     // ✅ CORRIGER la structure d'envoi
