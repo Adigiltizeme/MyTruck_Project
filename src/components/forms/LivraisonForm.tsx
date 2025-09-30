@@ -1555,7 +1555,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 </div>
             ) : tarifDetails && (
                 <div className="mt-4 p-4 border rounded-lg">
-                    <h3 className="font-medium text-lg mb-2 secondary">Détail du tarif</h3>
+                    <h3 className="font-medium text-lg mb-2 secondary">Détail du tarif "MY TRUCK"</h3>
                     {tarifDetails.montantHT === 'devis' ? (
                         <div className="text-red-600 font-medium">
                             Devis obligatoire pour cette livraison
