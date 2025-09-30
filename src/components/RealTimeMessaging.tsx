@@ -768,37 +768,27 @@ const RealTimeMessaging: React.FC = () => {
 
     // Pour les conversations PRIVATE (nouvelles) - identifier le type selon les participants
     if (conversation.type === 'PRIVATE' && conversation.participantIds?.length === 2) {
-      // ✅ PRIORITÉ 1 : Utiliser chauffeurId et magasinId si présents (conversation chauffeur-magasin)
+      // ✅ PRIORITÉ 1 : Utiliser chauffeurId et magasinId si présents (conversation chauffeur-magasin = GROUPE)
       if (conversation.chauffeurId && conversation.magasinId) {
+        const magasin = allMagasins.find(m => m.id === conversation.magasinId);
+        const chauffeur = allChauffeurs.find(c => c.id === conversation.chauffeurId);
+        const magasinName = magasin ? ((magasin as any).nom || magasin.name) : 'Magasin';
+        const chauffeurName = chauffeur ? `${chauffeur.prenom} ${chauffeur.nom}`.trim() : 'Chauffeur';
+
+        // Tous les rôles voient "Groupe MT -" car c'est une conversation de groupe
         if (user?.role === 'admin') {
           // Admin voit les deux participants
-          const magasin = allMagasins.find(m => m.id === conversation.magasinId);
-          const chauffeur = allChauffeurs.find(c => c.id === conversation.chauffeurId);
-
-          if (magasin && chauffeur) {
-            const magasinName = (magasin as any).nom || magasin.name;
-            return `Groupe MT - ${chauffeur.prenom} ${chauffeur.nom} ↔ ${magasinName}`.trim();
-          }
-          // Fallback au nom backend
-          return conversation.name || 'Discussion chauffeur-magasin';
+          return `Groupe MT - ${chauffeurName} ↔ ${magasinName}`;
         } else if (user?.role === 'chauffeur') {
-          // Chauffeur voit le nom du magasin
-          const magasin = allMagasins.find(m => m.id === conversation.magasinId);
-          if (magasin) {
-            const magasinName = (magasin as any).nom || magasin.name;
-            return `Discussion avec ${magasinName}`;
-          }
-          // Fallback au nom backend
-          return conversation.name || 'Discussion directe';
+          // Chauffeur voit son interlocuteur principal (le magasin)
+          return `Groupe MT - ${magasinName}`;
         } else if (user?.role === 'magasin') {
-          // Magasin voit le nom du chauffeur
-          const chauffeur = allChauffeurs.find(c => c.id === conversation.chauffeurId);
-          if (chauffeur) {
-            return `Discussion avec ${chauffeur.prenom} ${chauffeur.nom}`.trim();
-          }
-          // Fallback au nom backend
-          return conversation.name || 'Discussion directe';
+          // Magasin voit son interlocuteur principal (le chauffeur)
+          return `Groupe MT - ${chauffeurName}`;
         }
+
+        // Fallback au nom backend
+        return conversation.name || 'Groupe MT - Discussion';
       }
 
       // ✅ PRIORITÉ 2 : Identifier selon participantIds (conversations direction)
@@ -989,9 +979,16 @@ const RealTimeMessaging: React.FC = () => {
                       onClick={() => handleSelectConversation(conversation)}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-medium text-gray-900 text-sm truncate">
-                          {getConversationTitle(conversation)}
-                        </h3>
+                        <div className="flex items-center space-x-1 flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 text-sm truncate">
+                            {getConversationTitle(conversation)}
+                          </h3>
+                          {/* Badge groupe pour conversations chauffeur-magasin */}
+                          {(conversation.type === 'COMMANDE_GROUP' ||
+                            (conversation.type === 'PRIVATE' && conversation.chauffeurId && conversation.magasinId)) && (
+                            <span className="text-xs">👥</span>
+                          )}
+                        </div>
                         <div className="flex items-center space-x-2">
                           {getUnreadCount(conversation) > 0 && (
                             <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
@@ -1057,12 +1054,16 @@ const RealTimeMessaging: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <h2 className="font-semibold text-gray-900">
-                      {filteredConversations.find(c => c.id === selectedConversationId)?.name || 'Conversation'}
+                      {selectedConversationId && filteredConversations.find(c => c.id === selectedConversationId)
+                        ? getConversationTitle(filteredConversations.find(c => c.id === selectedConversationId)!)
+                        : 'Conversation'}
                     </h2>
                     {/* ✅ Indicateur spécial pour conversations de groupe */}
                     {(() => {
                       const selectedConv = filteredConversations.find(c => c.id === selectedConversationId);
-                      if (selectedConv?.type === 'COMMANDE_GROUP') {
+                      // Badge pour conversations de groupe (COMMANDE_GROUP ou chauffeur-magasin)
+                      if (selectedConv?.type === 'COMMANDE_GROUP' ||
+                          (selectedConv?.type === 'PRIVATE' && selectedConv?.chauffeurId && selectedConv?.magasinId)) {
                         return (
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
                             👥 Groupe
