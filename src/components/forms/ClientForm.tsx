@@ -207,7 +207,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                         )}
 
                         {/* Alerte frais kilométriques pour mode édition */}
-                        {showKmFeeAlert && (
+                        {import.meta.env.DEV && showKmFeeAlert && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
@@ -291,7 +291,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ data, errors, onChange, 
                         )}
 
                         {/* Alerte frais kilométriques */}
-                        {showKmFeeAlert && (
+                        {import.meta.env.DEV && showKmFeeAlert && (
                             <motion.div
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}

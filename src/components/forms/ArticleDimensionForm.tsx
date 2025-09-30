@@ -251,14 +251,17 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                     </button>
 
                     {!readOnly && (
-                        <button
-                            type="button"
-                            onClick={addArticle}
-                            className="px-3 py-1 bg-red-600 text-white rounded-md text-sm flex items-center"
-                        >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Ajouter un article
-                        </button>
+                        <div className="space-x-1">
+                            <button
+                                type="button"
+                                onClick={addArticle}
+                                className="px-3 py-1 bg-red-600 text-white rounded-md text-sm flex items-center"
+                            >
+                                <Plus className="w-4 h-4 mr-1" />
+                                Article le plus lourd
+                            </button>
+                            <p className="text-sm text-red-600 text-center"> (Si différent)</p>
+                        </div>
                     )}
                 </div>
             </div>
@@ -295,7 +298,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                             }`}
                     >
                         <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-medium">Article {index + 1}</h4>
+                            <h4 className="font-medium">Article le plus grand</h4> {/* <-- {index + 1} */}
 
                             {!readOnly && articles.length > 1 && (
                                 <button
@@ -428,15 +431,17 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
 
             {/* Bouton d'ajout en bas */}
             {!readOnly && (
-                <div className="flex justify-center">
+                <div className="flex justify-center items-center">
                     <button
                         type="button"
                         onClick={addArticle}
                         className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 flex items-center"
                     >
                         <Plus className="w-5 h-5 mr-1" />
-                        Ajouter un autre article
+                        Ajouter l'article le plus lourd
                     </button>
+                    {/* Placer paragraphe en dessous du bouton */}
+                        <p className="text-sm text-gray-600 text-center ml-2"> (Si différent)</p>
                 </div>
             )}
 
