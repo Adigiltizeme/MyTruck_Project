@@ -201,8 +201,9 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         case '/contacts':
           return unreadContacts;
         case '/contact-mytruck':
+          return unreadContacts; // ✅ Contact My Truck utilise compteur contacts
         case '/messagerie':
-          return unreadMessages;
+          return unreadMessages; // ✅ Messagerie Realtime utilise compteur messages
         default:
           return 0;
       }

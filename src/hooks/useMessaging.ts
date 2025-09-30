@@ -274,7 +274,17 @@ export const useMessaging = ({
       setIsLoading(true);
       setError(null);
 
-      const result = await messagingService.current.getConversations({ isActive: true });
+      let result;
+
+      // Utiliser la fonction spécifique selon le rôle
+      if (user?.role === 'chauffeur') {
+        result = await messagingService.current.getConversationsForChauffeur(user.id);
+      } else if (user?.role === 'magasin') {
+        result = await messagingService.current.getConversationsForMagasin(user.id);
+      } else {
+        // Admin/Direction utilise la fonction générale
+        result = await messagingService.current.getConversations({ isActive: true });
+      }
 
       if (result.success) {
         setConversations(result.data);
@@ -287,7 +297,7 @@ export const useMessaging = ({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   const markAsRead = useCallback(async (convId: string) => {
     console.log('🔍 markAsRead called with:', { convId, userId: user?.id, hasUser: !!user });

@@ -25,30 +25,325 @@ const RealTimeMessaging: React.FC = () => {
   const [allChauffeurs, setAllChauffeurs] = useState<PersonnelInfo[]>([]);
   const [participantsLoaded, setParticipantsLoaded] = useState(false);
 
+  // États pour le modal de création de conversation
+  const [newConversationType, setNewConversationType] = useState<string>('');
+  const [newConversationParticipant, setNewConversationParticipant] = useState<string>('');
+  const [newConversationSecondParticipant, setNewConversationSecondParticipant] = useState<string>(''); // Pour double sélection admin
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  // ✅ Type étendu pour inclure commandeId nécessaire à la validation backend
+  const [eligibleMagasins, setEligibleMagasins] = useState<Array<MagasinInfo & { commandeId?: string }>>([]);
+  const [eligibleChauffeurs, setEligibleChauffeurs] = useState<Array<PersonnelInfo & { commandeId?: string }>>([]);
+  const [eligibleChauffeursForMagasin, setEligibleChauffeursForMagasin] = useState<Array<PersonnelInfo & { commandeId?: string }>>([]);
+
   // Fonction pour charger tous les participants (méthode éprouvée de MagasinManagement/ChauffeurManagement)
   const loadAllParticipants = async () => {
     try {
       console.log('📊 Chargement des participants avec méthodes éprouvées...');
 
-      // Méthode exacte de MagasinManagement.tsx
-      const magasinsResponse = await apiService.get('/magasins') as { data: MagasinInfo[] };
-      const magasinsData = Array.isArray(magasinsResponse) ? magasinsResponse : magasinsResponse.data;
-      setAllMagasins(magasinsData || []);
+      // ✅ Charger seulement les données auxquelles l'utilisateur a accès
+      if (user?.role === 'admin') {
+        // Admin peut voir tout
+        const magasinsResponse = await apiService.get('/magasins') as { data: MagasinInfo[] };
+        const magasinsData = Array.isArray(magasinsResponse) ? magasinsResponse : magasinsResponse.data;
+        setAllMagasins(magasinsData || []);
 
-      // Méthode exacte de ChauffeurManagement.tsx
-      const chauffeursResponse = await apiService.get('/chauffeurs') as { data: PersonnelInfo[] } | PersonnelInfo[];
-      const chauffeursData = Array.isArray(chauffeursResponse) ? chauffeursResponse : chauffeursResponse.data;
-      setAllChauffeurs(chauffeursData || []);
+        const chauffeursResponse = await apiService.get('/chauffeurs') as { data: PersonnelInfo[] } | PersonnelInfo[];
+        const chauffeursData = Array.isArray(chauffeursResponse) ? chauffeursResponse : chauffeursResponse.data;
+        setAllChauffeurs(chauffeursData || []);
+      } else if (user?.role === 'magasin') {
+        // Magasin peut voir les chauffeurs
+        const chauffeursResponse = await apiService.get('/chauffeurs') as { data: PersonnelInfo[] } | PersonnelInfo[];
+        const chauffeursData = Array.isArray(chauffeursResponse) ? chauffeursResponse : chauffeursResponse.data;
+        setAllChauffeurs(chauffeursData || []);
+        setAllMagasins([]); // Pas d'accès aux autres magasins
+      } else if (user?.role === 'chauffeur') {
+        // Chauffeur n'a pas besoin de ces listes pour les conversations
+        setAllMagasins([]);
+        setAllChauffeurs([]);
+      }
 
       setParticipantsLoaded(true);
-      console.log('✅ Participants chargés:', {
-        magasins: magasinsData?.length || 0,
-        chauffeurs: chauffeursData?.length || 0
+      console.log('✅ Participants chargés selon rôle:', {
+        userRole: user?.role,
+        magasins: allMagasins.length,
+        chauffeurs: allChauffeurs.length
       });
 
     } catch (error) {
       console.error('❌ Erreur chargement participants:', error);
       setParticipantsLoaded(true); // Continue même en cas d'erreur
+    }
+  };
+
+  // Fonction pour récupérer les magasins éligibles pour un chauffeur
+  const loadEligibleMagasinsForChauffeur = async () => {
+    if (!user || user.role !== 'chauffeur' || !user.driverId) return;
+
+    try {
+      console.log('🔍 Récupération des commandes actives pour chauffeur:', user.driverId);
+
+      // ✅ Utiliser simpleBackendService comme dans Deliveries.tsx
+      const { simpleBackendService } = await import('../services/simple-backend.service');
+      const allCommandes = await simpleBackendService.getCommandes();
+
+      // Filtrer les commandes du chauffeur
+      const commandesChauffeur = allCommandes.filter(commande =>
+        commande.chauffeurs?.some(c => c.id === user.driverId)
+      );
+
+      console.log('📊 Total commandes chauffeur trouvées:', commandesChauffeur.length);
+
+      // Filtrer les commandes actives et extraire les magasins uniques avec commandeId
+      const magasinsUniques = new Map();
+
+      commandesChauffeur.forEach((commande) => {
+        const isCommandeActive = commande.statuts?.commande !== 'En attente';
+        const isLivraisonActive = commande.statuts?.livraison !== 'EN ATTENTE';
+        const shouldBeActive = isCommandeActive && isLivraisonActive;
+
+        console.log(`📦 Commande ${commande.numeroCommande}: commande=${commande.statuts?.commande} (${isCommandeActive}), livraison=${commande.statuts?.livraison} (${isLivraisonActive}) → ${shouldBeActive ? 'Active' : 'Inactive'}`);
+
+        if (shouldBeActive && commande.magasin) {
+          // ✅ Inclure le commandeId pour l'envoyer au backend
+          magasinsUniques.set(commande.magasin.id, {
+            id: commande.magasin.id,
+            name: commande.magasin.name, // ✅ Déjà transformé par simpleBackendService
+            address: commande.magasin.address,
+            phone: commande.magasin.phone,
+            email: commande.magasin.email,
+            status: commande.magasin.status,
+            commandeId: commande.id, // Nécessaire pour validation backend
+            // ✅ Stocker aussi 'nom' pour compatibilité avec le pattern (magasin as any).nom
+            nom: commande.magasin.name
+          } as any);
+        }
+      });
+
+      const eligibleMagasinsList = Array.from(magasinsUniques.values());
+      setEligibleMagasins(eligibleMagasinsList);
+      console.log('✅ Magasins éligibles pour chauffeur:', eligibleMagasinsList);
+
+    } catch (error) {
+      console.error('❌ Erreur récupération magasins éligibles:', error);
+      setEligibleMagasins([]);
+    }
+  };
+
+  // Fonction pour récupérer les chauffeurs éligibles pour un magasin spécifique (admin ou magasin)
+  const loadEligibleChauffeursForMagasin = async (magasinId?: string) => {
+    // Pour magasin connecté, utiliser son storeId
+    // Pour admin, utiliser le magasinId passé en paramètre
+    const targetMagasinId = magasinId || (user?.role === 'magasin' ? user.storeId : null);
+
+    if (!targetMagasinId) return;
+
+    try {
+      console.log('🔍 Récupération des commandes actives pour magasin:', targetMagasinId);
+
+      // ✅ Utiliser simpleBackendService comme dans Deliveries.tsx
+      const { simpleBackendService } = await import('../services/simple-backend.service');
+      const allCommandes = await simpleBackendService.getCommandes();
+
+      // Filtrer les commandes du magasin
+      const commandesMagasin = allCommandes.filter(commande =>
+        commande.magasin?.id === targetMagasinId
+      );
+
+      console.log('📊 Total commandes magasin trouvées:', commandesMagasin.length);
+
+      // Filtrer les commandes actives et extraire les chauffeurs uniques avec commandeId
+      const chauffeursUniques = new Map();
+
+      commandesMagasin.forEach((commande) => {
+        const isCommandeActive = commande.statuts?.commande !== 'En attente';
+        const isLivraisonActive = commande.statuts?.livraison !== 'EN ATTENTE';
+        const shouldBeActive = isCommandeActive && isLivraisonActive;
+
+        console.log(`📦 Commande ${commande.numeroCommande}: commande=${commande.statuts?.commande} (${isCommandeActive}), livraison=${commande.statuts?.livraison} (${isLivraisonActive}) → ${shouldBeActive ? 'Active' : 'Inactive'}`);
+
+        if (shouldBeActive && commande.chauffeurs && commande.chauffeurs.length > 0) {
+          // Ajouter tous les chauffeurs de la commande
+          commande.chauffeurs.forEach(chauffeur => {
+            chauffeursUniques.set(chauffeur.id, {
+              id: chauffeur.id,
+              nom: chauffeur.nom,
+              prenom: chauffeur.prenom,
+              email: chauffeur.email,
+              telephone: chauffeur.telephone,
+              commandeId: commande.id // Nécessaire pour validation backend
+            } as any);
+          });
+        }
+      });
+
+      const eligibleChauffeursList = Array.from(chauffeursUniques.values());
+
+      // Si appelé avec un magasinId (admin), stocker dans eligibleChauffeursForMagasin
+      // Sinon (magasin connecté), stocker dans eligibleChauffeurs
+      if (magasinId) {
+        setEligibleChauffeursForMagasin(eligibleChauffeursList);
+        console.log('✅ Chauffeurs éligibles pour magasin (admin):', eligibleChauffeursList);
+      } else {
+        setEligibleChauffeurs(eligibleChauffeursList);
+        console.log('✅ Chauffeurs éligibles pour magasin:', eligibleChauffeursList);
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur récupération chauffeurs éligibles:', error);
+      if (magasinId) {
+        setEligibleChauffeursForMagasin([]);
+      } else {
+        setEligibleChauffeurs([]);
+      }
+    }
+  };
+
+  // Fonction pour créer une conversation direction rapide (chauffeurs)
+  const handleQuickConversation = async (type: 'DIRECTION') => {
+    if (!user || user.role !== 'chauffeur') return;
+
+    setIsCreatingConversation(true);
+
+    try {
+      // ✅ apiService.post retourne directement les données, pas {success, data}
+      const conversation = await apiService.post('/messaging/conversations/user-direction', {
+        userId: user.id,
+        userRole: 'chauffeur'
+      });
+
+      console.log('✅ Conversation direction créée:', conversation);
+      await loadConversations();
+
+      // ✅ NE PAS sélectionner automatiquement pour éviter erreur 404 undefined
+
+    } catch (error) {
+      console.error('❌ Erreur création conversation direction:', error);
+      alert(`Erreur: ${(error as Error).message}`);
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+
+  // Fonction pour créer une nouvelle conversation
+  const handleCreateConversation = async () => {
+    if (!newConversationType || !user) {
+      alert('Veuillez sélectionner un type de conversation');
+      return;
+    }
+
+    // Pas besoin de participant pour ces cas automatiques
+    const isAutoDirection =
+      (user.role === 'chauffeur' && newConversationType === 'PRIVATE') ||
+      (user.role === 'magasin' && (newConversationType === 'PRIVATE' || newConversationType === 'MAGASIN_DIRECTION'));
+
+    if (!isAutoDirection && !newConversationParticipant) {
+      alert('Veuillez sélectionner un participant');
+      return;
+    }
+
+    setIsCreatingConversation(true);
+
+    try {
+      let endpoint = '';
+      let payload: any = {};
+
+      switch (newConversationType) {
+        case 'PRIVATE':
+          // Conversation Direction ↔ Chauffeur/Magasin
+          endpoint = '/messaging/conversations/user-direction';
+
+          if (user.role === 'chauffeur') {
+            // Chauffeur contacte direction
+            payload = {
+              userId: user.id,
+              userRole: 'chauffeur'
+            };
+          } else if (user.role === 'magasin') {
+            // Magasin contacte direction
+            payload = {
+              userId: user.storeId || user.id,
+              userRole: 'magasin'
+            };
+          } else {
+            // Admin/Direction contacte chauffeur
+            payload = {
+              userId: newConversationParticipant,
+              userRole: 'chauffeur'
+            };
+          }
+          break;
+
+        case 'MAGASIN_DIRECTION':
+          // Conversation Magasin ↔ Direction
+          if (user.role === 'magasin') {
+            // Magasin crée sa propre conversation direction
+            endpoint = `/messaging/conversations/magasin-direction/${user.storeId || user.id}`;
+            payload = {};
+          } else {
+            // Admin crée conversation pour un magasin
+            endpoint = `/messaging/conversations/magasin-direction/${newConversationParticipant}`;
+            payload = {};
+          }
+          break;
+
+        case 'CHAUFFEUR_MAGASIN':
+          // Conversation Chauffeur ↔ Magasin (selon conditions)
+          endpoint = '/messaging/conversations/chauffeur-magasin';
+
+          if (user.role === 'chauffeur') {
+            // Chauffeur contacte magasin
+            const selectedMagasinData = eligibleMagasins.find(m => m.id === newConversationParticipant);
+            payload = {
+              chauffeurId: user.id,
+              magasinId: newConversationParticipant,
+              commandeId: selectedMagasinData?.commandeId
+            };
+          } else if (user.role === 'magasin') {
+            // Magasin contacte chauffeur
+            const selectedChauffeurData = eligibleChauffeurs.find(c => c.id === newConversationParticipant);
+            payload = {
+              chauffeurId: newConversationParticipant,
+              magasinId: user.storeId || user.id,
+              commandeId: selectedChauffeurData?.commandeId
+            };
+          } else {
+            // Admin crée conversation chauffeur-magasin avec double sélection
+            payload = {
+              magasinId: newConversationParticipant,
+              chauffeurId: newConversationSecondParticipant
+            };
+          }
+          break;
+
+        default:
+          throw new Error('Type de conversation non supporté');
+      }
+
+      console.log('🔥 Creating conversation:', { endpoint, payload });
+
+      // ✅ apiService.post retourne directement les données, pas {success, data}
+      const conversation = await apiService.post(endpoint, payload);
+
+      console.log('✅ Conversation créée:', conversation);
+
+      // Fermer le modal immédiatement
+      setShowCreateConversationModal(false);
+      setNewConversationType('');
+      setNewConversationParticipant('');
+      setNewConversationSecondParticipant('');
+      setEligibleChauffeursForMagasin([]);
+
+      // Recharger les conversations
+      await loadConversations();
+
+      // ✅ NE PAS sélectionner automatiquement pour éviter erreur 404 undefined
+      // L'utilisateur peut cliquer sur la conversation dans la liste
+
+    } catch (error) {
+      console.error('❌ Erreur création conversation:', error);
+      alert(`Erreur: ${(error as Error).message}`);
+    } finally {
+      setIsCreatingConversation(false);
     }
   };
 
@@ -103,11 +398,10 @@ const RealTimeMessaging: React.FC = () => {
         conversationsCount: conversations.length
       });
 
-      // Éviter les créations multiples avec un délai
+      // DÉSACTIVÉ - Éviter les créations multiples avec un délai
       const timer = setTimeout(() => {
-        if (!conversationCreated) {
-          createDefaultConversations();
-        }
+        // Désactivé temporairement pour éviter erreurs 500
+        // createDefaultConversations();
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -133,7 +427,7 @@ const RealTimeMessaging: React.FC = () => {
   const createDefaultConversations = async () => {
     console.log('🏗️ createDefaultConversations called with user:', { hasUser: !!user, userId: user?.id, role: user?.role });
 
-    if (!user) {
+    if (!user || !user.id) {
       console.warn('❌ No user found, skipping default conversations');
       return;
     }
@@ -149,11 +443,7 @@ const RealTimeMessaging: React.FC = () => {
     setConversationCreated(true);
 
     try {
-      // ✅ Utiliser user.token au lieu de localStorage pour plus de fiabilité (comme spécifié dans CLAUDE.md)
-      const token = user?.token || localStorage.getItem('authToken');
-      console.log('🔑 Token for API call:', { hasToken: !!token, userRole: user?.role });
-
-      // Vérifier d'abord si une conversation Direction existe déjà dans les conversations chargées
+      // Vérifier d'abord si une conversation Direction existe déjà
       const existingDirectionConv = conversations.find(conv =>
         (conv.type === 'PRIVATE' || conv.type === 'MAGASIN_DIRECTION') &&
         (conv.name?.includes('My Truck Direction') || conv.name?.includes('Discussion avec My Truck Direction'))
@@ -161,84 +451,22 @@ const RealTimeMessaging: React.FC = () => {
 
       if (existingDirectionConv) {
         console.log('✅ Conversation Direction déjà existante:', existingDirectionConv.id);
-        setConversationCreated(true);
         return;
       }
 
-      // Double-vérification côté API avant création
-      const checkResponse = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations?isActive=true`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      console.log('🔨 Création conversation par défaut avec Direction...');
+
+      // ✅ Utiliser apiService comme les autres fonctions
+      await apiService.post('/messaging/conversations/user-direction', {
+        userId: user.id,
+        userRole: user.role
       });
 
-      console.log('🔍 Check API response status:', checkResponse.status);
+      console.log('✅ Conversation Direction créée avec succès');
+      await loadConversations();
 
-      if (!checkResponse.ok) {
-        console.warn('⚠️ Erreur lors de la vérification des conversations:', checkResponse.status);
-        if (checkResponse.status === 401) {
-          console.error('🚫 Token invalide lors de la vérification - continuer avec création directe');
-        }
-      }
-
-      if (checkResponse.ok) {
-        const existingConversations = await checkResponse.json();
-        const hasDirectionConv = existingConversations.some((conv: any) =>
-          (conv.type === 'PRIVATE' || conv.type === 'MAGASIN_DIRECTION') &&
-          (conv.name?.includes('My Truck Direction') || conv.name?.includes('Discussion avec My Truck Direction'))
-        );
-
-        if (hasDirectionConv) {
-          console.log('✅ Conversation Direction trouvée via API - éviter duplication');
-          setConversationCreated(true);
-          await loadConversations();
-          return;
-        }
-      }
-
-      // Créer automatiquement la conversation avec la Direction pour tous les utilisateurs
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/messaging/conversations/user-direction`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      console.log('📡 API response status:', response.status);
-
-      if (!response.ok) {
-        console.warn('❌ Impossible de créer la conversation Direction, status:', response.status);
-        const errorText = await response.text();
-        console.warn('Error details:', errorText);
-
-        // ✅ Diagnostic spécifique pour 401/403
-        if (response.status === 401) {
-          console.error('🚫 Token invalide ou expiré - vérifier l\'authentification');
-          console.error('🔍 User role:', user?.role);
-          console.error('🔍 Token exists:', !!token);
-          console.error('🔍 Token preview:', token ? token.substring(0, 20) + '...' : 'null');
-        } else if (response.status === 403) {
-          console.error('🚫 Permissions insuffisantes - vérifier les droits utilisateur');
-          console.error('🔍 User role:', user?.role);
-          console.error('🔍 Entity type expected:', user?.role === 'chauffeur' ? 'chauffeur' : user?.role === 'magasin' ? 'magasin' : 'user');
-        }
-
-        // Permettre de réessayer en cas d'erreur
-        setConversationCreated(false);
-      } else {
-        console.log('✅ Conversation Direction créée/récupérée avec succès');
-        const data = await response.json();
-        console.log('🎯 CONVERSATION CRÉÉE - Response data:', data);
-        console.log('🔍 Participants dans la conversation créée:', data.participantIds);
-        console.log('🆔 ID de la conversation créée:', data.id);
-
-        // Forcer le rechargement des conversations après création
-        console.log('🔄 Rechargement forcé des conversations après création...');
-        await loadConversations();
-      }
     } catch (error) {
-      console.error('❌ Erreur lors de la création des conversations par défaut:', error);
+      console.error('❌ Erreur lors de la création conversation par défaut:', error);
       // Permettre de réessayer en cas d'erreur
       setConversationCreated(false);
     }
@@ -539,44 +767,66 @@ const RealTimeMessaging: React.FC = () => {
     }
 
     // Pour les conversations PRIVATE (nouvelles) - identifier le type selon les participants
-    if (conversation.type === 'PRIVATE' && participantsLoaded && conversation.participantIds?.length === 2) {
-      const otherParticipantId = conversation.participantIds.find(id => id !== user?.id);
+    if (conversation.type === 'PRIVATE' && conversation.participantIds?.length === 2) {
+      // ✅ PRIORITÉ 1 : Utiliser chauffeurId et magasinId si présents (conversation chauffeur-magasin)
+      if (conversation.chauffeurId && conversation.magasinId) {
+        if (user?.role === 'admin') {
+          // Admin voit les deux participants
+          const magasin = allMagasins.find(m => m.id === conversation.magasinId);
+          const chauffeur = allChauffeurs.find(c => c.id === conversation.chauffeurId);
 
-      if (otherParticipantId) {
-        // Chercher dans les magasins
-        const magasin = allMagasins.find(m => m.id === otherParticipantId);
-        if (magasin) {
-          // Conversation My Truck ↔ Magasin
-          if (user?.role === 'admin') {
+          if (magasin && chauffeur) {
+            const magasinName = (magasin as any).nom || magasin.name;
+            return `Groupe MT - ${chauffeur.prenom} ${chauffeur.nom} ↔ ${magasinName}`.trim();
+          }
+          // Fallback au nom backend
+          return conversation.name || 'Discussion chauffeur-magasin';
+        } else if (user?.role === 'chauffeur') {
+          // Chauffeur voit le nom du magasin
+          const magasin = allMagasins.find(m => m.id === conversation.magasinId);
+          if (magasin) {
             const magasinName = (magasin as any).nom || magasin.name;
             return `Discussion avec ${magasinName}`;
-          } else {
-            return 'Discussion avec My Truck Direction';
           }
-        }
-
-        // Chercher dans les chauffeurs
-        const chauffeur = allChauffeurs.find(c => c.id === otherParticipantId);
-        if (chauffeur) {
-          // Conversation My Truck ↔ Chauffeur
-          if (user?.role === 'admin') {
-            return `Discussion avec ${chauffeur.nom} ${chauffeur.prenom}`.trim();
-          } else {
-            return 'Discussion avec My Truck Direction';
-          }
-        }
-
-        // Si c'est entre chauffeur et magasin (ni l'un ni l'autre n'est l'admin)
-        if (user?.role === 'chauffeur') {
-          const magasinForChauffeur = allMagasins.find(m => m.id === otherParticipantId);
-          if (magasinForChauffeur) {
-            const magasinName = (magasinForChauffeur as any).nom || magasinForChauffeur.name;
-            return `Discussion avec ${magasinName}`;
-          }
+          // Fallback au nom backend
+          return conversation.name || 'Discussion directe';
         } else if (user?.role === 'magasin') {
-          const chauffeurForMagasin = allChauffeurs.find(c => c.id === otherParticipantId);
-          if (chauffeurForMagasin) {
-            return `Discussion avec ${chauffeurForMagasin.nom} ${chauffeurForMagasin.prenom}`.trim();
+          // Magasin voit le nom du chauffeur
+          const chauffeur = allChauffeurs.find(c => c.id === conversation.chauffeurId);
+          if (chauffeur) {
+            return `Discussion avec ${chauffeur.prenom} ${chauffeur.nom}`.trim();
+          }
+          // Fallback au nom backend
+          return conversation.name || 'Discussion directe';
+        }
+      }
+
+      // ✅ PRIORITÉ 2 : Identifier selon participantIds (conversations direction)
+      if (participantsLoaded) {
+        const otherParticipantId = conversation.participantIds.find(id => id !== user?.id);
+
+        if (otherParticipantId) {
+          // Chercher dans les magasins
+          const magasin = allMagasins.find(m => m.id === otherParticipantId);
+          if (magasin) {
+            // Conversation My Truck ↔ Magasin
+            if (user?.role === 'admin') {
+              const magasinName = (magasin as any).nom || magasin.name;
+              return `Discussion avec ${magasinName}`;
+            } else {
+              return 'Discussion avec My Truck Direction';
+            }
+          }
+
+          // Chercher dans les chauffeurs
+          const chauffeur = allChauffeurs.find(c => c.id === otherParticipantId);
+          if (chauffeur) {
+            // Conversation My Truck ↔ Chauffeur
+            if (user?.role === 'admin') {
+              return `Discussion avec ${chauffeur.prenom} ${chauffeur.nom}`.trim();
+            } else {
+              return 'Discussion avec My Truck Direction';
+            }
           }
         }
       }
@@ -657,21 +907,23 @@ const RealTimeMessaging: React.FC = () => {
             </svg>
           </div>
 
-          {/* ✅ Contrôles Admin pour la gestion des conversations */}
+          {/* ✅ Bouton création conversation - Disponible pour tous les rôles */}
+          <div className="mt-3">
+            <button
+              onClick={() => setShowCreateConversationModal(true)}
+              className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center space-x-2"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Nouvelle conversation</span>
+            </button>
+          </div>
+
+          {/* ✅ Contrôles Admin pour la gestion/suppression des conversations */}
           {user?.role === 'admin' && (
             <>
-              {/* Boutons de gestion admin */}
-              <div className="mt-3 space-y-2">
-                <button
-                  onClick={() => setShowCreateConversationModal(true)}
-                  className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm flex items-center justify-center space-x-2"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  <span>Nouvelle conversation</span>
-                </button>
-
+              <div className="mt-2 space-y-2">
                 {/* Contrôles de sélection et suppression */}
                 {filteredConversations.length > 0 && (
                   <div className="flex space-x-2">
@@ -945,6 +1197,7 @@ const RealTimeMessaging: React.FC = () => {
         )}
       </div>
 
+
       {/* ✅ Modal de création de conversation */}
       {showCreateConversationModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -958,55 +1211,224 @@ const RealTimeMessaging: React.FC = () => {
                 </label>
                 <select
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                  defaultValue=""
+                  value={newConversationType}
+                  onChange={(e) => {
+                    setNewConversationType(e.target.value);
+                    setNewConversationParticipant(''); // Reset participant when type changes
+                    setNewConversationSecondParticipant(''); // Reset second participant
+                    setEligibleChauffeursForMagasin([]); // Reset chauffeurs éligibles pour admin
+
+                    // Charger automatiquement les magasins éligibles pour les chauffeurs
+                    if (e.target.value === 'CHAUFFEUR_MAGASIN' && user?.role === 'chauffeur') {
+                      loadEligibleMagasinsForChauffeur();
+                    }
+
+                    // Charger automatiquement les chauffeurs éligibles pour les magasins
+                    if (e.target.value === 'CHAUFFEUR_MAGASIN' && user?.role === 'magasin') {
+                      loadEligibleChauffeursForMagasin();
+                    }
+                  }}
                 >
                   <option value="">Sélectionner un type</option>
-                  <option value="MAGASIN_DIRECTION">Discussion avec un magasin</option>
-                  <option value="PRIVATE">Discussion privée avec un chauffeur</option>
-                  <option value="COMMANDE_GROUP">Groupe de livraison (commande)</option>
+
+                  {/* Options pour admin */}
+                  {user?.role === 'admin' && (
+                    <>
+                      <option value="MAGASIN_DIRECTION">Discussion avec un magasin</option>
+                      <option value="PRIVATE">Discussion privée avec un chauffeur</option>
+                      <option value="CHAUFFEUR_MAGASIN">Discussion chauffeur ↔ magasin</option>
+                    </>
+                  )}
+
+                  {/* Options pour chauffeur */}
+                  {user?.role === 'chauffeur' && (
+                    <>
+                      <option value="PRIVATE">Discussion avec la Direction</option>
+                      <option value="CHAUFFEUR_MAGASIN">Discussion avec un Magasin</option>
+                    </>
+                  )}
+
+                  {/* Options pour magasin */}
+                  {user?.role === 'magasin' && (
+                    <>
+                      <option value="MAGASIN_DIRECTION">Discussion avec la Direction</option>
+                      <option value="CHAUFFEUR_MAGASIN">Discussion avec un Chauffeur</option>
+                    </>
+                  )}
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Participant
-                </label>
-                <select className="w-full border border-gray-300 rounded-lg px-3 py-2">
+              {/* Select participant - masqué pour chauffeur/magasin + direction (automatique) */}
+              {!((user?.role === 'chauffeur' || user?.role === 'magasin') && newConversationType === 'PRIVATE') &&
+               !(user?.role === 'magasin' && newConversationType === 'MAGASIN_DIRECTION') && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Participant
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    value={newConversationParticipant}
+                    onChange={(e) => {
+                      setNewConversationParticipant(e.target.value);
+
+                      // Si admin sélectionne un magasin pour CHAUFFEUR_MAGASIN, charger les chauffeurs éligibles
+                      if (user?.role === 'admin' && newConversationType === 'CHAUFFEUR_MAGASIN' && e.target.value) {
+                        setNewConversationSecondParticipant(''); // Reset chauffeur
+                        loadEligibleChauffeursForMagasin(e.target.value);
+                      }
+                    }}
+                    disabled={!newConversationType}
+                  >
                   <option value="">Sélectionner un participant</option>
-                  {allMagasins.map(magasin => (
-                    <option key={magasin.id} value={magasin.id}>
-                      {(magasin as any).nom || magasin.name} (Magasin)
-                    </option>
-                  ))}
-                  {allChauffeurs.map(chauffeur => (
-                    <option key={chauffeur.id} value={chauffeur.id}>
-                      {chauffeur.nom} {chauffeur.prenom} (Chauffeur)
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              <div className="text-sm text-gray-500">
-                ℹ️ Cette fonctionnalité sera disponible dans une prochaine version.
-              </div>
+                  {/* Options selon le type sélectionné */}
+                  {newConversationType === 'MAGASIN_DIRECTION' && user?.role === 'admin' &&
+                    allMagasins.map(magasin => (
+                      <option key={magasin.id} value={magasin.id}>
+                        {(magasin as any).nom || magasin.name} (Magasin)
+                      </option>
+                    ))
+                  }
+
+                  {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'chauffeur' &&
+                    eligibleMagasins.map(magasin => (
+                      <option key={magasin.id} value={magasin.id}>
+                        {(magasin as any).nom || magasin.name} (Magasin avec commandes actives)
+                      </option>
+                    ))
+                  }
+
+                  {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'magasin' &&
+                    eligibleChauffeurs.map(chauffeur => (
+                      <option key={chauffeur.id} value={chauffeur.id}>
+                        {chauffeur.prenom} {chauffeur.nom} (Chauffeur avec commandes actives)
+                      </option>
+                    ))
+                  }
+
+                  {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' &&
+                    allMagasins.map(magasin => (
+                      <option key={magasin.id} value={magasin.id}>
+                        {(magasin as any).nom || magasin.name} (Magasin)
+                      </option>
+                    ))
+                  }
+
+                  {newConversationType === 'PRIVATE' && user?.role === 'admin' &&
+                    allChauffeurs.map(chauffeur => (
+                      <option key={chauffeur.id} value={chauffeur.id}>
+                        {chauffeur.prenom} {chauffeur.nom} (Chauffeur)
+                      </option>
+                    ))
+                  }
+                  </select>
+                </div>
+              )}
+
+              {/* Second participant select - uniquement pour admin avec CHAUFFEUR_MAGASIN */}
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' && newConversationParticipant && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chauffeur {eligibleChauffeursForMagasin.length > 0 && `(${eligibleChauffeursForMagasin.length} avec commandes actives)`}
+                  </label>
+                  <select
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    value={newConversationSecondParticipant}
+                    onChange={(e) => setNewConversationSecondParticipant(e.target.value)}
+                  >
+                    <option value="">
+                      {eligibleChauffeursForMagasin.length === 0
+                        ? 'Chargement des chauffeurs...'
+                        : 'Sélectionner un chauffeur'}
+                    </option>
+                    {eligibleChauffeursForMagasin.map(chauffeur => (
+                      <option key={chauffeur.id} value={chauffeur.id}>
+                        {chauffeur.prenom} {chauffeur.nom} (Chauffeur avec commandes actives)
+                      </option>
+                    ))}
+                  </select>
+
+                  {eligibleChauffeursForMagasin.length === 0 && (
+                    <p className="text-sm text-orange-600 mt-2">
+                      ⚠️ Aucun chauffeur avec commande active pour ce magasin
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'chauffeur' && eligibleMagasins.length === 0 && (
+                <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                  ⚠️ Aucun magasin disponible. Vous devez avoir des commandes actives (non "En attente") pour pouvoir contacter un magasin.
+                </div>
+              )}
+
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'chauffeur' && eligibleMagasins.length > 0 && (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+                  ✅ {eligibleMagasins.length} magasin(s) disponible(s) basé(s) sur vos commandes actives.
+                </div>
+              )}
+
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'magasin' && eligibleChauffeurs.length === 0 && (
+                <div className="text-sm text-orange-600 bg-orange-50 p-3 rounded-lg">
+                  ⚠️ Aucun chauffeur disponible. Vous devez avoir des commandes actives (non "En attente") pour pouvoir contacter un chauffeur.
+                </div>
+              )}
+
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'magasin' && eligibleChauffeurs.length > 0 && (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">
+                  ✅ {eligibleChauffeurs.length} chauffeur(s) disponible(s) basé(s) sur vos commandes actives.
+                </div>
+              )}
+
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' && (
+                <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
+                  ℹ️ Cette conversation sera créée uniquement si il existe des commandes actives entre le chauffeur et le magasin sélectionné.
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3 mt-6">
               <button
-                onClick={() => setShowCreateConversationModal(false)}
+                onClick={() => {
+                  setShowCreateConversationModal(false);
+                  setNewConversationType('');
+                  setNewConversationParticipant('');
+                  setNewConversationSecondParticipant('');
+                  setEligibleChauffeursForMagasin([]);
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 Annuler
               </button>
               <button
-                onClick={() => {
-                  // TODO: Implémenter la création
-                  alert('Fonctionnalité en cours de développement');
-                  setShowCreateConversationModal(false);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={handleCreateConversation}
+                disabled={
+                  isCreatingConversation ||
+                  !newConversationType ||
+                  (
+                    // Participant requis sauf pour ces cas spéciaux :
+                    !newConversationParticipant &&
+                    !(
+                      // Chauffeur/Magasin → Direction automatique
+                      ((user?.role === 'chauffeur' || user?.role === 'magasin') && newConversationType === 'PRIVATE') ||
+                      // Magasin → Direction automatique
+                      (user?.role === 'magasin' && newConversationType === 'MAGASIN_DIRECTION')
+                    )
+                  ) ||
+                  // Pour admin CHAUFFEUR_MAGASIN, les 2 participants sont requis
+                  (user?.role === 'admin' && newConversationType === 'CHAUFFEUR_MAGASIN' &&
+                   (!newConversationParticipant || !newConversationSecondParticipant))
+                }
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                Créer
+                {isCreatingConversation ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Création...</span>
+                  </>
+                ) : (
+                  <span>Créer</span>
+                )}
               </button>
             </div>
           </div>
