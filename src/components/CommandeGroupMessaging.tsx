@@ -68,7 +68,7 @@ const CommandeGroupMessaging: React.FC<CommandeGroupMessagingProps> = ({
     const commandeStatus = commande.fields['STATUT DE LA COMMANDE'] as StatutCommande;
     const livraisonStatus = commande.fields['STATUT DE LA LIVRAISON (ENCART MYTRUCK)'] as StatutLivraison;
 
-    const allowedCommandeStatuses: StatutCommande[] = ['Confirmée', 'Transmise'];
+    const allowedCommandeStatuses: StatutCommande[] = ['Confirmée'];
     const allowedLivraisonStatuses: StatutLivraison[] = [
       'CONFIRMEE',
       'ENLEVEE',
@@ -128,7 +128,6 @@ const CommandeGroupMessaging: React.FC<CommandeGroupMessagingProps> = ({
       const commandeColors = {
         'En attente': 'bg-yellow-100 text-yellow-800',
         'Confirmée': 'bg-green-100 text-green-800',
-        'Transmise': 'bg-blue-100 text-blue-800',
         'Annulée': 'bg-red-100 text-red-800',
         'Modifiée': 'bg-orange-100 text-orange-800'
       };
@@ -214,7 +213,7 @@ const CommandeGroupMessaging: React.FC<CommandeGroupMessagingProps> = ({
             <h4 className="font-medium text-gray-900 mb-2">Conditions pour la messagerie de groupe:</h4>
             <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
               <li className={statusInfo.commande !== 'En attente' ? 'text-green-600' : 'text-red-600'}>
-                Commande confirmée ou transmise {statusInfo.commande !== 'En attente' ? '✓' : '✗'}
+                Commande confirmée {statusInfo.commande !== 'En attente' ? '✓' : '✗'}
               </li>
               <li className={['CONFIRMEE', 'ENLEVEE', 'EN COURS DE LIVRAISON'].includes(statusInfo.livraison) ? 'text-green-600' : 'text-red-600'}>
                 Livraison confirmée, enlevée ou en cours {['CONFIRMEE', 'ENLEVEE', 'EN COURS DE LIVRAISON'].includes(statusInfo.livraison) ? '✓' : '✗'}

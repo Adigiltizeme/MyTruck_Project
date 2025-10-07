@@ -52,7 +52,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
 
     // Utilisation des validations
     const canModify = isValidForModification(commande);
-    const canConfirmTransmission = validateCommande.canConfirmTransmission(commande);
 
     // Suivi en temps réel
     useEffect(() => {
@@ -338,25 +337,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
         }
     };
 
-    // const handleConfirmTransmission = async () => {
-    //     try {
-    //         setLoading(true);
-    //         // ✅ UTILISER le nouveau système intelligent
-    //         await dataService.updateStatutsCommande(
-    //             commande?.id,
-    //             'Transmise',
-    //             undefined,
-    //             'Transmission confirmée par magasin'
-    //         );
-
-    //         if (onRefresh) await onRefresh();
-    //     } catch (error) {
-    //         console.error('Erreur lors de la confirmation:', error);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -383,16 +363,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                             Cette commande ne peut plus être modifiée
                         </div>
                     )}
-
-                    {/* {canConfirmTransmission && (
-                        <button
-                            onClick={handleConfirmTransmission}
-                            disabled={loading}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                            Confirmer la transmission
-                        </button>
-                    )} */}
                 </div>
             </div>
 

@@ -88,7 +88,7 @@ export interface Personnel {
 }
 
 export type CategorieVehicule = '3M3' | '6M3' | '10M3' | '20M3';
-export type StatutCommande = 'En attente' | 'Confirmée' | 'Transmise' | 'Annulée' | 'Modifiée';
+export type StatutCommande = 'En attente' | 'Confirmée' | 'Annulée' | 'Modifiée';
 export type StatutLivraison = 
   | 'EN ATTENTE' 
   | 'CONFIRMEE' 

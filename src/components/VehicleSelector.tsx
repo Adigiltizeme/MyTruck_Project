@@ -674,7 +674,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
           {crewSize >= 3 && (
             <p className="text-sm text-orange-600 mt-1">
-              Plus de 2 équipiers nécessite un devis spécial. Passez à l'étape suivante pour le demander.
+              Plus de 2 équipiers nécessite un devis spécial. Passez à l'étape suivante pour demander le devis.
             </p>
           )}
 

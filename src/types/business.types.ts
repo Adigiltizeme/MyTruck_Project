@@ -262,7 +262,7 @@ export interface CommandeMetier {
         }
     };
     statuts: {
-        commande: 'En attente' | 'Confirmée' | 'Transmise' | 'Annulée' | 'Modifiée';
+        commande: 'En attente' | 'Confirmée' | 'Annulée' | 'Modifiée';
         livraison: 'EN ATTENTE' | 'CONFIRMEE' | 'ENLEVEE' | 'EN COURS DE LIVRAISON' | 'LIVREE' | 'ANNULEE' | 'ECHEC';
     };
     // Historique des changements de statuts

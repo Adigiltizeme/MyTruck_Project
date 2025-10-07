@@ -1,4 +1,4 @@
-export type StatutCommande = 'En attente' | 'Confirmée' | 'Transmise' | 'Annulée' | 'Modifiée';
+export type StatutCommande = 'En attente' | 'Confirmée' | 'Annulée' | 'Modifiée';
 
 export type StatutLivraison =
     | 'EN ATTENTE'

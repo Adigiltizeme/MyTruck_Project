@@ -26,15 +26,6 @@ export const isValidForModification = (commande: CommandeMetier): boolean => {
 
 export const validateCommande = {
     canModify: isValidForModification,
-    canConfirmTransmission: (commande: CommandeMetier): boolean => {
-        // ✅ CORRECTION : Vérification sécurisée
-        if (!commande || !commande.statuts) {
-            return false;
-        }
-        // ✅ RÈGLE MÉTIER : Peut être transmise si en attente et livraison en attente
-        return commande.statuts.commande === 'Confirmée' &&
-            commande.statuts.livraison === 'CONFIRMEE';
-    },
     needsDevis: (commande: CommandeMetier): boolean => {
         return (commande.livraison?.equipiers || 0) > 2;
     }
