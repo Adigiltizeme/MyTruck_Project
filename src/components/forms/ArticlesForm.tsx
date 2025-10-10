@@ -158,6 +158,7 @@ import ArticleDimensionsForm, { ArticleDimension } from "./ArticleDimensionForm"
 import VehicleSelector from "../VehicleSelector";
 import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
 import { CommandeMetier } from "../../types/business.types";
+import { TarificationService } from "../../services/tarification.service";
 
 export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true }) => {
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
@@ -167,6 +168,9 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
+    const [estimationTarif, setEstimationTarif] = useState<{ montantHT: number | 'devis'; detail: any } | null>(null);
+
+    const tarificationService = useMemo(() => new TarificationService(), []);
 
     const deliveryInfo = useMemo(() => {
         const baseInfo = {
@@ -371,14 +375,16 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     };
 
     // Gérer les changements de dimensions des articles
-    const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[]) => {
+    const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[], autresArticlesCount: number = 0) => {
         if (!hasUserInteracted && dimensions.length > 0) {
             setHasUserInteracted(true);
         }
 
         const currentDimensionsString = JSON.stringify(articleDimensions);
         const newDimensionsString = JSON.stringify(dimensions);
+        const currentAutresArticles = data.articles?.autresArticles || 0;
 
+        // Gérer les changements de dimensions
         if (currentDimensionsString !== newDimensionsString) {
             console.log("📄 [ARTICLES-FORM] Dimensions modifiées:", dimensions.length);
             setArticleDimensions(dimensions);
@@ -389,20 +395,36 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     value: dimensions
                 }
             });
-
-            const newTotalQuantity = dimensions.reduce((sum, article) => sum + article.quantite, 0);
-            const currentQuantity = data.articles?.nombre || 0;
-
-            if (newTotalQuantity !== currentQuantity) {
-                onFormChange({
-                    target: {
-                        name: 'articles.nombre',
-                        value: newTotalQuantity
-                    }
-                });
-            }
         }
-    }, [onFormChange, articleDimensions, data.articles?.nombre, hasUserInteracted]);
+
+        // Gérer les changements d'autres articles (toujours sauvegarder)
+        if (autresArticlesCount !== currentAutresArticles) {
+            console.log(`📦 [ARTICLES-FORM] Autres articles modifiés: ${currentAutresArticles} → ${autresArticlesCount}`);
+            onFormChange({
+                target: {
+                    name: 'articles.autresArticles',
+                    value: autresArticlesCount
+                }
+            });
+        }
+
+        // Recalculer le total (toujours, car soit dimensions soit autresArticles a changé)
+        const quantityFromDimensions = dimensions.reduce((sum, article) => sum + article.quantite, 0);
+        const newTotalQuantity = quantityFromDimensions + autresArticlesCount;
+        const currentQuantity = data.articles?.nombre || 0;
+
+        console.log(`📊 Calcul total articles: ${quantityFromDimensions} (dimensions) + ${autresArticlesCount} (autres) = ${newTotalQuantity}`);
+
+        // Ne sauvegarder que s'il y a des données réelles (évite les sauvegardes à 0 au démarrage)
+        if (newTotalQuantity !== currentQuantity && (newTotalQuantity > 0 || dimensions.length > 0 || currentQuantity > 0)) {
+            onFormChange({
+                target: {
+                    name: 'articles.nombre',
+                    value: newTotalQuantity
+                }
+            });
+        }
+    }, [onFormChange, articleDimensions, data.articles?.nombre, data.articles?.autresArticles, hasUserInteracted]);
 
     useEffect(() => {
         console.log("📄 [ARTICLES-FORM] Rendu avec données:", {
@@ -622,6 +644,25 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         });
     }, [onFormChange]);
 
+    // Calculer l'estimation de tarif quand le véhicule et les équipiers changent
+    useEffect(() => {
+        if (data.livraison?.vehicule && data.livraison?.equipiers !== undefined && hasUserInteracted) {
+            try {
+                const estimation = tarificationService.calculerEstimationSansKm({
+                    vehicule: data.livraison.vehicule,
+                    equipiers: data.livraison.equipiers
+                });
+                setEstimationTarif(estimation);
+                console.log('💰 Estimation calculée:', estimation);
+            } catch (error) {
+                console.error('Erreur calcul estimation:', error);
+                setEstimationTarif(null);
+            }
+        } else {
+            setEstimationTarif(null);
+        }
+    }, [data.livraison?.vehicule, data.livraison?.equipiers, tarificationService, hasUserInteracted]);
+
     return (
         <div className="space-y-6 mb-6">
             {/* <h3 className="text-xl font-semibold mb-4">Détails des articles</h3> */}
@@ -633,6 +674,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     onChange={handleArticleDimensionsChange}
                     readOnly={false}
                     isEditing={isEditing}
+                    initialAutresArticles={data.articles?.autresArticles || 0}
                 />
             </div>
 
@@ -668,6 +710,60 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     </div>
                 </div>
             )}
+
+            {/* Informations destination (Étage et Ascenseur) */}
+            {hasUserInteracted && articleDimensions.length > 0 &&
+                articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+                    <div className="bg-white rounded-lg shadow p-4 mb-6">
+                        <h4 className="text-lg font-medium mb-4">📍 Informations de destination</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <FormInput
+                                    label="Étage de livraison"
+                                    name="client.adresse.etage"
+                                    type="number"
+                                    value={data.client?.adresse?.etage || '0'}
+                                    min={0}
+                                    onChange={(e) => {
+                                        setHasUserInteracted(true);
+                                        onFormChange(e);
+                                    }}
+                                    placeholder="Ex: 3"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    0 = Rez-de-chaussée
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Ascenseur disponible
+                                </label>
+                                <div className="flex items-center h-10">
+                                    <label className="flex items-center cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            name="client.adresse.ascenseur"
+                                            checked={data.client?.adresse?.ascenseur || false}
+                                            onChange={(e) => {
+                                                setHasUserInteracted(true);
+                                                onFormChange({
+                                                    target: {
+                                                        name: 'client.adresse.ascenseur',
+                                                        value: e.target.checked
+                                                    }
+                                                });
+                                            }}
+                                            className="mr-2 h-5 w-5 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                                        />
+                                        <span className="text-sm text-gray-700">
+                                            Oui, un ascenseur est disponible
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             {/* Questions supplémentaires pour la livraison */}
             <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -939,7 +1035,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             {/* Nombre d'articles */}
             <div className="grid grid-cols-1 gap-4">
                 <FormInput
-                    label="Nombre d'articles"
+                    label="Nombre total d'articles"
                     name="articles.nombre"
                     type="number"
                     value={String(data.articles?.nombre || '')}
@@ -1008,6 +1104,64 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     </>
                 )}
             </div>
+
+            {/* Estimation de tarif (sans frais kilométriques) */}
+            {estimationTarif && hasUserInteracted && articleDimensions.length > 0 &&
+                articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-6 shadow-md">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center">
+                                <span className="text-3xl mr-3">💰</span>
+                                <div>
+                                    <h4 className="text-xl font-bold text-green-800">Estimation de prix "MY TRUCK"</h4>
+                                    <p className="text-sm text-green-700">Hors frais kilométriques</p>
+                                </div>
+                            </div>
+                            {estimationTarif.montantHT === 'devis' ? (
+                                <div className="text-3xl font-bold text-orange-600">DEVIS</div>
+                            ) : (
+                                <div className="text-right">
+                                    <div className="text-4xl font-bold text-green-700">{estimationTarif.montantHT}€</div>
+                                    <div className="text-sm text-green-600 font-medium">HT</div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Détail de l'estimation */}
+                        {estimationTarif.montantHT !== 'devis' && (
+                            <div className="mt-4 pt-4 border-t border-green-200">
+                                <p className="text-sm font-medium text-green-800 mb-2">Détail du tarif :</p>
+                                <div className="grid grid-cols-2 gap-3 text-sm">
+                                    <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                        <span className="text-gray-700">Véhicule {data.livraison?.vehicule} :</span>
+                                        <span className="font-semibold text-green-700">{estimationTarif.detail.vehicule}€</span>
+                                    </div>
+                                    <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                        <span className="text-gray-700">
+                                            {data.livraison?.equipiers === 0 ? 'Chauffeur seul' :
+                                                `Équipiers (+${data.livraison?.equipiers})`} :
+                                        </span>
+                                        <span className="font-semibold text-green-700">
+                                            {estimationTarif.detail.equipiers === 'devis' ? 'DEVIS' : `${estimationTarif.detail.equipiers}€`}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Avertissement */}
+                        <div className="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-md flex items-start">
+                            <span className="text-orange-600 text-xl mr-2">⚠️</span>
+                            <div className="text-sm text-orange-800">
+                                <p className="font-semibold mb-1">Tarif approximatif</p>
+                                <p>
+                                    Cette estimation ne comprend <strong>pas les frais kilométriques</strong>.
+                                    Le tarif final sera calculé à l'étape suivante après la saisie de l'adresse de livraison.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
         </div>
     );
 };

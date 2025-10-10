@@ -13,16 +13,18 @@ export interface ArticleDimension {
 
 interface ArticleDimensionsFormProps {
     initialArticles?: ArticleDimension[];
-    onChange: (articles: ArticleDimension[]) => void;
+    onChange: (articles: ArticleDimension[], autresArticlesCount?: number) => void;
     readOnly?: boolean;
     isEditing?: boolean;
+    initialAutresArticles?: number;
 }
 
 const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     initialArticles = [],
     onChange,
     readOnly = false,
-    isEditing = false
+    isEditing = false,
+    initialAutresArticles = 0
 }) => {
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);
@@ -30,10 +32,22 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [hasUserStartedTyping, setHasUserStartedTyping] = useState(false);
     const [hasAttemptedSubmission, setHasAttemptedSubmission] = useState(false);
     const [interactionTracker, setInteractionTracker] = useState<Set<string>>(new Set());
+    const [showAutresArticles, setShowAutresArticles] = useState(initialAutresArticles > 0);
+    const [autresArticlesCount, setAutresArticlesCount] = useState(initialAutresArticles || 0);
 
     // Utiliser une référence pour suivre si les dimensions initiales ont déjà été chargées
     const initializedRef = useRef(false);
     const lastNotifiedArticlesRef = useRef<ArticleDimension[]>([]);
+    const lastNotifiedAutresArticlesRef = useRef<number>(0);
+
+    // Synchroniser autresArticlesCount avec initialAutresArticles quand il change
+    useEffect(() => {
+        if (initialAutresArticles !== autresArticlesCount && initialAutresArticles > 0) {
+            console.log(`📦 [DIMENSIONS] Synchronisation autresArticles: ${autresArticlesCount} → ${initialAutresArticles}`);
+            setAutresArticlesCount(initialAutresArticles);
+            setShowAutresArticles(initialAutresArticles > 0);
+        }
+    }, [initialAutresArticles]);
 
     const detectUserInteraction = useCallback((articleId: string, fieldValue: any) => {
         if (fieldValue && fieldValue.toString().trim() !== '') {
@@ -139,22 +153,24 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         // Comparer avec la dernière valeur notifiée
         const currentString = JSON.stringify(articles);
         const lastNotifiedString = JSON.stringify(lastNotifiedArticlesRef.current);
+        const autresArticlesChanged = autresArticlesCount !== lastNotifiedAutresArticlesRef.current;
 
-        if (currentString !== lastNotifiedString) {
-            console.log("📦 [DIMENSIONS] Notification du parent pour changement de dimensions");
+        if (currentString !== lastNotifiedString || autresArticlesChanged) {
+            console.log("📦 [DIMENSIONS] Notification du parent pour changement de dimensions ou autres articles");
             lastNotifiedArticlesRef.current = [...articles];
+            lastNotifiedAutresArticlesRef.current = autresArticlesCount;
 
             // CORRECTION CRITIQUE: Utiliser un timeout pour éviter les appels synchrones
             // et s'assurer que l'appel se fait APRÈS le rendu complet
             const timer = setTimeout(() => {
                 // IMPORTANT: onChange ici ne doit affecter QUE les dimensions
                 // Il ne doit PAS déclencher handleVehicleSelect
-                onChange(articles);
+                onChange(articles, autresArticlesCount);
             }, 0);
 
             return () => clearTimeout(timer);
         }
-    }, [articles, onChange]);
+    }, [articles, onChange, autresArticlesCount]);
 
     // Le reste des fonctions reste identique...
     const addArticle = useCallback(() => {
@@ -240,36 +256,21 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-medium">Dimensions des articles</h3>
 
-                <div className="flex space-x-2">
-                    <button
-                        type="button"
-                        onClick={() => setShowHelpModal(true)}
-                        className="text-blue-600 hover:text-blue-800"
-                        title="Aide sur les dimensions"
-                    >
-                        <Info className="w-5 h-5" />
-                    </button>
-
-                    {!readOnly && (
-                        <div className="space-x-1">
-                            <button
-                                type="button"
-                                onClick={addArticle}
-                                className="px-3 py-1 bg-red-600 text-white rounded-md text-sm flex items-center"
-                            >
-                                <Plus className="w-4 h-4 mr-1" />
-                                Article le plus lourd
-                            </button>
-                            <p className="text-sm text-red-600 text-center"> (Si différent)</p>
-                        </div>
-                    )}
-                </div>
+                <button
+                    type="button"
+                    onClick={() => setShowHelpModal(true)}
+                    className="text-blue-600 hover:text-blue-800"
+                    title="Aide sur les dimensions"
+                >
+                    <Info className="w-5 h-5" />
+                </button>
             </div>
 
             <p className="text-sm text-gray-600 mb-4">
-                Celui avec les plus grandes dimensions nous aide à déterminer le véhicule adapté<br />
-                Le plus lourd (+ conditions spéciales) permet de déterminer le nombre d'équipiers nécessaires.
+                L'article le plus grand nous aide à déterminer le véhicule adapté.<br />
+                Le plus lourd permet de déterminer le nombre d'équipiers nécessaires.
             </p>
+
 
             {/* Avertissement si des dimensions manquent */}
             {shouldShowIncompleteWarning() && (
@@ -298,16 +299,19 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                             }`}
                     >
                         <div className="flex justify-between items-center mb-3">
-                            <h4 className="font-medium">Article le plus grand</h4> {/* <-- {index + 1} */}
+                            <h4 className="font-medium text-lg">
+                                {index === 0 ? '📦 Article le plus grand' : '⚖️ Article le plus lourd (si différent)'}
+                            </h4>
 
-                            {!readOnly && articles.length > 1 && (
+                            {!readOnly && index === 1 && (
                                 <button
                                     type="button"
                                     onClick={() => removeArticle(article.id)}
-                                    className="text-red-600 hover:text-red-800"
+                                    className="text-red-600 hover:text-red-800 flex items-center text-sm"
                                     title="Supprimer cet article"
                                 >
-                                    <Minus className="w-5 h-5" />
+                                    <Minus className="w-4 h-4 mr-1" />
+                                    Retirer
                                 </button>
                             )}
                         </div>
@@ -325,7 +329,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {/* Nom de l'article */}
-                            <div className="col-span-2">
+                            <div className={index === 0 ? "col-span-2" : "col-span-2"}>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Nom de l'article <span className="text-red-500">*</span>
                                 </label>
@@ -337,76 +341,103 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                         ? 'border-red-300'
                                         : 'border-gray-300'
                                         } rounded-md px-3 py-2`}
-                                    placeholder="Ex: Palmier Kentia"
+                                    placeholder={index === 0 ? "Ex: Palmier Kentia" : "Ex: Pot en terre cuite"}
                                     disabled={readOnly}
                                     required
                                 />
                             </div>
 
-                            {/* Dimensions */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Longueur (cm)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={article.longueur === undefined ? '' : article.longueur}
-                                    onChange={(e) => handleChange(article.id, 'longueur', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    placeholder="Ex: 150"
-                                    min="0"
-                                    step="1"
-                                    disabled={readOnly}
-                                />
-                            </div>
+                            {/* ARTICLE 1 (le plus grand) : Dimensions complètes */}
+                            {index === 0 && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Longueur (cm)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={article.longueur === undefined ? '' : article.longueur}
+                                            onChange={(e) => handleChange(article.id, 'longueur', e.target.value)}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                            placeholder="Ex: 150"
+                                            min="0"
+                                            step="1"
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Largeur (cm)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={article.largeur === undefined ? '' : article.largeur}
-                                    onChange={(e) => handleChange(article.id, 'largeur', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    placeholder="Ex: 60"
-                                    min="0"
-                                    step="1"
-                                    disabled={readOnly}
-                                />
-                            </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Largeur (cm)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={article.largeur === undefined ? '' : article.largeur}
+                                            onChange={(e) => handleChange(article.id, 'largeur', e.target.value)}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                            placeholder="Ex: 60"
+                                            min="0"
+                                            step="1"
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Hauteur (cm)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={article.hauteur === undefined ? '' : article.hauteur}
-                                    onChange={(e) => handleChange(article.id, 'hauteur', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    placeholder="Ex: 180"
-                                    min="0"
-                                    step="1"
-                                    disabled={readOnly}
-                                />
-                            </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Hauteur (cm)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={article.hauteur === undefined ? '' : article.hauteur}
+                                            onChange={(e) => handleChange(article.id, 'hauteur', e.target.value)}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                            placeholder="Ex: 180"
+                                            min="0"
+                                            step="1"
+                                            disabled={readOnly}
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Poids (kg)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={article.poids === undefined ? '' : article.poids}
-                                    onChange={(e) => handleChange(article.id, 'poids', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    placeholder="Ex: 15"
-                                    min="0"
-                                    step="0.1"
-                                    disabled={readOnly}
-                                />
-                            </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Poids (kg) <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={article.poids === undefined ? '' : article.poids}
+                                            onChange={(e) => handleChange(article.id, 'poids', e.target.value)}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                            placeholder="Ex: 15"
+                                            min="0"
+                                            step="0.1"
+                                            disabled={readOnly}
+                                        />
+                                    </div>
+                                </>
+                            )}
+
+                            {/* ARTICLE 2 (le plus lourd) : Seulement poids */}
+                            {index === 1 && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Poids (kg) <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={article.poids === undefined ? '' : article.poids}
+                                        onChange={(e) => handleChange(article.id, 'poids', e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="Ex: 25"
+                                        min="0"
+                                        step="0.1"
+                                        disabled={readOnly}
+                                        required
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Le poids de cet article servira uniquement pour le calcul des équipiers
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Quantité */}
                             <div>
@@ -418,7 +449,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                     value={article.quantite}
                                     onChange={(e) => handleChange(article.id, 'quantite', e.target.value)}
                                     className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    min="1"
+                                    min={1}
                                     step="1"
                                     disabled={readOnly}
                                     required
@@ -429,19 +460,80 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 ))}
             </div>
 
-            {/* Bouton d'ajout en bas */}
-            {!readOnly && (
-                <div className="flex justify-center items-center">
+            {/* Bouton d'ajout en bas - Seulement si un seul article */}
+            {!readOnly && articles.length < 2 && (
+                <div className="flex flex-col items-center">
                     <button
                         type="button"
                         onClick={addArticle}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 flex items-center"
+                        className="px-4 py-2 bg-orange-100 border border-orange-300 rounded-md text-orange-800 hover:bg-orange-200 flex items-center transition"
                     >
-                        <Plus className="w-5 h-5 mr-1" />
-                        Ajouter l'article le plus lourd
+                        <Plus className="w-5 h-5 mr-2" />
+                        Ajouter l'article le plus lourd (si différent du plus grand)
                     </button>
-                    {/* Placer paragraphe en dessous du bouton */}
-                        <p className="text-sm text-gray-600 text-center ml-2"> (Si différent)</p>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                        Uniquement si vous avez un article plus lourd que le plus grand
+                    </p>
+                </div>
+            )}
+
+            {/* Bouton pour afficher le champ "Autres articles" */}
+            {!readOnly && !showAutresArticles && (
+                <div className="flex flex-col items-center mt-4 pt-4 border-t border-gray-200">
+                    <button
+                        type="button"
+                        onClick={() => setShowAutresArticles(true)}
+                        className="px-4 py-2 bg-blue-50 border border-blue-300 rounded-md text-blue-800 hover:bg-blue-100 flex items-center transition"
+                    >
+                        <Plus className="w-5 h-5 mr-2" />
+                        J'ai d'autres articles (ni les plus grands, ni les plus lourds)
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                        Cliquez ici si vous avez d'autres articles à livrer
+                    </p>
+                </div>
+            )}
+
+            {/* Champ "Autres articles" */}
+            {showAutresArticles && (
+                <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                    <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-lg">📦 Autres articles</h4>
+                        {!readOnly && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowAutresArticles(false);
+                                    setAutresArticlesCount(0);
+                                }}
+                                className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                            >
+                                <Minus className="w-4 h-4 mr-1" />
+                                Retirer
+                            </button>
+                        )}
+                    </div>
+                    <p className="text-sm text-gray-700 mb-3">
+                        Nombre d'articles restants (ni parmi les plus grands, ni parmi les plus lourds)
+                    </p>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre d'autres articles
+                        </label>
+                        <input
+                            type="number"
+                            value={autresArticlesCount}
+                            onChange={(e) => setAutresArticlesCount(parseInt(e.target.value) || 0)}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                            min={0}
+                            step="1"
+                            disabled={readOnly}
+                            placeholder="Ex: 5"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            Ces articles seront ajoutés au nombre total d'articles
+                        </p>
+                    </div>
                 </div>
             )}
 

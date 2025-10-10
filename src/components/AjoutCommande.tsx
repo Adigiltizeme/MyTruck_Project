@@ -160,6 +160,16 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     const renderStep = () => {
         switch (state.step) {
             case 1:
+                return (
+                    <ArticlesForm
+                        data={state.data}
+                        errors={state.errors}
+                        onChange={handleInputChange}
+                        isEditing={isEditing}
+                        initialCanBeTilted={state.data.articles?.canBeTilted || false}
+                    />
+                );
+            case 2:
                 console.log("Rendu de ClientForm avec isEditing:", isEditing);
                 return (
                     <ClientForm
@@ -171,16 +181,6 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         addressSuggestions={addressSuggestions}
                         setAddressSuggestions={setAddressSuggestions}
                         isEditing={isEditing}
-                    />
-                );
-            case 2:
-                return (
-                    <ArticlesForm
-                        data={state.data}
-                        errors={state.errors}
-                        onChange={handleInputChange}
-                        isEditing={isEditing}
-                        initialCanBeTilted={state.data.articles?.canBeTilted || false}
                     />
                 );
             case 3:
@@ -322,7 +322,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
             </div>
             {/* En-tête avec étapes */}
             <div className="flex justify-between items-center mb-8">
-                {['Client', 'Articles', 'Livraison', 'Confirmer'].map((step, index) => (
+                {['Articles', 'Client', 'Livraison', 'Confirmer'].map((step, index) => (
                     <div key={index} className="flex flex-col items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center
                 ${state.step === index + 1

@@ -454,6 +454,9 @@ export class DataServiceAdapter {
                 if (commande.articles?.newPhotos && commande.articles.newPhotos.length > 0) {
                     updateData.newPhotos = commande.articles.newPhotos;
                 }
+                if (commande.articles?.autresArticles !== undefined) {
+                    updateData.autresArticles = Number(commande.articles.autresArticles);
+                }
 
                 // ✅ CLIENT NESTED (pour modification)
                 if (commande.client) {
@@ -478,6 +481,7 @@ export class DataServiceAdapter {
                         details: commande.articles.details || '',
                         categories: commande.articles.categories || [],
                         dimensions: commande.articles.dimensions || [],
+                        autresArticles: commande.articles.autresArticles || 0,
                         photos: commande.articles.photos || [],
                         newPhotos: commande.articles.newPhotos || [],
                         canBeTilted: commande.articles.canBeTilted || false,
@@ -900,6 +904,7 @@ export class DataServiceAdapter {
             nombreArticles: frontendData.articles?.nombre || 1,
             detailsArticles: frontendData.articles?.details || '',
             categoriesArticles: frontendData.articles?.categories || [],
+            autresArticles: frontendData.articles?.autresArticles || 0,
 
             // ✅ Conditions de livraison
             rueInaccessible: frontendData.livraison?.conditions?.rueInaccessible || false,

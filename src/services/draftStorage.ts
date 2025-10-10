@@ -413,15 +413,22 @@ export class DraftStorageService {
         try {
             const currentStoreId = storeId || this.getCurrentStoreId();
 
-            // ========== VALIDATION DE SÉCURITÉ STRICTE ==========
-            if (!currentStoreId || currentStoreId === 'unknown_store') {
-                console.error("[SÉCURITÉ] Tentative de sauvegarde sans storeId valide");
-                return { success: false, error: new Error("StoreId invalide") };
-            }
+            // ========== VALIDATION DE SÉCURITÉ ASSOUPLIE ==========
+            // Permettre la sauvegarde même sans storeId pour les admins ou cas spéciaux
+            let finalStoreId: string;
 
-            // SÉCURITÉ: Vérifier que les données correspondent au bon magasin
-            // Priorité à storeId fourni en paramètre (plus fiable)
-            const finalStoreId = storeId || currentStoreId;
+            if (!currentStoreId || currentStoreId === 'unknown_store') {
+                // Si pas de storeId et pas de données magasin, ne pas sauvegarder
+                if (!data.magasin?.id) {
+                    console.warn(`[DRAFT] Pas de storeId valide et pas de données - sauvegarde ignorée`);
+                    return { success: false, error: new Error("Aucun storeId disponible") };
+                }
+                // Sinon utiliser l'ID du magasin dans les données
+                finalStoreId = data.magasin.id;
+                console.warn(`[DRAFT] Sauvegarde avec storeId depuis data.magasin: ${finalStoreId}`);
+            } else {
+                finalStoreId = storeId || currentStoreId;
+            }
 
             if (data.magasin?.id && data.magasin.id !== finalStoreId) {
                 // En production, être plus flexible et corriger automatiquement

@@ -22,6 +22,7 @@
     "@types/tailwindcss": "^3.0.11",
     "airtable": "^0.12.2",
     "axios": "^1.10.0",
+    "browserslist": "^4.26.3",
     "cloudinary-react": "^1.8.1",
     "dexie": "^4.0.10",
     "dotenv": "^17.0.1",

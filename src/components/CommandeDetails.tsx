@@ -57,6 +57,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         return <div className="p-4 bg-red-100 text-red-700 rounded">Données de commande indisponibles.</div>;
     }
 
+    // 🔍 DEBUG: Voir la vraie structure reçue
+    console.log('🔍 CommandeDetails - articles:', JSON.stringify(commande.articles, null, 2));
+
     const [activeTab, setActiveTab] = useState(() => {
         // Restaurer l'onglet sauvegardé pour cette commande spécifique
         const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
@@ -65,9 +68,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     const [chauffeurs, setChauffeurs] = useState<Personnel[]>([]);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
-    
+
     // ✅ Ref pour suivre les changements de statuts (évite les boucles de rendu)
-    const previousStatutsRef = useRef<{commande?: string, livraison?: string}>({
+    const previousStatutsRef = useRef<{ commande?: string, livraison?: string }>({
         commande: commande?.statuts?.commande,
         livraison: commande?.statuts?.livraison
     });
@@ -110,7 +113,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                 console.log('🏗️ Date backend utilisée pour initialisation commande:', backendDate);
                 setStatusDateInCache(commande.id, 'commande', currentCommande, backendDate);
             }
-            
+
             if (currentLivraison && !getStatusDateFromCache(commande.id, 'livraison', currentLivraison)) {
                 console.log('🏗️ INITIALISATION cache livraison:', currentLivraison);
                 // Utiliser la vraie date de mise à jour du statut depuis le backend
@@ -169,21 +172,21 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     // ✅ FONCTION helper pour obtenir la date de mise à jour avec rétro-compatibilité
     const getUpdateDateForStatus = (statusType: 'commande' | 'livraison'): string | null => {
         const misAJour = commande?.dates?.misAJour;
-        
+
         if (!misAJour) {
             return null;
         }
-        
+
         // Nouveau format (objet avec commande/livraison séparées)
         if (typeof misAJour === 'object' && misAJour !== null) {
             return statusType === 'commande' ? misAJour.commande || null : misAJour.livraison || null;
         }
-        
+
         // Ancien format (string) - pour rétro-compatibilité
         if (typeof misAJour === 'string') {
             return misAJour;
         }
-        
+
         return null;
     };
 
@@ -207,8 +210,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             } else {
                 // Statut modifié = date de mise à jour
                 const updateDate = getUpdateDateForStatus('commande');
-                return updateDate ? new Date(updateDate) : 
-                       (commande?.dates?.commande ? new Date(commande.dates.commande) : new Date());
+                return updateDate ? new Date(updateDate) :
+                    (commande?.dates?.commande ? new Date(commande.dates.commande) : new Date());
             }
         } else { // livraison
             const isDefaultStatus = !currentStatus || currentStatus === 'EN ATTENTE';
@@ -233,28 +236,28 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     // Chronologie avec historique réel des statuts
     const buildTimelineFromHistory = () => {
         const events: { date: Date; status: string; type: string; oldStatus?: string; reason?: string }[] = [];
-        
+
         // ✅ SOLUTION SIMPLE : Toujours utiliser les dates du cache local pour la cohérence
         // Cela évite les incohérences entre l'historique et les dates indépendantes
-        
+
         const currentCommandeStatus = commande?.statuts?.commande || 'En attente';
         const currentLivraisonStatus = commande?.statuts?.livraison || 'EN ATTENTE';
-        
+
         const commandeSmartDate = getSmartStatusDate('commande', currentCommandeStatus);
         const livraisonSmartDate = getSmartStatusDate('livraison', currentLivraisonStatus);
-            
+
         events.push({
             date: commandeSmartDate,
             status: currentCommandeStatus,
             type: 'commande',
         });
-            
+
         events.push({
             date: livraisonSmartDate,
             status: currentLivraisonStatus,
             type: 'livraison',
         });
-        
+
         return events.sort((a, b) => a.date.getTime() - b.date.getTime());
     };
 
@@ -322,12 +325,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     const markRapportOperationStart = () => {
         console.log('🔒 DÉBUT OPÉRATION RAPPORT - Protection activée');
         rapportOperationInProgressRef.current = true;
-        
+
         // ✅ Exposer le flag globalement pour bloquer les synchronisations
         if (typeof window !== 'undefined') {
             (window as any).rapportOperationInProgress = true;
         }
-        
+
         console.log('🔒 Flag protection rapport:', rapportOperationInProgressRef.current);
     };
 
@@ -335,12 +338,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         console.log('⏰ Programmation fin protection rapport dans 3 secondes...');
         setTimeout(() => {
             rapportOperationInProgressRef.current = false;
-            
+
             // ✅ Retirer le flag global pour permettre les synchronisations
             if (typeof window !== 'undefined') {
                 (window as any).rapportOperationInProgress = false;
             }
-            
+
             console.log('🔓 FIN OPÉRATION RAPPORT - Protection désactivée');
             console.log('🔓 Flag protection rapport:', rapportOperationInProgressRef.current);
         }, 3000); // 3 secondes de protection pour éviter les synchronisations automatiques
@@ -350,10 +353,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     const handleRapportRefresh = async () => {
         try {
             console.log('📋 Refresh rapport - isolation totale des dates...');
-            
+
             // ✅ PAS DE DOUBLE PROTECTION - la protection est déjà activée par le composant appelant
             console.log('🔍 Protection déjà active ?', rapportOperationInProgressRef.current);
-            
+
             // Sauvegarder l'onglet actuel
             const currentTab = activeTab;
             localStorage.setItem(`commandeDetails_tab_${commande.id}`, currentTab);
@@ -362,7 +365,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             if (onRefresh && typeof onRefresh === 'function') {
                 await onRefresh();
             }
-            
+
             // Restaurer l'onglet après le refresh
             setTimeout(() => {
                 const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
@@ -546,10 +549,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         {commande.articles && (
                             <div className="space-y-4">
                                 <h3 className="font-medium text-lg">Articles</h3>
-                                <div className="space-y-2">
-                                    <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
-                                    <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
-                                </div>
                                 {(commande.articles?.photos && Array.isArray(commande.articles.photos)) && (
                                     <div className="grid grid-cols-2 gap-2 mt-2">
                                         {commande.articles.photos.map((photo: string | { url: string }, index) => {
@@ -574,8 +573,20 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         <h4 className="font-medium text-gray-700 mb-2">Dimensions des articles</h4>
                                         <div className="space-y-3">
                                             {commande.articles.dimensions.map((article: ArticleDimension, index: number) => (
-                                                <div key={index} className="border rounded-lg p-3 bg-gray-50">
-                                                    <p className="font-medium">{article.nom} (x{article.quantite})</p>
+                                                <div key={index} className={`border rounded-lg p-3 ${
+                                                    index === 0 ? 'bg-blue-50 border-blue-300' :
+                                                    index === 1 ? 'bg-orange-50 border-orange-300' :
+                                                    'bg-gray-50'
+                                                }`}>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        {index === 0 && <span className="text-lg">📦</span>}
+                                                        {index === 1 && <span className="text-lg">⚖️</span>}
+                                                        <p className="font-medium">
+                                                            {index === 0 && <span className="text-blue-700 text-sm mr-2">[Article le plus grand]</span>}
+                                                            {index === 1 && <span className="text-orange-700 text-sm mr-2">[Article le plus lourd]</span>}
+                                                            {article.nom} (x{article.quantite})
+                                                        </p>
+                                                    </div>
                                                     <div className="grid grid-cols-2 text-sm text-gray-600 mt-1">
                                                         {article.longueur && (
                                                             <p>Longueur: {article.longueur} cm</p>
@@ -595,6 +606,16 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         </div>
                                     </div>
                                 )}
+                                <div className="space-y-2">
+                                    <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
+                                    {commande.articles?.autresArticles > 0 && (
+                                        <p className="text-sm text-blue-700">
+                                            Dont {commande.articles.autresArticles} autre{commande.articles.autresArticles > 1 ? 's' : ''} article{commande.articles.autresArticles > 1 ? 's' : ''}
+                                            <span className="text-xs text-gray-500 ml-1">(ni les plus grands, ni les plus lourds)</span>
+                                        </p>
+                                    )}
+                                    <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
+                                </div>
                             </div>
                         )}
 
@@ -701,7 +722,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
                                         <div className="space-y-4">
                                             {/* 🏠 DUPLEX/MAISON - Seulement si présent */}
-                                            {deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor && (
+                                            {!!deliveryConditions.isDuplex && deliveryConditions.deliveryToUpperFloor && (
                                                 <div className="bg-blue-100 border border-blue-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-blue-600 text-2xl mr-3">🏠</span>
@@ -722,7 +743,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
 
                                             {/* 🚫 RUE INACCESSIBLE - Seulement si présent */}
-                                            {deliveryConditions.rueInaccessible && (
+                                            {!!deliveryConditions.rueInaccessible && (
                                                 <div className="bg-red-100 border border-red-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-red-600 text-2xl mr-3">🚫</span>
@@ -742,7 +763,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
 
                                             {/* 📦 PALETTE COMPLÈTE - Seulement si présent */}
-                                            {deliveryConditions.paletteComplete && (
+                                            {!!deliveryConditions.paletteComplete && (
                                                 <div className="bg-orange-100 border border-orange-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-orange-600 text-2xl mr-3">📦</span>
@@ -762,7 +783,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
 
                                             {/* 📏 DISTANCE PORTAGE - Seulement si >50m */}
-                                            {deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50 && (
+                                            {!!deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50 && (
                                                 <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-yellow-600 text-2xl mr-3">📏</span>
@@ -783,7 +804,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
 
                                             {/* 🪜 NOMBREUSES MARCHES - Seulement si >20 */}
-                                            {deliveryConditions.hasStairs && deliveryConditions.stairCount > 20 && (
+                                            {!!deliveryConditions.hasStairs && deliveryConditions.stairCount > 20 && (
                                                 <div className="bg-purple-100 border border-purple-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-purple-600 text-2xl mr-3">🪜</span>
@@ -804,7 +825,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
 
                                             {/* 🔧 MONTAGE NÉCESSAIRE - Seulement si présent */}
-                                            {deliveryConditions.needsAssembly && (
+                                            {!!deliveryConditions.needsAssembly && (
                                                 <div className="bg-red-100 border border-red-300 rounded-lg p-4">
                                                     <div className="flex items-start">
                                                         <span className="text-red-600 text-2xl mr-3">🔧</span>
@@ -846,7 +867,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
                                             // 🔥 CORRECTION MAJEURE : Utiliser la nouvelle logique hiérarchique officielle
                                             const hasElevator = commande.client?.adresse?.ascenseur;
-                                            
+
                                             const validationConditions = {
                                                 hasElevator: hasElevator || false,
                                                 totalItemCount: totalItems,
@@ -868,15 +889,15 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
                                             // ✅ UTILISER LA MÉTHODE OFFICIELLE
                                             const requiredCrew = VehicleValidationService.getRequiredCrewSize(articles, validationConditions);
-                                            
+
                                             // Obtenir les détails de validation pour l'affichage
                                             const validationDetails = VehicleValidationService.getValidationDetails(articles, validationConditions);
-                                            
+
                                             console.log('📊 [COMMANDE-DETAILS] Validation:', validationDetails);
 
                                             // Construire les conditions actives pour l'affichage
                                             const activeConditions = validationDetails.triggeredConditions || [];
-                                            
+
                                             // Détecter le niveau pour l'affichage
                                             let levelInfo = { level: 'NIVEAU 0', description: 'Chauffeur seul' };
                                             if (requiredCrew >= 3) {

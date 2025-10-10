@@ -10,7 +10,7 @@ export type StatutLivraison =
     | 'ECHEC';
 
 export type CategorieVehicule =
-    | '3M3'   // Utilitaire 150kg, 180x125x180cm
+    | '1M3'   // Utilitaire 150kg, 180x125x180cm
     | '6M3'   // Camionnette 300kg, 240x169x138cm
     | '10M3'  // Camionnette 1000kg, 308x207x176cm
     | '20M3'; // Avec hayon 1000kg, 420, 207, 230cm

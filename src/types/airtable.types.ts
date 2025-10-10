@@ -87,7 +87,7 @@ export interface Personnel {
   status: 'Actif' | 'Inactif';
 }
 
-export type CategorieVehicule = '3M3' | '6M3' | '10M3' | '20M3';
+export type CategorieVehicule = '1M3' | '6M3' | '10M3' | '20M3';
 export type StatutCommande = 'En attente' | 'Confirmée' | 'Annulée' | 'Modifiée';
 export type StatutLivraison = 
   | 'EN ATTENTE' 

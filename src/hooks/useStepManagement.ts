@@ -166,7 +166,7 @@ export const useStepManagement = (
 
         const errors = validateStep(formState.step);
         if (Object.keys(errors).length === 0) {
-            if (formState.step === 2) { // Étape des articles
+            if (formState.step === 1) { // Étape des articles
                 // Assurez-vous que les dimensions des articles sont bien dans l'état global
                 const articleDimensions = formState.data.articles?.dimensions || [];
 
@@ -207,7 +207,7 @@ export const useStepManagement = (
             });
         } else {
             // ========== VALIDATION CONTEXTUELLE POUR L'ÉTAPE ARTICLES ==========
-            if (formState.step === 2) {
+            if (formState.step === 1) {
                 // Filtrer les erreurs pour ne montrer que celles qui sont pertinentes
                 const relevantErrors: any = {};
 
@@ -274,16 +274,16 @@ export const useStepManagement = (
         
         // ========== LOGIQUE DE VALIDATION CONTEXTUELLE POUR LE PROGRÈS ==========
         let canProceed = false;
-        
-        if (formState.step === 2) {
+
+        if (formState.step === 1) {
             // Pour l'étape articles, être plus permissif
             const hasBasicInfo = formState.data.articles?.nombre && formState.data.articles.nombre > 0;
-            const hasDimensions = formState.data.articles?.dimensions && 
+            const hasDimensions = formState.data.articles?.dimensions &&
                                 formState.data.articles.dimensions.length > 0;
-            
+
             if (hasDimensions) {
                 // Si l'utilisateur a commencé les dimensions, vérifier qu'elles sont complètes
-                const hasCompleteArticles = formState.data.articles?.dimensions?.some(article => 
+                const hasCompleteArticles = formState.data.articles?.dimensions?.some(article =>
                     article.nom && article.nom.trim() !== ''
                 );
                 canProceed = !!hasCompleteArticles && Object.keys(errors).length === 0;
@@ -330,17 +330,12 @@ export const useStepManagement = (
     
     const stepsConfig: Record<number, StepConfig> = {
         1: {
-            title: 'Informations client',
-            isValid: !Object.keys(validateForm().errors.client || {}).length,
-            canProceed: !Object.keys(validateForm().errors.client || {}).length
-        },
-        2: {
             title: 'Articles',
             isValid: (() => {
                 const hasBasicInfo = !!(formState.data.articles?.nombre && formState.data.articles.nombre > 0);
-                const hasDimensions = !!(formState.data.articles?.dimensions && 
+                const hasDimensions = !!(formState.data.articles?.dimensions &&
                                     formState.data.articles.dimensions.length > 0);
-                
+
                 if (hasDimensions) {
                     return !Object.keys(validateForm().errors.articles || {}).length;
                 } else {
@@ -349,15 +344,20 @@ export const useStepManagement = (
             })(),
             canProceed: (() => {
                 const hasBasicInfo = !!(formState.data.articles?.nombre && formState.data.articles.nombre > 0);
-                const hasDimensions = !!(formState.data.articles?.dimensions && 
+                const hasDimensions = !!(formState.data.articles?.dimensions &&
                                     formState.data.articles.dimensions.length > 0);
-                
+
                 if (hasDimensions) {
                     return !Object.keys(validateForm().errors.articles || {}).length;
                 } else {
                     return hasBasicInfo;
                 }
             })()
+        },
+        2: {
+            title: 'Informations client',
+            isValid: !Object.keys(validateForm().errors.client || {}).length,
+            canProceed: !Object.keys(validateForm().errors.client || {}).length
         },
         3: {
             title: 'Livraison',

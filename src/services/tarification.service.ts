@@ -335,6 +335,77 @@ export class TarificationService {
         }
     }
 
+    /**
+     * Calcule une estimation de tarif SANS les frais kilométriques
+     * Utilisé pour l'estimation rapide dans le formulaire avant de connaître l'adresse client
+     */
+    calculerEstimationSansKm(params: {
+        vehicule: string;
+        equipiers: number;
+    }): {
+        montantHT: number | 'devis';
+        detail: {
+            vehicule: number;
+            equipiers: number | 'devis';
+        };
+    } {
+        try {
+            // 1. Calcul tarif véhicule
+            const shortFormat = params.vehicule.split(' ')[0];
+            const tarifVehicule = this.TARIFS_VEHICULES[shortFormat];
+
+            if (!tarifVehicule) {
+                console.error('Type de véhicule non reconnu:', params.vehicule);
+                throw new Error(`Véhicule non reconnu: ${params.vehicule}`);
+            }
+
+            // 2. Calcul tarif équipiers
+            let tarifEquipiers: number | 'devis' = 0;
+
+            if (params.equipiers >= 3) {
+                tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+            } else if (params.equipiers === 2) {
+                tarifEquipiers = 44; // Niveau 2: +2 équipiers
+            } else if (params.equipiers === 1) {
+                tarifEquipiers = 22; // Niveau 1: +1 équipier
+            } else {
+                tarifEquipiers = 0; // Niveau 0: Chauffeur seul
+            }
+
+            if (tarifEquipiers === 'devis') {
+                return {
+                    montantHT: 'devis',
+                    detail: {
+                        vehicule: tarifVehicule,
+                        equipiers: 'devis'
+                    }
+                };
+            }
+
+            // 3. Calcul total SANS frais kilométriques
+            const montantHT = tarifVehicule + (tarifEquipiers as number);
+
+            console.log(`Estimation sans km: ${montantHT}€ (véhicule: ${tarifVehicule}€, équipiers: ${tarifEquipiers}€)`);
+
+            return {
+                montantHT,
+                detail: {
+                    vehicule: tarifVehicule,
+                    equipiers: tarifEquipiers as number
+                }
+            };
+        } catch (error) {
+            console.error('Erreur estimation tarif sans km:', error);
+            return {
+                montantHT: this.TARIFS_VEHICULES[params.vehicule.split(' ')[0]] || 0,
+                detail: {
+                    vehicule: this.TARIFS_VEHICULES[params.vehicule.split(' ')[0]] || 0,
+                    equipiers: params.equipiers * 22
+                }
+            };
+        }
+    }
+
     private async getDistanceFromMapbox(originCoords: Coordinates, destCoords: Coordinates): Promise<number> {
         try {
             const response = await fetch(

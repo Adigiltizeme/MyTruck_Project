@@ -8,7 +8,16 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
         const errors: ValidationErrors = {};
 
         switch (step) {
-            case 1: // Informations client
+            case 1: // Articles
+                if (!formData.articles?.nombre || formData.articles.nombre <= 0) {
+                    errors.articles = {
+                        ...errors.articles,
+                        nombre: ERROR_MESSAGES.articles
+                    };
+                }
+                break;
+
+            case 2: // Informations client
                 if (!formData.client?.nom?.trim()) {
                     errors.client = {
                         ...errors.client,
@@ -52,15 +61,6 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
                             ...errors.client?.adresse,
                             interphone: ERROR_MESSAGES.adresse.interphone
                         }
-                    };
-                }
-                break;
-
-            case 2: // Articles
-                if (!formData.articles?.nombre || formData.articles.nombre <= 0) {
-                    errors.articles = {
-                        ...errors.articles,
-                        nombre: ERROR_MESSAGES.articles
                     };
                 }
                 break;

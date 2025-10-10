@@ -43,7 +43,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     {/* Type de logement */}
-                    {deliveryConditions.isDuplex && (
+                    {!!deliveryConditions.isDuplex && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">🏠</span>
                             <div>
@@ -59,7 +59,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     )}
 
                     {/* Rue inaccessible */}
-                    {deliveryConditions.rueInaccessible && (
+                    {!!deliveryConditions.rueInaccessible && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">🚫</span>
                             <div>
@@ -70,7 +70,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     )}
 
                     {/* Palette complète */}
-                    {deliveryConditions.paletteComplete && (
+                    {!!deliveryConditions.paletteComplete && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">📦</span>
                             <div>
@@ -81,7 +81,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     )}
 
                     {/* Distance de portage */}
-                    {deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50 && (
+                    {!!(deliveryConditions.parkingDistance && deliveryConditions.parkingDistance > 50) && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">📏</span>
                             <div>
@@ -92,7 +92,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     )}
 
                     {/* Escaliers */}
-                    {deliveryConditions.hasStairs && deliveryConditions.stairCount > 0 && (
+                    {!!(deliveryConditions.hasStairs && deliveryConditions.stairCount > 0) && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">🪜</span>
                             <div>
@@ -106,7 +106,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     )}
 
                     {/* Montage nécessaire */}
-                    {deliveryConditions.needsAssembly && (
+                    {!!deliveryConditions.needsAssembly && (
                         <div className="flex items-start">
                             <span className="text-orange-600 mr-2">🔧</span>
                             <div>
@@ -208,7 +208,13 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
 
                 <div>
                     <h4 className="font-medium">Articles</h4>
-                    <p>Quantité: {data.articles?.nombre}</p>
+                    <p>Quantité totale: {data.articles?.nombre}</p>
+                    {data.articles?.autresArticles > 0 && (
+                        <p className="text-sm text-blue-700">
+                            Dont {data.articles.autresArticles} autre{data.articles.autresArticles > 1 ? 's' : ''} article{data.articles.autresArticles > 1 ? 's' : ''}
+                            <span className="text-xs text-gray-500 ml-1">(ni les plus grands, ni les plus lourds)</span>
+                        </p>
+                    )}
                     {data.articles?.details && (
                         <p>Détails: {data.articles.details}</p>
                     )}

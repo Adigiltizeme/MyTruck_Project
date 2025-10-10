@@ -120,6 +120,7 @@ export interface ArticlesType {
         file?: File;
     }>;
     dimensions?: ArticleDimension[];
+    autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
     newPhotos: Array<{
         url: string;
         file: File
@@ -279,6 +280,7 @@ export interface CommandeMetier {
         canBeTilted?: boolean; // Indique si la commande peut être inclinée
         validationResults?: DeliveryValidationResult;
         validatedArticles?: ValidatedArticle[];
+        autresArticles?: number;
     };
     financier: {
         tarifHT: number;
