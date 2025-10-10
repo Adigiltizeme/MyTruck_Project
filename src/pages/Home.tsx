@@ -278,7 +278,7 @@ const HomePage: React.FC = () => {
                                 <strong className="text-white">MY TRUCK TRANSPORT ET LIVRAISON</strong>
                             </p>
                             <p>
-                                RCS Créteil: 851 349 357 | SIRET: [à compléter] | TVA: [à compléter]
+                                RCS Créteil: 851 349 357 | SIRET: 91158475300014 | TVA: FR00911584753
                             </p>
                         </div>
                         <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6 text-sm text-gray-400">
