@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import io, { Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 
 interface UseCommandesRealtimeProps {
   onCommandeUpdated?: (data: any) => void;
@@ -24,7 +24,7 @@ export const useCommandesRealtime = ({
   autoConnect = true
 }: UseCommandesRealtimeProps = {}) => {
   const { user } = useAuth();
-  const socketRef = useRef<Socket | null>(null);
+  const socketRef = useRef<any>(null);
   const isConnectingRef = useRef(false);
 
   const connectWebSocket = useCallback(() => {
@@ -129,7 +129,8 @@ export const useCommandesRealtime = ({
     return () => {
       disconnect();
     };
-  }, [user, autoConnect, connectWebSocket, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, autoConnect]); // ✅ Optimisation: seulement user.id et autoConnect
 
   return {
     isConnected: socketRef.current?.connected || false,
