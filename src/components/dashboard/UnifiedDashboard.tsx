@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMetricsData } from '../../hooks/useMetricsData';
+import { useCommandesRealtime } from '../../hooks/useCommandesRealtime';
 import { MetricCard } from './MetricCard';
 import { DeliveriesTable } from '../DeliveriesTable';
 import { PerformanceChart } from './charts/PerformanceChart';
@@ -44,16 +45,45 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     const [commandesAssignees, setCommandesAssignees] = useState<CommandeMetier[]>([]);
     const [chauffeurLoading, setChauffeurLoading] = useState(false);
 
+    // ✅ État pour forcer le refresh lors des mises à jour WebSocket
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+
     // ✅ Données métriques avec dates personnalisées et filtre spécifique selon le rôle
     const filtersWithCustomDates = {
         ...filters,
         customDateRange: customDateRange,
         // ✅ Pour chauffeur, s'assurer que le driver est filtré
-        driver: role === 'chauffeur' ? driverId || '' : filters.driver
+        driver: role === 'chauffeur' ? driverId || '' : filters.driver,
+        // ✅ Trigger pour forcer le rechargement
+        _refreshTrigger: refreshTrigger
     };
 
-
     const { data, loading, error } = useMetricsData(filtersWithCustomDates);
+
+    // ✅ SYNCHRONISATION TEMPS RÉEL avec WebSocket
+    const handleCommandeUpdate = useCallback((data: any) => {
+        console.log('📡 [UnifiedDashboard] Commande mise à jour reçue:', data);
+        // Rafraîchir les données en incrémentant le trigger
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
+
+    const handleStatusChange = useCallback((data: any) => {
+        console.log('📡 [UnifiedDashboard] Changement statut reçu:', data);
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
+
+    const handleChauffeurAssigned = useCallback((data: any) => {
+        console.log('📡 [UnifiedDashboard] Chauffeur assigné reçu:', data);
+        setRefreshTrigger(prev => prev + 1);
+    }, []);
+
+    // Activer les listeners WebSocket
+    useCommandesRealtime({
+        onCommandeUpdated: handleCommandeUpdate,
+        onCommandeStatusChanged: handleStatusChange,
+        onCommandeChauffeurAssigned: handleChauffeurAssigned,
+        autoConnect: true
+    });
 
     // ✅ Gestionnaires des filtres
     const handlePeriodChange = (period: PeriodType) => {
