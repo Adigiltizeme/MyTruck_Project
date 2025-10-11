@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     PlusIcon,
     TrashIcon,
@@ -6,7 +7,8 @@ import {
     PhoneIcon,
     EnvelopeIcon,
     KeyIcon,
-    ShieldCheckIcon
+    ShieldCheckIcon,
+    MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useApi } from '../../services/api.service';
 
@@ -47,9 +49,11 @@ interface BackendAdmin {
 }
 
 export default function AdminManagement() {
+    const [searchParams] = useSearchParams();
     const [admins, setAdmins] = useState<AdminInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
     // ✅ SUPPRIMÉ: editingAdmin - La modification se fait dans Profile.tsx
     // Variables d'état pour gestion modale suppression avec dépendances
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -69,6 +73,14 @@ export default function AdminManagement() {
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
 
     const apiService = useApi();
+
+    // Gérer le paramètre search de l'URL
+    useEffect(() => {
+        const searchFromUrl = searchParams.get('search');
+        if (searchFromUrl) {
+            setSearchTerm(searchFromUrl);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         loadAdmins();
@@ -255,6 +267,32 @@ export default function AdminManagement() {
                 </div>
             ) : (
                 <div className="bg-white rounded-lg shadow overflow-hidden">
+                    {/* Barre de recherche */}
+                    <div className="p-4 border-b border-gray-200">
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Rechercher par nom, prénom ou email..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                >
+                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -282,7 +320,18 @@ export default function AdminManagement() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {admins.map((admin) => (
+                            {admins
+                                .filter((admin) => {
+                                    if (!searchTerm) return true;
+                                    const search = searchTerm.toLowerCase();
+                                    return (
+                                        admin.nom?.toLowerCase().includes(search) ||
+                                        admin.prenom?.toLowerCase().includes(search) ||
+                                        admin.email?.toLowerCase().includes(search) ||
+                                        `${admin.prenom} ${admin.nom}`.toLowerCase().includes(search)
+                                    );
+                                })
+                                .map((admin) => (
                                 <tr key={admin.id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
@@ -340,13 +389,35 @@ export default function AdminManagement() {
                         </tbody>
                     </table>
 
-                    {admins.length === 0 && (
+                    {admins.filter((admin) => {
+                        if (!searchTerm) return true;
+                        const search = searchTerm.toLowerCase();
+                        return (
+                            admin.nom?.toLowerCase().includes(search) ||
+                            admin.prenom?.toLowerCase().includes(search) ||
+                            admin.email?.toLowerCase().includes(search) ||
+                            `${admin.prenom} ${admin.nom}`.toLowerCase().includes(search)
+                        );
+                    }).length === 0 && (
                         <div className="text-center py-12">
-                            <UserIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun administrateur</h3>
+                            <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">
+                                {searchTerm ? 'Aucun résultat trouvé' : 'Aucun administrateur'}
+                            </h3>
                             <p className="mt-1 text-sm text-gray-500">
-                                Commencez par créer un nouveau compte administrateur.
+                                {searchTerm
+                                    ? `Aucun administrateur ne correspond à "${searchTerm}"`
+                                    : 'Commencez par créer un nouveau compte administrateur.'
+                                }
                             </p>
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                >
+                                    Effacer la recherche
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
