@@ -15,6 +15,8 @@ import Dexie from 'dexie';
 import { ToastContainer } from 'react-toastify';
 import Signup from './pages/Signup';
 import SignupSuccess from './pages/SignupSuccess';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import { AuthService } from './services/authService';
 import { handleStorageError } from './utils/error-handler';
 import { useNotifications } from './contexts/NotificationContext';
@@ -213,6 +215,8 @@ const App = () => {
             {/* <Route path="/login" element={<TestAuth />} /> */}
             <Route path="/signup" element={<Signup />} />
             <Route path="/signup-success" element={<SignupSuccess />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route
               path="/home"
