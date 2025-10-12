@@ -266,7 +266,7 @@ const DocumentsPage: React.FC = () => {
 
     // Vérifie si l'utilisateur a les permissions pour générer un devis
     const canGenerateDevis = () => {
-        return user?.role === 'admin' || user?.role === 'magasin';
+        return isAdminRole(user?.role) || user?.role === 'magasin';
     };
 
     return (
@@ -340,7 +340,7 @@ const DocumentsPage: React.FC = () => {
                             <option value="refuses">Refusés</option>
                         </select>
 
-                        {user?.role === 'admin' && canGenerateDevis() && (
+                        {isAdminRole(user?.role) && canGenerateDevis() && (
                             <button
                                 onClick={handleNewDevis}
                                 className="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center"

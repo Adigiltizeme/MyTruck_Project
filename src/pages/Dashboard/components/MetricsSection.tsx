@@ -209,8 +209,8 @@ export const MetricsSection: React.FC<MetricsSectionProps> = ({
     userRole
 }) => {
     const { user } = useAuth();
-    const showFinancials = user?.role === 'admin';
-    const showAllStores = user?.role === 'admin';
+    const showFinancials = isAdminRole(user?.role);
+    const showAllStores = isAdminRole(user?.role);
 
     return (
         <div className="space-y-6">

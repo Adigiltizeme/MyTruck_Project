@@ -46,7 +46,7 @@ export const Filters: React.FC<FiltersProps> = ({
             </select>
             
             {/* Sélecteur de magasin uniquement pour admin */}
-            {user?.role === 'admin' && (
+            {isAdminRole(user?.role) && (
                 <select
                     value={currentFilters.store}
                     onChange={(e) => handleStoreChange(e.target.value)}

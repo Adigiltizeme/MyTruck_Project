@@ -20,7 +20,7 @@ export default function ClientManagement() {
     const { user } = useAuth();
     const apiService = useApi();
 
-    const canViewFullDetails = user?.role === 'admin';
+    const canViewFullDetails = isAdminRole(user?.role);
 
     useEffect(() => {
         loadClients();

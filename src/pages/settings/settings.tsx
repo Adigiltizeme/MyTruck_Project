@@ -128,7 +128,7 @@ export default function Settings() {
             </div>
 
             {/* Section de maintenance (admin uniquement) */}
-            {user?.role === 'admin' && (
+            {isAdminRole(user?.role) && (
                 <>
                     <DatabaseHealthDashboard />
                     <DatabaseExplorer />

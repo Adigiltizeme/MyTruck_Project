@@ -154,7 +154,7 @@ const Login = () => {
                     </div>
                 </form>
 
-                {user?.role === 'admin' && (
+                {isAdminRole(user?.role) && (
                     <div className="text-sm text-center mt-4">
                         <button
                             type="button"

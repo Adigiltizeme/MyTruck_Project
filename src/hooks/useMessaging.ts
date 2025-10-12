@@ -401,7 +401,7 @@ export const useMessaging = ({
       let senderType = 'DIRECTION'; // par défaut
       if (user?.role === 'magasin') senderType = 'MAGASIN';
       else if (user?.role === 'chauffeur') senderType = 'CHAUFFEUR';
-      else if (user?.role === 'admin' || user?.role === 'direction') senderType = 'DIRECTION';
+      else if (isAdminRole(user?.role) || user?.role === 'direction') senderType = 'DIRECTION';
 
       console.log('👤 Sender type mapping:', { userRole: user?.role, senderType });
 

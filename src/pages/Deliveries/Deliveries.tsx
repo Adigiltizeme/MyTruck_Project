@@ -54,7 +54,7 @@ const Deliveries = () => {
     // Filtrer les données selon le rôle de l'utilisateur
     const filteredByRoleData = useMemo(() => {
         // Si c'est un admin, pas de filtrage
-        if (user?.role === 'admin') return data;
+        if (isAdminRole(user?.role)) return data;
 
         // Si c'est un magasin, filtrer par storeId
         if (user?.role === 'magasin' && user.storeId) {
@@ -228,7 +228,7 @@ const Deliveries = () => {
     const { checkExpiredCommandes } = useCommandeExpiration({
         commandes: data,
         onCommandesUpdated: () => fetchData(),
-        enabled: user?.role === 'admin' // Seuls les admins peuvent déclencher l'expiration
+        enabled: isAdminRole(user?.role) // Seuls les admins peuvent déclencher l'expiration
     });
 
     // ✅ Réinitialiser la pagination quand la recherche change
@@ -484,7 +484,7 @@ const Deliveries = () => {
         'dates',
         'creneau',
         'statuts',
-        ...(user?.role === 'admin' ? ['tarifHT' as SortableFields] : [])
+        ...(isAdminRole(user?.role) ? ['tarifHT' as SortableFields] : [])
     ];
 
     const getClientName = (commande: any): string => {
@@ -536,7 +536,7 @@ const Deliveries = () => {
 
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                 <h1 className="text-xl sm:text-2xl font-bold">
-                    {user?.role === 'admin' && 'Direction My Truck - Toutes les commandes'}
+                    {isAdminRole(user?.role) && 'Direction My Truck - Toutes les commandes'}
                     {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
                     {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
                 </h1>
@@ -589,7 +589,7 @@ const Deliveries = () => {
                             </button>
                         )}
 
-                        {user?.role === 'admin' && (
+                        {isAdminRole(user?.role) && (
                             <button
                                 onClick={checkExpiredCommandes}
                                 className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 whitespace-nowrap"
@@ -878,13 +878,13 @@ const Deliveries = () => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Créneau</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Véhicule</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réserve</th>
-                                    {user?.role === 'admin' && (
+                                    {isAdminRole(user?.role) && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tarif HT</th>
                                     )}
                                     {user?.role !== 'magasin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
-                                    {user?.role === 'admin' && (
+                                    {isAdminRole(user?.role) && (
                                         <th className="w-16 px-4 py-2">
                                             <input
                                                 type="checkbox"
@@ -950,7 +950,7 @@ const Deliveries = () => {
                                                     {(commande.reserve || commande.livraison?.reserve) ? 'OUI' : 'NON'}
                                                 </span>
                                             </td>
-                                            {user?.role === 'admin' && (
+                                            {isAdminRole(user?.role) && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-left">
                                                     {commande.financier?.tarifHT
                                                         ? `${commande.financier.tarifHT}€`
@@ -963,7 +963,7 @@ const Deliveries = () => {
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>
                                             )}
-                                            {user?.role === 'admin' && (
+                                            {isAdminRole(user?.role) && (
                                                 <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="flex items-center justify-center">
                                                         <input
@@ -977,7 +977,7 @@ const Deliveries = () => {
                                                 </td>
                                             )}
                                             {/* COMMENTÉ : Bouton supprimer individuel remplacé par checkbox
-                                            {(user?.role === 'admin') && (
+                                            {(isAdminRole(user?.role)) && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                     <div className="flex gap-2 justify-end">
                                                         <button

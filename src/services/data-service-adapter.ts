@@ -1150,7 +1150,7 @@ export class DataServiceAdapter {
 
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 const user = this.getCurrentUserUnified();
-                const isAdmin = user?.role === 'admin' || user?.role === 'direction';
+                const isAdmin = isAdminRole(user?.role) || user?.role === 'direction';
 
                 // ✅ APPEL ENDPOINT INTELLIGENT
                 const result = await this.apiService.patch<CommandeMetier>(`/commandes/${commandeId}/statuts`, {

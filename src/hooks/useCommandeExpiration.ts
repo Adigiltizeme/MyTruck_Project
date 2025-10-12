@@ -110,7 +110,7 @@ export const useCommandeExpiration = ({
 
     // Vérification périodique (optionnelle - toutes les 10 minutes)
     useEffect(() => {
-        if (!enabled || user?.role !== 'admin') return;
+        if (!enabled || !isAdminRole(user?.role)) return;
 
         const interval = setInterval(() => {
             if (commandes.length > 0) {

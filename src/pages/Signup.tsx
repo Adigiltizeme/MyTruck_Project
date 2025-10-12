@@ -206,7 +206,7 @@ const Signup: React.FC = () => {
                         Créer un compte
                     </h2>
 
-                    {user?.role === 'admin' && <SpecialAccountsInfo />}
+                    {isAdminRole(user?.role) && <SpecialAccountsInfo />}
 
                     <p className="mt-2 text-center text-sm text-gray-600">
                         Ou{' '}
