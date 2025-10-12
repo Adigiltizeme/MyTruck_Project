@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { Download, FileText, FilePlus, Filter, Search, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import DetailedQuoteForm from '../../components/DetailedQuoteForm';
+import { isAdminRole } from '../../utils/role-helpers';
 
 /**
  * Page pour la gestion centralisée des devis et factures

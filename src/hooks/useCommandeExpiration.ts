@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { CommandeMetier } from '../types/business.types';
 import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface ExpirationHookOptions {
     commandes: CommandeMetier[];
@@ -18,7 +19,7 @@ export const useCommandeExpiration = ({
     const { user } = useAuth();
 
     const checkExpiredCommandes = async () => {
-        if (!enabled || !user || user.role !== 'admin') {
+        if (!enabled || !user || !isAdminRole(user?.role)) {
             return; // Seuls les admins peuvent déclencher l'expiration automatique
         }
 

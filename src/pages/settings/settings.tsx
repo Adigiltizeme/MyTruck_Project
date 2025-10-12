@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import DatabaseExplorer from "../../components/DatabaseExplorer";
 import DatabaseHealthDashboard from "../../components/DatabaseHealthDashboard";
 import { useOffline } from "../../contexts/OfflineContext";
+import { isAdminRole } from '../../utils/role-helpers';
 
 export default function Settings() {
     const [preferences, setPreferences] = useState({

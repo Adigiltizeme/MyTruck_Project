@@ -1582,7 +1582,7 @@
 
 //             // Filtrer selon le rôle
 //             if (user) {
-//                 if (user.role === 'admin') {
+//                 if (isAdminRole(user?.role)) {
 //                     // Admin voit tout
 //                     return allCommandes;
 //                 } else if (user.role === 'magasin' && user.storeId) {

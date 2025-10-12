@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MessagingService, Conversation, Message } from '../services/messaging.service';
 import io from 'socket.io-client';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface UseMessagingProps {
   conversationId?: string;

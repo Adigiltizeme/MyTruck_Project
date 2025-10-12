@@ -9,7 +9,7 @@ interface StatusManagerProps {
     commande: CommandeMetier;
     onUpdate: (commande: CommandeMetier) => void;
     onRefresh?: () => Promise<void>;
-    mode?: 'admin' | 'magasin' | 'chauffeur'; // Pour différencier AdminActions vs CommandeActions*
+    mode?: 'admin' | 'direction' | 'magasin' | 'chauffeur'; // Pour différencier AdminActions vs CommandeActions*
     showAdvancedOnly?: boolean; // Pour afficher uniquement les actions avancées
 }
 
@@ -176,7 +176,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
     const getQuickActions = () => {
         const actions = [];
 
-        if (mode === 'admin' || mode === 'chauffeur') {
+        if (mode === 'admin' || mode === 'direction' || mode === 'chauffeur') {
             // Actions admin/direction
             if (canModifyLivraisonStatus()) {
                 if (commande.statuts?.livraison === 'EN ATTENTE' &&

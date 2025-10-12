@@ -276,6 +276,7 @@ import { FilterOptions, MetricData } from '../types/metrics';
 import { MetricsCalculator } from './metrics.service';
 import { SafeDbService } from './safe-db.service';
 import { DbMonitor } from '../utils/db-repair';
+import { isAdminRole } from '../utils/role-helpers';
 
 export class BackendDataService {
     private syncInProgress: boolean = false;
@@ -924,7 +925,7 @@ export class BackendDataService {
             const allCommandes = await this.getCommandes();
 
             if (user) {
-                if (user.role === 'admin') {
+                if (isAdminRole(user?.role)) {
                     return allCommandes;
                 } else if (user.role === 'magasin' && user.storeId) {
                     return allCommandes.filter(cmd => cmd.magasin?.id === user.storeId);

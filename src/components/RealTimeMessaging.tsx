@@ -434,7 +434,7 @@ const RealTimeMessaging: React.FC = () => {
     }
 
     // Les admins/direction n'ont pas besoin de conversation avec eux-mêmes
-    if (user.role === 'admin') {
+    if (isAdminRole(user.role)) {
       console.log('👑 Admin/Direction detected - no self-conversation needed');
       setConversationCreated(true);
       return;

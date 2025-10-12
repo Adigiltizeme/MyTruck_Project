@@ -4,6 +4,7 @@ import { useApi } from '../../services/api.service';
 import { EyeIcon, MagnifyingGlassIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { ClientGDPR, ClientsResponse } from '../../types/business.types';
 import ClientDetailsModal from '../../components/ClientDetailsModal';
+import { isAdminRole } from '../../utils/role-helpers';
 
 export default function ClientManagement() {
     const [clients, setClients] = useState<ClientGDPR[]>([]);

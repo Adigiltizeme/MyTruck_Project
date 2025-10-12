@@ -2,6 +2,7 @@ import React from 'react';
 import { FilterOptions, PeriodType } from '../../../types/metrics';
 import { UserRole } from '../../../types/dashboard.types';
 import { useAuth } from '../../../contexts/AuthContext';
+import { isAdminRole } from '../../../utils/role-helpers';
 
 interface FiltersProps {
     onFilterChange: (filters: FilterOptions) => void;

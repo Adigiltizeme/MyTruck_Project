@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api.service';
 import io from 'socket.io-client';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface UnreadCounts {
   messages: number;
@@ -69,7 +70,7 @@ export const useUnreadCounts = () => {
 
       // Compteur contacts non lus (uniquement pour les admins)
       let unreadContacts = 0;
-      if (user.role === 'admin') {
+      if (isAdminRole(user?.role)) {
         try {
           const contactsResponse = await apiService.get('/contacts') as { data?: any[] };
           const contacts = contactsResponse?.data || [];
@@ -235,7 +236,7 @@ export const useUnreadCounts = () => {
       // Écouter les événements de nouveaux contacts (pour admins seulement)
       socket.on('new-contact', (data: any) => {
         console.log('📋 Nouveau contact reçu via WebSocket:', data);
-        if (user.role === 'admin') {
+        if (isAdminRole(user?.role)) {
           // Actualiser les compteurs en temps réel
           refreshCounts();
         }

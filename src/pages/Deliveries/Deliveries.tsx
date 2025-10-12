@@ -18,6 +18,7 @@ import { useDraftStorage } from '../../hooks/useDraftStorage';
 import { simpleBackendService } from '../../services/simple-backend.service';
 import { useOffline } from '../../contexts/OfflineContext';
 import { useCommandeExpiration } from '../../hooks/useCommandeExpiration';
+import { isAdminRole } from '../../utils/role-helpers';
 
 // Extend the Window interface to include debugDeliveries for TypeScript
 declare global {

@@ -196,6 +196,7 @@ import DeliveriesTable from '../../../components/DeliveriesTable';
 import { UserRole } from '../../../types/dashboard.types';
 import { MetricData } from '../../../types/metrics';
 import { useAuth } from '../../../contexts/AuthContext';
+import { isAdminRole } from '../../../utils/role-helpers';
 
 // Fonction utilitaire pour valider et convertir les commandes
 interface MetricsSectionProps {

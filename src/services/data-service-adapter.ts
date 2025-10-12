@@ -10,6 +10,7 @@ import { AuthService } from './authService';
 import { DbMonitor } from '../utils/db-repair';
 import { PendingChange } from './offline-db.service';
 import { SimpleBackendService } from './simple-backend.service';
+import { isAdminRole } from '../utils/role-helpers';
 
 // Ajout pour permettre l'accès à window.currentAuthUser sans erreur TypeScript
 declare global {

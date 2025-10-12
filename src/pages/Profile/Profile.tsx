@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '../../services/api.service';
 import { useOffline } from '../../contexts/OfflineContext';
 import { normalizeMagasin, normalizeChauffeur } from '../../utils/data-normalization';
+import { isAdminRole } from '../../utils/role-helpers';
 
 const Profile = () => {
   const { user, logout, updateUserInfo, changePassword } = useAuth();
@@ -73,7 +74,7 @@ const Profile = () => {
             role: normalized.role
           };
         }
-      } else if (user.role === 'admin') {
+      } else if (isAdminRole(user.role)) {
         // Utilisateur admin - charger depuis l'API comme AdminManagement
         try {
           const rawData = await apiService.get('/users?role=ADMIN');
@@ -371,7 +372,7 @@ const Profile = () => {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">
-        Profil {user?.role !== 'admin' ? '' : '(Mode test)'}
+        Profil {!isAdminRole(user?.role) ? '' : '(Mode test)'}
       </h1>
 
       {/* Notification d'état des fonctionnalités */}
@@ -515,10 +516,10 @@ const Profile = () => {
               <div>
                 <label className="block text-gray-700 text-sm font-bold mb-2">Rôle</label>
                 <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
-                  {user?.role === 'admin' ? 'Administrateur' :
+                  {isAdminRole(user?.role) ? 'Administrateur' :
                     user?.role === 'magasin' ? `Magasin` :
                       user?.role === 'chauffeur' ? 'Chauffeur' : 'Non défini'}
-                  {user?.role === 'admin' && ' (Mode test)'}
+                  {isAdminRole(user?.role) && ' (Mode test)'}
                 </p>
               </div>
               {user?.role === 'magasin' && (
