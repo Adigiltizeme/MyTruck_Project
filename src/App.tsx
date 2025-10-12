@@ -246,7 +246,7 @@ const App = () => {
             <Route
               path="/cessions"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'magasin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction', 'magasin']}>
                   <Cessions />
                 </ProtectedRoute>
               }
@@ -262,7 +262,7 @@ const App = () => {
             <Route
               path="/chauffeurs"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <ChauffeurManagement />
                 </ProtectedRoute>
               }
@@ -270,7 +270,7 @@ const App = () => {
             <Route
               path="/magasins"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <MagasinManagement />
                 </ProtectedRoute>
               }
@@ -278,7 +278,7 @@ const App = () => {
             <Route
               path="/admins"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <AdminManagement />
                 </ProtectedRoute>
               }
@@ -286,7 +286,7 @@ const App = () => {
             <Route
               path="/contacts"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <ContactsManagement />
                 </ProtectedRoute>
               }
@@ -294,7 +294,7 @@ const App = () => {
             <Route
               path="/documents"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'magasin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction', 'magasin']}>
                   <DocumentsPage />
                 </ProtectedRoute>
               }
@@ -302,7 +302,7 @@ const App = () => {
             <Route
               path="/slots"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <SlotsManagement />
                 </ProtectedRoute>
               }
@@ -318,7 +318,7 @@ const App = () => {
             <Route
               path="/messagerie"
               element={
-                <ProtectedRoute allowedRoles={['magasin', 'admin', 'chauffeur']}>
+                <ProtectedRoute allowedRoles={['magasin', 'admin', 'direction', 'chauffeur']}>
                   <RealTimeMessaging />
                 </ProtectedRoute>
               }
@@ -334,7 +334,7 @@ const App = () => {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <Settings />
                 </ProtectedRoute>
               }
@@ -342,7 +342,7 @@ const App = () => {
             <Route
               path="/clients"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'magasin']}>
+                <ProtectedRoute allowedRoles={['admin', 'direction', 'magasin']}>
                   <ClientManagement />
                 </ProtectedRoute>
               }

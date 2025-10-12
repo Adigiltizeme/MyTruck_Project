@@ -266,7 +266,7 @@ export const RoleSelector = () => {
             <div>
                 <label className="text-sm font-medium mr-2">Rôle test :</label>
                 <select
-                    value={user?.role || 'admin'}
+                    value={user?.role || 'admin' || 'direction'}
                     onChange={handleRoleChange}
                     // Réactivé pour permettre le switch entre rôles
                     className="border rounded px-3 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"

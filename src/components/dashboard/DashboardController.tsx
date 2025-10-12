@@ -20,6 +20,7 @@ const DashboardController: React.FC<DashboardControllerProps> = ({
     const renderDashboard = () => {
         switch (role) {
             case 'admin':
+            case 'direction':
                 return <AdminDashboard />;
             case 'magasin':
                 if (!storeId) {

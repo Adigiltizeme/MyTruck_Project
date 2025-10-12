@@ -12,6 +12,7 @@ import { UserRole } from '../../types/dashboard.types';
 import { CommandeMetier } from '../../types/business.types';
 import { DateRange } from '../../types/hooks.types';
 import { simpleBackendService } from '../../services/simple-backend.service';
+import { isAdminRole } from '../../utils/role-helpers';
 
 interface UnifiedDashboardProps {
     role: UserRole;
@@ -150,6 +151,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     const getDashboardTitle = () => {
         switch (role) {
             case 'admin': return 'Tableau de bord administrateur';
+            case 'direction': return 'Tableau de bord direction';
             case 'magasin': return 'Tableau de bord magasin';
             case 'chauffeur': return 'Mes livraisons';
             default: return 'Tableau de bord';
@@ -157,8 +159,8 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     };
 
     // ✅ Filtres visibles selon le rôle
-    const shouldShowStoreFilter = role === 'admin';
-    const shouldShowDriverFilter = role === 'admin';
+    const shouldShowStoreFilter = isAdminRole(role);
+    const shouldShowDriverFilter = isAdminRole(role);
     const shouldShowPeriodFilter = role;
 
     // ✅ Loading state
@@ -290,7 +292,7 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
                         <PerformanceChart data={dashboardData.historique} />
                     </div>
 
-                    {role === 'admin' && (
+                    {isAdminRole(role) && (
                         <div className="bg-white rounded-xl p-6">
                             <h3 className="text-lg font-semibold mb-4">Distribution des statuts</h3>
                             <DistributionChart data={[dashboardData.statutsDistribution || {

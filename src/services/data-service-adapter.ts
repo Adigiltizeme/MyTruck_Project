@@ -1269,6 +1269,10 @@ export class DataServiceAdapter {
                     // ✅ CORRECTION: Admin voit TOUTES les commandes
                     console.log('🔑 Accès ADMIN - Toutes les commandes visibles');
                     return allCommandes;
+                case 'direction':
+                    // ✅ CORRECTION: Direction voit TOUTES les commandes
+                    console.log('🔑 Accès DIRECTION - Toutes les commandes visibles');
+                    return allCommandes;
 
                 case 'magasin':
                     const storeId = this.extractStoreId(user);
@@ -1385,7 +1389,7 @@ export class DataServiceAdapter {
         }
     }
 
-    private normalizeUserRole(user: any): 'admin' | 'magasin' | 'chauffeur' | 'unknown' {
+    private normalizeUserRole(user: any): 'admin' | 'direction' | 'magasin' | 'chauffeur' | 'unknown' {
         if (!user || !user.role) {
             console.warn('⚠️ Utilisateur sans rôle:', user);
             return 'unknown';
@@ -1395,7 +1399,7 @@ export class DataServiceAdapter {
         const role = String(originalRole).toLowerCase().trim();
 
         // Mappings exhaustifs pour tous les formats possibles
-        const roleMap: Record<string, 'admin' | 'magasin' | 'chauffeur'> = {
+        const roleMap: Record<string, 'admin' | 'direction' | 'magasin' | 'chauffeur'> = {
             // Variations Admin (Backend format)
             'admin': 'admin',
             'administrateur': 'admin',

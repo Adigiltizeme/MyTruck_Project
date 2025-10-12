@@ -303,6 +303,7 @@ export class AuthAdapter {
     private mapLegacyRoleToApiRole(legacyRole: string): string {
         const roleMapping: { [key: string]: string } = {
             'admin': 'ADMIN',
+            'direction': 'DIRECTION',
             'magasin': 'MAGASIN',
             'chauffeur': 'CHAUFFEUR',
         };

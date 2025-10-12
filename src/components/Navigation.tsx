@@ -16,11 +16,11 @@ const Navigation = () => {
   const { messages: unreadMessages } = useUnreadCounts();
 
   const navItems = [
-    { icon: HomeIcon, text: 'Dashboard', path: '/', roles: ['admin', 'magasin', 'chauffeur'] },
-    { icon: DeliveryIcon, text: 'Livraisons', path: '/deliveries', roles: ['admin', 'magasin', 'chauffeur'] },
-    { icon: DriverIcon, text: 'Chauffeurs', path: '/drivers', roles: ['admin'] },
+    { icon: HomeIcon, text: 'Dashboard', path: '/', roles: ['admin', 'direction', 'magasin', 'chauffeur'] },
+    { icon: DeliveryIcon, text: 'Livraisons', path: '/deliveries', roles: ['admin', 'direction', 'magasin', 'chauffeur'] },
+    { icon: DriverIcon, text: 'Chauffeurs', path: '/drivers', roles: ['admin', 'direction'] },
     { icon: MessageIcon, text: 'Contact My Truck', path: '/contact-mytruck', roles: ['magasin'] },
-    { icon: ProfileIcon, text: 'Profil', path: '/profile', roles: ['admin', 'magasin', 'chauffeur'] }
+    { icon: ProfileIcon, text: 'Profil', path: '/profile', roles: ['admin', 'direction', 'magasin', 'chauffeur'] }
   ].filter(item => item.roles.includes(user?.role || ''));
 
   return (

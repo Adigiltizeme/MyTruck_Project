@@ -82,19 +82,19 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Accueil',
       icon: HomeIcon,
       href: '/home',
-      roles: ['admin', 'magasin', 'chauffeur'],
+      roles: ['admin', 'magasin', 'chauffeur', 'direction'],
     },
     {
       name: 'Tableau de bord',
       icon: ChartBarIcon,
       href: '/dashboard',
-      roles: ['admin', 'magasin', 'chauffeur'],
+      roles: ['admin', 'magasin', 'chauffeur', 'direction'],
     },
     {
       name: 'Livraisons',
       icon: TruckIcon,
       href: '/deliveries',
-      roles: ['admin', 'magasin', 'chauffeur'],
+      roles: ['admin', 'magasin', 'chauffeur', 'direction'],
     },
     // {
     //   name: 'Cessions',
@@ -106,43 +106,43 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Gestion Créneaux',
       icon: ClockIcon,
       href: '/slots',
-      roles: ['admin']
+      roles: ['admin', 'direction']
     },
     {
       name: 'Gestion Chauffeurs',
       icon: UsersIcon,
       href: '/chauffeurs',
-      roles: ['admin'],
+      roles: ['admin', 'direction'],
     },
     {
       name: 'Gestion Magasins',
       icon: BuildingStorefrontIcon,
       href: '/magasins',
-      roles: ['admin'],
+      roles: ['admin', 'direction'],
     },
     {
       name: 'Gestion Admins',
       icon: UserCircleIcon,
       href: '/admins',
-      roles: ['admin'],
+      roles: ['admin', 'direction'],
     },
     {
       name: 'Gestion Contacts',
       icon: ChatBubbleLeftRightIcon,
       href: '/contacts',
-      roles: ['admin'],
+      roles: ['admin', 'direction'],
     },
     {
       name: 'Gestion Clients',
       icon: UsersIcon,
       href: '/clients',
-      roles: ['admin', 'magasin'],
+      roles: ['admin', 'magasin', 'direction'],
     },
     {
       name: 'Documents',
       icon: DocumentIcon,
       href: '/documents',
-      roles: ['admin', 'magasin'],
+      roles: ['admin', 'magasin', 'direction'],
     },
     {
       name: 'Contact My Truck',
@@ -154,13 +154,13 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Messagerie Realtime',
       icon: ChatBubbleLeftRightIcon,
       href: '/messagerie',
-      roles: ['magasin', 'admin', 'chauffeur']
+      roles: ['magasin', 'admin', 'chauffeur', 'direction']
     },
     {
       name: 'Profil',
       icon: UserCircleIcon,
       href: '/profile',
-      roles: ['admin', 'magasin', 'chauffeur']
+      roles: ['admin', 'magasin', 'chauffeur', 'direction']
     }
   ];
 
@@ -169,7 +169,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Paramètres',
       icon: CogIcon,
       href: '/settings',
-      roles: ['admin'],
+      roles: ['admin', 'direction'],
     });
   }
 

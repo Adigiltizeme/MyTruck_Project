@@ -45,6 +45,7 @@ const DirectionChauffeurMessaging: React.FC<DirectionChauffeurMessagingProps> = 
         const directionConversation = existingConversations.data.find(conv =>
           conv.type === 'PRIVATE' &&
           (conv.participantIds.includes('DIRECTION')
+          || conv.participantIds.includes('direction')
           || conv.participantIds.includes('admin')
           || conv.participantIds.includes('ADMIN'))
         );

@@ -3,10 +3,12 @@ import { MetricCard } from '../dashboard/MetricCard';
 import { PerformanceChart } from '../dashboard/charts/PerformanceChart';
 import { DistributionChart } from '../dashboard/charts/DistributionChart';
 import DeliveriesTable from '../DeliveriesTable';
+import { UserRole } from '../../types/roles';
+import { isAdminRole } from '../../utils/role-helpers';
 
 interface DashboardLayoutProps {
   data: any;
-  userRole: 'magasin' | 'chauffeur' | 'admin';
+  userRole: UserRole;
   loading?: boolean;
 }
 
@@ -128,7 +130,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {userRole === 'admin' && (
+        {isAdminRole(userRole) && (
           <>
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
