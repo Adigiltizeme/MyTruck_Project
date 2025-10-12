@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MessagingService, Conversation } from '../services/messaging.service';
 import MessagingCenter from './MessagingCenter';
 import { UserIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface DirectionChauffeurMessagingProps {
   chauffeurId: string;
@@ -88,7 +89,7 @@ const DirectionChauffeurMessaging: React.FC<DirectionChauffeurMessagingProps> = 
   };
 
   const isDirection = (): boolean => {
-    return user?.role === 'admin' || user?.role === 'direction';
+    return isAdminRole(user?.role);
   };
 
   if (loading) {

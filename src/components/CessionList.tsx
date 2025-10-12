@@ -7,6 +7,7 @@ import { formatData } from '../utils/formatters';
 import { Modal } from './Modal';
 import CessionForm from './CessionForm';
 import { Plus, Truck, Check, X, Clock, ArrowRight, AlertTriangle, Search } from 'lucide-react';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface CessionListProps {
     filterByStore?: string;
@@ -117,7 +118,7 @@ const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
     // Fonction pour déterminer si l'utilisateur peut effectuer une action sur une cession
     const canPerformAction = (cession: Cession, action: 'accept' | 'reject' | 'prepare' | 'transit' | 'deliver'): boolean => {
         // Admin peut tout faire
-        if (user?.role === 'admin' || user?.role === 'direction') return true;
+        if (isAdminRole(user?.role)) return true;
 
         // Règles spécifiques selon le rôle et l'état de la cession
         if (user?.role === 'magasin') {

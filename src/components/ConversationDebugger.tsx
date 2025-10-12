@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MagasinInfo, PersonnelInfo } from '../types/business.types';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface Participant {
   id: string;
@@ -80,21 +81,12 @@ const ConversationDebugger: React.FC = () => {
           })));
         }
 
-        // Ajouter l'admin actuel si c'est un admin
-        if (user.role === 'admin') {
+        // Ajouter l'admin/direction actuel
+        if (isAdminRole(user.role)) {
           participants.push({
             id: user.id,
             name: `${user.name}`.trim(),
-            type: 'ADMIN',
-            email: user.email
-          });
-        }
-        // Ajouter la direction actuelle si c'est un direction
-        if (user.role === 'direction') {
-          participants.push({
-            id: user.id,
-            name: `${user.name}`.trim(),
-            type: 'DIRECTION',
+            type: user.role === 'direction' ? 'DIRECTION' : 'ADMIN',
             email: user.email
           });
         }
@@ -128,7 +120,7 @@ const ConversationDebugger: React.FC = () => {
     return userId === user?.id ? `${user.email} (${user.role}) - MOI` : `ID: ${userId}`;
   };
 
-  if (user?.role !== 'admin' && user?.role !== 'direction') {
+  if (!isAdminRole(user?.role)) {
     return null;
   }
 

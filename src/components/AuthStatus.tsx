@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { isAdminRole } from '../utils/role-helpers';
 
 export const AuthStatus: React.FC = () => {
     const { user } = useAuth();
@@ -17,7 +18,7 @@ export const AuthStatus: React.FC = () => {
             <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                 <span>
-                    Connecté en tant que: {(user.role === 'admin' || user.role === 'direction') ? 'Administrateur' :
+                    Connecté en tant que: {isAdminRole(user.role) ? 'Administrateur' :
                         user.role === 'magasin' ? `Magasin ${user.storeName}` :
                             'Chauffeur'}
                 </span>

@@ -18,6 +18,7 @@ import { SecureImage } from './SecureImage';
 import DocumentViewer from './DocumentViewer';
 import { ArticleDimension } from './forms/ArticleDimensionForm';
 import { BackendDataService } from '../services/backend-data.service';
+import { isAdminRole } from '../utils/role-helpers';
 import RapportManager from './RapportManager';
 import PhotosCommentaires from './PhotosCommentaires';
 
@@ -84,7 +85,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     // Chargement des chauffeurs pour l'admin
     useEffect(() => {
         const loadChauffeurs = async () => {
-            if (user?.role === 'admin' || user?.role === 'direction') {
+            if (isAdminRole(user?.role)) {
                 const personnelData = await dataService.getPersonnel();
                 setChauffeurs(personnelData.filter((p: any) => p.role === 'Chauffeur').map((p: any) => ({
                     ...p,

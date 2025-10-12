@@ -8,6 +8,7 @@ import { Modal } from './Modal';
 import { useOffline } from '../contexts/OfflineContext';
 import { StatusManager } from './StatusManager';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface AdminActionsProps {
     commande: CommandeMetier;
@@ -344,7 +345,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     return (
         <div className="space-y-4">
             {/* Section Attribution des chauffeurs */}
-            {(user?.role === 'admin' || user?.role === 'direction') && (commande.statuts.livraison === 'EN ATTENTE'
+            {isAdminRole(user?.role) && (commande.statuts.livraison === 'EN ATTENTE'
                 || commande.statuts.livraison === 'CONFIRMEE')
                 && (
                     <div className="p-4 border rounded-lg">
@@ -512,7 +513,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             )}
 
             {/* Section Tarification */}
-            {(user?.role === 'admin' || user?.role === 'direction') && (
+            {isAdminRole(user?.role) && (
                 <>
                     <div className="p-4 border rounded-lg">
                         <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
