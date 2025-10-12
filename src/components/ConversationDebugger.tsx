@@ -5,7 +5,7 @@ import { MagasinInfo, PersonnelInfo } from '../types/business.types';
 interface Participant {
   id: string;
   name: string;
-  type: 'MAGASIN' | 'CHAUFFEUR' | 'ADMIN';
+  type: 'MAGASIN' | 'CHAUFFEUR' | 'ADMIN' | 'DIRECTION';
   email?: string;
 }
 
@@ -89,6 +89,15 @@ const ConversationDebugger: React.FC = () => {
             email: user.email
           });
         }
+        // Ajouter la direction actuelle si c'est un direction
+        if (user.role === 'direction') {
+          participants.push({
+            id: user.id,
+            name: `${user.name}`.trim(),
+            type: 'DIRECTION',
+            email: user.email
+          });
+        }
 
         setAllUsers(participants);
       } catch (error) {
@@ -119,7 +128,7 @@ const ConversationDebugger: React.FC = () => {
     return userId === user?.id ? `${user.email} (${user.role}) - MOI` : `ID: ${userId}`;
   };
 
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'direction') {
     return null;
   }
 

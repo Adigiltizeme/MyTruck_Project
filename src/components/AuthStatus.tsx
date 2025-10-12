@@ -17,7 +17,7 @@ export const AuthStatus: React.FC = () => {
             <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 rounded-full bg-green-500"></div>
                 <span>
-                    Connecté en tant que: {user.role === 'admin' ? 'Administrateur' :
+                    Connecté en tant que: {(user.role === 'admin' || user.role === 'direction') ? 'Administrateur' :
                         user.role === 'magasin' ? `Magasin ${user.storeName}` :
                             'Chauffeur'}
                 </span>

@@ -277,15 +277,15 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
     };
 
     // ✅ DÉTERMINER QUELS DOCUMENTS PEUVENT ÊTRE GÉNÉRÉS
-    const canGenerateBonCommande = (user?.role === 'magasin' || user?.role === 'admin');
+    const canGenerateBonCommande = (user?.role !== 'chauffeur');
 
-    const canGenerateDevis = user?.role === 'admin' && (
+    const canGenerateDevis = (user?.role === 'admin' || user?.role === 'direction') && (
         (commande.livraison?.equipiers && commande.livraison.equipiers > 2) ||
         commande.financier?.devisObligatoire ||
         parseFloat(commande.financier?.tarifHT?.toString() || '0') > 200
     );
 
-    const canGenerateFacture = user?.role === 'admin' &&
+    const canGenerateFacture = (user?.role === 'admin' || user?.role === 'direction') &&
         commande.statuts?.livraison === 'LIVREE';
 
     return (

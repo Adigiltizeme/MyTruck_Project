@@ -141,7 +141,7 @@ const Layout = () => {
           </div>
         </main>
       </div>
-      {user?.role === 'admin' && <DatabaseErrorMonitor />}
+      {(user?.role === 'admin' || user?.role === 'direction') && <DatabaseErrorMonitor />}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'magasin' | 'chauffeur';
+export type UserRole = 'admin' | 'direction' | 'magasin' | 'chauffeur';
 
 export interface DashboardPermissions {
     viewAllStores: boolean;
@@ -37,5 +37,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, DashboardPermissions> = {
         viewMetrics: false,
         viewFinancials: false,
         editDeliveries: false
+    },
+    direction: {
+        viewAllStores: true,
+        viewAllDrivers: true,
+        viewMetrics: true,
+        viewFinancials: true,
+        editDeliveries: true
     }
 };

@@ -189,7 +189,7 @@ export const NotificationPanel: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    {unreadContacts > 0 && user?.role === 'admin' && (
+                                    {unreadContacts > 0 && (user?.role === 'admin' || user?.role === 'direction') && (
                                         <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 cursor-pointer transition-colors"
                                              onClick={handleContactsClick}>
                                             <div className="flex items-center space-x-2">

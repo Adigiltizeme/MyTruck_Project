@@ -88,7 +88,7 @@ const DirectionChauffeurMessaging: React.FC<DirectionChauffeurMessagingProps> = 
   };
 
   const isDirection = (): boolean => {
-    return user?.role === 'admin';
+    return user?.role === 'admin' || user?.role === 'direction';
   };
 
   if (loading) {

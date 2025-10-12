@@ -117,7 +117,7 @@ const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
     // Fonction pour déterminer si l'utilisateur peut effectuer une action sur une cession
     const canPerformAction = (cession: Cession, action: 'accept' | 'reject' | 'prepare' | 'transit' | 'deliver'): boolean => {
         // Admin peut tout faire
-        if (user?.role === 'admin') return true;
+        if (user?.role === 'admin' || user?.role === 'direction') return true;
 
         // Règles spécifiques selon le rôle et l'état de la cession
         if (user?.role === 'magasin') {
@@ -197,7 +197,7 @@ const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
                 <h2 className="text-2xl font-semibold">Cessions inter-magasins</h2>
 
                 {/* Bouton Nouvelle cession */}
-                {(user?.role === 'admin' || user?.role === 'magasin') && (
+                {user?.role !== 'chauffeur' && (
                     <button
                         onClick={() => setShowNewForm(true)}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center"

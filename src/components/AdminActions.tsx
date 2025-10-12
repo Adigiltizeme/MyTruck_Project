@@ -344,7 +344,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     return (
         <div className="space-y-4">
             {/* Section Attribution des chauffeurs */}
-            {user?.role === 'admin' && (commande.statuts.livraison === 'EN ATTENTE'
+            {(user?.role === 'admin' || user?.role === 'direction') && (commande.statuts.livraison === 'EN ATTENTE'
                 || commande.statuts.livraison === 'CONFIRMEE')
                 && (
                     <div className="p-4 border rounded-lg">
@@ -512,7 +512,7 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             )}
 
             {/* Section Tarification */}
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'direction') && (
                 <>
                     <div className="p-4 border rounded-lg">
                         <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>

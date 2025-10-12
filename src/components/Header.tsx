@@ -141,7 +141,7 @@ const Header = () => {
                 )}
               </MenuItem>
 
-              {user?.role === 'admin' && (
+              {(user?.role === 'admin' || user?.role === 'direction') && (
                 <MenuItem>
                   {({ }) => (
                     <Link

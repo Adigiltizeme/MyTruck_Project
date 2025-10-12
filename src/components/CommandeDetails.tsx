@@ -84,7 +84,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     // Chargement des chauffeurs pour l'admin
     useEffect(() => {
         const loadChauffeurs = async () => {
-            if (user?.role === 'admin') {
+            if (user?.role === 'admin' || user?.role === 'direction') {
                 const personnelData = await dataService.getPersonnel();
                 setChauffeurs(personnelData.filter((p: any) => p.role === 'Chauffeur').map((p: any) => ({
                     ...p,
@@ -835,7 +835,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                             </h4>
                                                             <div className="text-red-700">
                                                                 <p>Assemblage de meubles, installation d'arbres, plantes ou équipements.</p>
-                                                                {user?.role === 'admin' || user?.role === 'chauffeur' ? (
+                                                                {user?.role !== 'magasin' ? (
                                                                     <p className="text-sm mt-2 p-2 bg-red-200 rounded">
                                                                         🛠️ <strong>Préparation :</strong> Vérifier les outils nécessaires avant départ
                                                                     </p>

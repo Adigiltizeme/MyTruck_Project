@@ -36,7 +36,7 @@ const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({
     const [notes, setNotes] = useState<string>('');
 
     // Vérifier si l'utilisateur a les droits d'admin
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = user?.role === 'admin' || user?.role === 'direction';
 
     useEffect(() => {
         if (isOpen) {

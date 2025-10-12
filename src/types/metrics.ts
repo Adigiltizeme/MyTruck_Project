@@ -146,7 +146,7 @@ export interface DeliveriesTableProps {
     userRole?: UserRole;
 }
 
-export type UserRole = 'magasin' | 'chauffeur' | 'admin';
+export type UserRole = 'magasin' | 'chauffeur' | 'admin' | 'direction';
 
 export interface FilterOptions {
     dateRange: PeriodType;

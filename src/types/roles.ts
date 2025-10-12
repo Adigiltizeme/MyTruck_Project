@@ -1,4 +1,4 @@
-export type UserRole = 'magasin' | 'chauffeur' | 'admin';
+export type UserRole = 'magasin' | 'chauffeur' | 'admin' | 'direction';
 
 export interface UserAccess {
     role: UserRole;
@@ -17,6 +17,13 @@ export interface DashboardAccess {
 // Mapping des accès par rôle
 export const roleAccess: Record<UserRole, DashboardAccess> = {
     admin: {
+        canViewAllStores: true,
+        canViewAllDrivers: true,
+        canViewFinancials: true,
+        canManageUsers: true,
+        canEditDeliveries: true
+    },
+    direction: {
         canViewAllStores: true,
         canViewAllDrivers: true,
         canViewFinancials: true,
