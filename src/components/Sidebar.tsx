@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { SlotsManagement } from './admin/SlotsManagement';
 import { useOffline } from '../contexts/OfflineContext';
+import { isAdminRole } from '../utils/role-helpers';
 import { useState, useEffect } from 'react';
 import { normalizeMagasin, normalizeChauffeur } from '../utils/data-normalization';
 import { useUnreadCounts } from '../hooks/useUnreadCounts';
@@ -163,7 +164,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
     }
   ];
 
-  if (user?.role === 'admin') {
+  if (isAdminRole(user?.role)) {
     baseNavItems.push({
       name: 'Paramètres',
       icon: CogIcon,
@@ -259,10 +260,10 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate dark:text-gray-300">
               {displayUserData?.name || user?.name || 'Utilisateur'}
-              {user?.role === 'admin' && displayUserData ? ' (test)' : ''}
+              {isAdminRole(user?.role) && displayUserData ? ' (test)' : ''}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              {user?.role === 'admin' && !displayUserData ? 'Administrateur' :
+              {isAdminRole(user?.role) && !displayUserData ? 'Administrateur' :
                 user?.role === 'magasin' ? `${displayUserData?.storeName || displayUserData?.name || user.storeName || 'Magasin'}` :
                 user?.role === 'chauffeur' ? `Chauffeur` :
                   'Administrateur'

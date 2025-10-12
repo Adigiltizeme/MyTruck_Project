@@ -8,6 +8,7 @@ import { useApi } from '../services/api.service';
 import { MagasinInfo, PersonnelInfo } from '../types/business.types';
 import CleanupConversations from './CleanupConversations';
 import ConversationDebugger from './ConversationDebugger';
+import { isAdminRole } from '../utils/role-helpers';
 
 const RealTimeMessaging: React.FC = () => {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ const RealTimeMessaging: React.FC = () => {
       console.log('📊 Chargement des participants avec méthodes éprouvées...');
 
       // ✅ Charger seulement les données auxquelles l'utilisateur a accès
-      if (user?.role === 'admin') {
+      if (isAdminRole(user?.role)) {
         // Admin peut voir tout
         const magasinsResponse = await apiService.get('/magasins') as { data: MagasinInfo[] };
         const magasinsData = Array.isArray(magasinsResponse) ? magasinsResponse : magasinsResponse.data;
@@ -758,7 +759,7 @@ const RealTimeMessaging: React.FC = () => {
 
     // Pour les conversations de type MAGASIN_DIRECTION (anciennes)
     if (conversation.type === 'MAGASIN_DIRECTION') {
-      if (user?.role === 'admin') {
+      if (isAdminRole(user?.role)) {
         const magasinName = conversation.magasin?.nom || `Magasin ${conversation.magasinId}`;
         return `Discussion avec ${magasinName}`;
       } else {
@@ -776,7 +777,7 @@ const RealTimeMessaging: React.FC = () => {
         const chauffeurName = chauffeur ? `${chauffeur.prenom} ${chauffeur.nom}`.trim() : 'Chauffeur';
 
         // Tous les rôles voient "Groupe MT -" car c'est une conversation de groupe
-        if (user?.role === 'admin') {
+        if (isAdminRole(user?.role)) {
           // Admin voit les deux participants
           return `Groupe MT - ${chauffeurName} ↔ ${magasinName}`;
         } else if (user?.role === 'chauffeur') {
@@ -800,7 +801,7 @@ const RealTimeMessaging: React.FC = () => {
           const magasin = allMagasins.find(m => m.id === otherParticipantId);
           if (magasin) {
             // Conversation My Truck ↔ Magasin
-            if (user?.role === 'admin') {
+            if (isAdminRole(user?.role)) {
               const magasinName = (magasin as any).nom || magasin.name;
               return `Discussion avec ${magasinName}`;
             } else {
@@ -812,7 +813,7 @@ const RealTimeMessaging: React.FC = () => {
           const chauffeur = allChauffeurs.find(c => c.id === otherParticipantId);
           if (chauffeur) {
             // Conversation My Truck ↔ Chauffeur
-            if (user?.role === 'admin') {
+            if (isAdminRole(user?.role)) {
               return `Discussion avec ${chauffeur.prenom} ${chauffeur.nom}`.trim();
             } else {
               return 'Discussion avec My Truck Direction';
@@ -911,7 +912,7 @@ const RealTimeMessaging: React.FC = () => {
           </div>
 
           {/* ✅ Contrôles Admin pour la gestion/suppression des conversations */}
-          {user?.role === 'admin' && (
+          {isAdminRole(user?.role) && (
             <>
               <div className="mt-2 space-y-2">
                 {/* Contrôles de sélection et suppression */}
@@ -961,7 +962,7 @@ const RealTimeMessaging: React.FC = () => {
                 >
                   <div className="flex items-start space-x-3">
                     {/* ✅ Checkbox de sélection pour admin */}
-                    {user?.role === 'admin' && (
+                    {isAdminRole(user?.role) && (
                       <input
                         type="checkbox"
                         checked={selectedConversations.has(conversation.id)}
@@ -996,7 +997,7 @@ const RealTimeMessaging: React.FC = () => {
                             </span>
                           )}
                           {/* Bouton supprimer individuel pour admin */}
-                          {user?.role === 'admin' && (
+                          {isAdminRole(user?.role) && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1101,7 +1102,7 @@ const RealTimeMessaging: React.FC = () => {
                 </div>
 
                 {/* ✅ Boutons d'action pour admin sur conversations de groupe */}
-                {user?.role === 'admin' && (() => {
+                {isAdminRole(user?.role) && (() => {
                   const selectedConv = filteredConversations.find(c => c.id === selectedConversationId);
                   if (selectedConv?.type === 'COMMANDE_GROUP' && selectedConv.commandeId) {
                     return (
@@ -1233,7 +1234,7 @@ const RealTimeMessaging: React.FC = () => {
                   <option value="">Sélectionner un type</option>
 
                   {/* Options pour admin */}
-                  {user?.role === 'admin' && (
+                  {isAdminRole(user?.role) && (
                     <>
                       <option value="MAGASIN_DIRECTION">Discussion avec un magasin</option>
                       <option value="PRIVATE">Discussion privée avec un chauffeur</option>
@@ -1273,7 +1274,7 @@ const RealTimeMessaging: React.FC = () => {
                       setNewConversationParticipant(e.target.value);
 
                       // Si admin sélectionne un magasin pour CHAUFFEUR_MAGASIN, charger les chauffeurs éligibles
-                      if (user?.role === 'admin' && newConversationType === 'CHAUFFEUR_MAGASIN' && e.target.value) {
+                      if (isAdminRole(user?.role) && newConversationType === 'CHAUFFEUR_MAGASIN' && e.target.value) {
                         setNewConversationSecondParticipant(''); // Reset chauffeur
                         loadEligibleChauffeursForMagasin(e.target.value);
                       }
@@ -1283,7 +1284,7 @@ const RealTimeMessaging: React.FC = () => {
                   <option value="">Sélectionner un participant</option>
 
                   {/* Options selon le type sélectionné */}
-                  {newConversationType === 'MAGASIN_DIRECTION' && user?.role === 'admin' &&
+                  {newConversationType === 'MAGASIN_DIRECTION' && isAdminRole(user?.role) &&
                     allMagasins.map(magasin => (
                       <option key={magasin.id} value={magasin.id}>
                         {(magasin as any).nom || magasin.name} (Magasin)
@@ -1307,7 +1308,7 @@ const RealTimeMessaging: React.FC = () => {
                     ))
                   }
 
-                  {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' &&
+                  {newConversationType === 'CHAUFFEUR_MAGASIN' && isAdminRole(user?.role) &&
                     allMagasins.map(magasin => (
                       <option key={magasin.id} value={magasin.id}>
                         {(magasin as any).nom || magasin.name} (Magasin)
@@ -1315,7 +1316,7 @@ const RealTimeMessaging: React.FC = () => {
                     ))
                   }
 
-                  {newConversationType === 'PRIVATE' && user?.role === 'admin' &&
+                  {newConversationType === 'PRIVATE' && isAdminRole(user?.role) &&
                     allChauffeurs.map(chauffeur => (
                       <option key={chauffeur.id} value={chauffeur.id}>
                         {chauffeur.prenom} {chauffeur.nom} (Chauffeur)
@@ -1327,7 +1328,7 @@ const RealTimeMessaging: React.FC = () => {
               )}
 
               {/* Second participant select - uniquement pour admin avec CHAUFFEUR_MAGASIN */}
-              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' && newConversationParticipant && (
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && isAdminRole(user?.role) && newConversationParticipant && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Chauffeur {eligibleChauffeursForMagasin.length > 0 && `(${eligibleChauffeursForMagasin.length} avec commandes actives)`}
@@ -1381,7 +1382,7 @@ const RealTimeMessaging: React.FC = () => {
                 </div>
               )}
 
-              {newConversationType === 'CHAUFFEUR_MAGASIN' && user?.role === 'admin' && (
+              {newConversationType === 'CHAUFFEUR_MAGASIN' && isAdminRole(user?.role) && (
                 <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
                   ℹ️ Cette conversation sera créée uniquement si il existe des commandes actives entre le chauffeur et le magasin sélectionné.
                 </div>
@@ -1417,7 +1418,7 @@ const RealTimeMessaging: React.FC = () => {
                     )
                   ) ||
                   // Pour admin CHAUFFEUR_MAGASIN, les 2 participants sont requis
-                  (user?.role === 'admin' && newConversationType === 'CHAUFFEUR_MAGASIN' &&
+                  (isAdminRole(user?.role) && newConversationType === 'CHAUFFEUR_MAGASIN' &&
                    (!newConversationParticipant || !newConversationSecondParticipant))
                 }
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2"

@@ -7,6 +7,7 @@ import { fr } from 'date-fns/locale';
 import { MessageSquare, Clock, AlertTriangle, CheckCircle, Edit, Trash2, Save, X } from 'lucide-react';
 import PhotoUploader from './PhotoUploader';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface PhotosCommentairesProps {
     commande: CommandeMetier;
@@ -211,7 +212,7 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
                         </h3>
 
                         {/* ✅ BOUTONS MODIFICATION/SUPPRESSION */}
-                        {(user?.role === 'chauffeur' || user?.role === 'admin') && (
+                        {user?.role !== 'magasin' && (
                             <div className="flex space-x-1">
                                 {!isEditing && (
                                     <>
@@ -457,7 +458,7 @@ const PhotosCommentaires: React.FC<PhotosCommentairesProps> = ({
             )}
 
             {/* ✅ INFORMATION POUR L'UTILISATEUR */}
-            {user?.role === 'admin' || user?.role === 'chauffeur' && (
+            {user?.role !== 'magasin' && (
                 <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
                     <div className="flex items-start">
                         <MessageSquare className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />

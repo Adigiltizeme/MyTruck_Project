@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../utils/role-helpers';
 
 const CleanupConversations: React.FC = () => {
   const { user } = useAuth();
@@ -7,7 +8,7 @@ const CleanupConversations: React.FC = () => {
   const [result, setResult] = useState<any>(null);
 
   const handleCleanup = async () => {
-    if (!user || user.role !== 'admin') {
+    if (!user || !isAdminRole(user.role)) {
       alert('Seuls les administrateurs peuvent effectuer cette action');
       return;
     }
@@ -96,7 +97,7 @@ const CleanupConversations: React.FC = () => {
     }
   };
 
-  if (user?.role !== 'admin') {
+  if (!isAdminRole(user?.role)) {
     return null;
   }
 

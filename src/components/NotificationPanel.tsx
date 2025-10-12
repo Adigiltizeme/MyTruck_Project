@@ -27,7 +27,7 @@ export const NotificationPanel: React.FC = () => {
 
     // Fonction pour marquer tous les contacts nouveaux comme lus
     const markAllContactsAsRead = async () => {
-        if (!user || user.role !== 'admin') return;
+        if (!user || !isAdminRole(user.role)) return;
 
         try {
             // Récupérer tous les contacts NOUVEAU

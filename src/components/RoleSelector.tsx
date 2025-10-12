@@ -4,6 +4,7 @@ import { UserRole } from '../types/roles';
 import { useOffline } from '../contexts/OfflineContext';
 import { useDraftStorage } from '../hooks/useDraftStorage';
 import { normalizeMagasin } from '../utils/data-normalization';
+import { isAdminRole } from '../utils/role-helpers';
 
 
 
@@ -40,7 +41,7 @@ export const RoleSelector = () => {
                 setLoading(true);
 
                 // ✅ VÉRIFICATION DES PERMISSIONS : Ne charger les magasins que si l'utilisateur en a le droit
-                if (user?.role !== 'admin' && user?.role !== 'magasin') {
+                if (!isAdminRole(user?.role) && user?.role !== 'magasin') {
                     setLoading(false);
                     return;
                 }

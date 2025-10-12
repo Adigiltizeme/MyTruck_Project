@@ -3,6 +3,7 @@ import { CommandeMetier } from '../types/business.types';
 import { useAuth } from '../contexts/AuthContext';
 import { useOffline } from '../contexts/OfflineContext';
 import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../styles/getStatus';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface StatusManagerProps {
     commande: CommandeMetier;
@@ -36,12 +37,12 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                 commande.statuts?.livraison !== 'ANNULEE';
         }
         // Admin/Direction peuvent toujours modifier
-        return user?.role === 'admin';
+        return isAdminRole(user?.role);
     };
 
     const canModifyLivraisonStatus = () => {
         // Règle 4 : Chauffeurs et Direction peuvent gérer livraisons
-        if (user?.role === 'admin') {
+        if (isAdminRole(user?.role)) {
             return true; // Admin/Direction ont accès complet
         }
         return user?.role === 'chauffeur';
@@ -292,7 +293,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
             )}
 
             {/* Bouton modification avancée */}
-            {user?.role === 'admin' && (
+            {isAdminRole(user?.role) && (
                 <button
                     onClick={() => {
                         setSelectedStatutCommande(commande.statuts?.commande || '');
@@ -316,7 +317,7 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                 {user?.role === 'chauffeur' && (
                     <p>🚛 Vous pouvez gérer les statuts de livraison</p>
                 )}
-                {(user?.role === 'admin') && (
+                {isAdminRole(user?.role) && (
                     <p>🔑 Accès complet à tous les statuts</p>
                 )}
             </div>

@@ -1,15 +1,15 @@
 /**
  * RÈGLE MÉTIER IMPORTANTE : RÉSERVE MY TRUCK
- * 
+ *
  * La "Réserve My Truck" est un indicateur crucial qui signale à la direction
  * qu'une commande a rencontré des problèmes nécessitant une attention particulière.
- * 
+ *
  * COMPORTEMENT :
  * - Dès qu'un rapport (enlèvement OU livraison) est créé → Réserve = OUI
  * - Si tous les rapports sont supprimés → Réserve = NON
  * - Visible dans le tableau des commandes (Deliveries.tsx)
  * - Permet à la direction d'identifier rapidement les commandes problématiques
- * 
+ *
  * CAS D'USAGE :
  * - Produit abîmé lors enlèvement → Rapport enlèvement → Réserve OUI
  * - Client absent lors livraison → Rapport livraison → Réserve OUI
@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { isAdminRole } from '../utils/role-helpers';
 import { CommandeMetier, PersonnelInfo } from '../types/business.types';
 import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -244,7 +245,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                 </h3>
 
                 {/* ✅ Bouton création si permissions et possible */}
-                {(user?.role === 'chauffeur' || user?.role === 'admin') && (
+                {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
                     <div className="flex space-x-2">
                         {canCreateRapport('ENLEVEMENT') && ['CONFIRMEE', 'ENLEVEE'].includes(commande.statuts?.livraison || '') && (
                             <button
@@ -292,7 +293,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
             )}
 
             {/* ✅ INFORMATION MÉTIER CLAIRE */}
-            {user?.role === 'admin' || user?.role === 'chauffeur' && (
+            {isAdminRole(user?.role) || user?.role === 'chauffeur' && (
                 <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm">
                     <p className="text-blue-800">
                         <strong>ℹ️ Les rapports</strong> permettent de signaler des problèmes et activent la "Réserve My Truck"
