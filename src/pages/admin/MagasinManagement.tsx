@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     PlusIcon,
     PencilIcon,
@@ -9,7 +10,8 @@ import {
     MapPinIcon,
     UserIcon,
     ChartBarIcon,
-    EyeIcon
+    EyeIcon,
+    MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useApi } from '../../services/api.service';
 import { MagasinInfo, PersonnelInfo } from '../../types/business.types';
@@ -43,11 +45,13 @@ interface BackendMagasin {
 }
 
 export default function MagasinManagement() {
+    const [searchParams] = useSearchParams();
     const [magasins, setMagasins] = useState<MagasinInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingMagasin, setEditingMagasin] = useState<MagasinInfo | null>(null);
     const [showStats, setShowStats] = useState<{ [key: string]: boolean }>({});
+    const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState<{ [key: string]: any }>({});
     const [showDependenciesModal, setShowDependenciesModal] = useState(false);
     const [selectedMagasinForDependencies, setSelectedMagasinForDependencies] = useState<MagasinInfo | null>(null);
@@ -103,6 +107,14 @@ export default function MagasinManagement() {
     useEffect(() => {
         loadMagasins();
     }, []);
+
+    // Initialiser la recherche depuis l'URL
+    useEffect(() => {
+        const searchFromUrl = searchParams.get('search');
+        if (searchFromUrl) {
+            setSearchTerm(searchFromUrl);
+        }
+    }, [searchParams]);
 
     const loadMagasins = async () => {
         try {
@@ -469,26 +481,84 @@ export default function MagasinManagement() {
                     <h3 className="text-lg font-medium text-gray-900">Magasins partenaires</h3>
                 </div>
 
-                {magasins.length === 0 ? (
-                    <div className="text-center py-12">
-                        <BuildingStorefrontIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun magasin</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Commencez par ajouter un nouveau magasin partenaire.
-                        </p>
-                        <div className="mt-6">
-                            <button
-                                onClick={() => openModal()}
-                                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark"
-                            >
-                                <PlusIcon className="h-5 w-5 mr-2" />
-                                Nouveau magasin
-                            </button>
+                {/* Barre de recherche */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                         </div>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Rechercher par nom, email ou adresse..."
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {magasins.filter((magasin) => {
+                    if (!searchTerm) return true;
+                    const search = searchTerm.toLowerCase();
+                    return (
+                        magasin.name?.toLowerCase().includes(search) ||
+                        magasin.email?.toLowerCase().includes(search) ||
+                        magasin.address?.toLowerCase().includes(search) ||
+                        magasin.manager?.toLowerCase().includes(search)
+                    );
+                }).length === 0 ? (
+                    <div className="text-center py-12">
+                        <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">
+                            {searchTerm ? 'Aucun résultat trouvé' : 'Aucun magasin'}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {searchTerm
+                                ? `Aucun magasin ne correspond à "${searchTerm}"`
+                                : 'Commencez par ajouter un nouveau magasin partenaire.'
+                            }
+                        </p>
+                        {searchTerm ? (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                                Effacer la recherche
+                            </button>
+                        ) : (
+                            <div className="mt-6">
+                                <button
+                                    onClick={() => openModal()}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark"
+                                >
+                                    <PlusIcon className="h-5 w-5 mr-2" />
+                                    Nouveau magasin
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200">
-                        {magasins.map((magasin) => (
+                        {magasins
+                            .filter((magasin) => {
+                                if (!searchTerm) return true;
+                                const search = searchTerm.toLowerCase();
+                                return (
+                                    magasin.name?.toLowerCase().includes(search) ||
+                                    magasin.email?.toLowerCase().includes(search) ||
+                                    magasin.address?.toLowerCase().includes(search) ||
+                                    magasin.manager?.toLowerCase().includes(search)
+                                );
+                            })
+                            .map((magasin) => (
                             <div key={magasin.id}>
                                 <div className="px-6 py-4 hover:bg-gray-50">
                                     <div className="flex items-center justify-between">

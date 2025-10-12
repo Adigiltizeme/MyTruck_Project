@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     PlusIcon,
     PencilIcon,
@@ -7,7 +8,8 @@ import {
     PhoneIcon,
     EnvelopeIcon,
     TruckIcon,
-    EyeIcon
+    EyeIcon,
+    MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { useApi } from '../../services/api.service';
 import { PersonnelInfo, ChauffeurStatus, MagasinInfo } from '../../types/business.types';
@@ -43,6 +45,7 @@ interface BackendChauffeur {
 }
 
 export default function ChauffeurManagement() {
+    const [searchParams] = useSearchParams();
     const [chauffeurs, setChauffeurs] = useState<PersonnelInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -50,6 +53,7 @@ export default function ChauffeurManagement() {
     const [showDependenciesModal, setShowDependenciesModal] = useState(false);
     const [selectedChauffeurForDependencies, setSelectedChauffeurForDependencies] = useState<PersonnelInfo | null>(null);
     const [modalMode, setModalMode] = useState<'view' | 'delete'>('view');
+    const [searchTerm, setSearchTerm] = useState('');
     const [formData, setFormData] = useState<ChauffeurFormData>({
         nom: '',
         prenom: '',
@@ -94,6 +98,14 @@ export default function ChauffeurManagement() {
     useEffect(() => {
         loadChauffeurs();
     }, []);
+
+    // Initialiser la recherche depuis l'URL
+    useEffect(() => {
+        const searchFromUrl = searchParams.get('search');
+        if (searchFromUrl) {
+            setSearchTerm(searchFromUrl);
+        }
+    }, [searchParams]);
 
     const loadChauffeurs = async () => {
         try {
@@ -402,26 +414,84 @@ export default function ChauffeurManagement() {
                     <h3 className="text-lg font-medium text-gray-900">Liste des chauffeurs</h3>
                 </div>
 
-                {chauffeurs.length === 0 ? (
-                    <div className="text-center py-12">
-                        <TruckIcon className="mx-auto h-12 w-12 text-gray-400" />
-                        <h3 className="mt-2 text-sm font-medium text-gray-900">Aucun chauffeur</h3>
-                        <p className="mt-1 text-sm text-gray-500">
-                            Commencez par ajouter un nouveau chauffeur.
-                        </p>
-                        <div className="mt-6">
-                            <button
-                                onClick={() => openModal()}
-                                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark"
-                            >
-                                <PlusIcon className="h-5 w-5 mr-2" />
-                                Nouveau chauffeur
-                            </button>
+                {/* Barre de recherche */}
+                <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                         </div>
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Rechercher par nom, prénom ou email..."
+                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {chauffeurs.filter((chauffeur) => {
+                    if (!searchTerm) return true;
+                    const search = searchTerm.toLowerCase();
+                    return (
+                        chauffeur.lastName?.toLowerCase().includes(search) ||
+                        chauffeur.firstName?.toLowerCase().includes(search) ||
+                        chauffeur.email?.toLowerCase().includes(search) ||
+                        `${chauffeur.firstName} ${chauffeur.lastName}`.toLowerCase().includes(search)
+                    );
+                }).length === 0 ? (
+                    <div className="text-center py-12">
+                        <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-medium text-gray-900">
+                            {searchTerm ? 'Aucun résultat trouvé' : 'Aucun chauffeur'}
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                            {searchTerm
+                                ? `Aucun chauffeur ne correspond à "${searchTerm}"`
+                                : 'Commencez par ajouter un nouveau chauffeur.'
+                            }
+                        </p>
+                        {searchTerm ? (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                                Effacer la recherche
+                            </button>
+                        ) : (
+                            <div className="mt-6">
+                                <button
+                                    onClick={() => openModal()}
+                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark"
+                                >
+                                    <PlusIcon className="h-5 w-5 mr-2" />
+                                    Nouveau chauffeur
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="divide-y divide-gray-200">
-                        {chauffeurs.map((chauffeur) => (
+                        {chauffeurs
+                            .filter((chauffeur) => {
+                                if (!searchTerm) return true;
+                                const search = searchTerm.toLowerCase();
+                                return (
+                                    chauffeur.lastName?.toLowerCase().includes(search) ||
+                                    chauffeur.firstName?.toLowerCase().includes(search) ||
+                                    chauffeur.email?.toLowerCase().includes(search) ||
+                                    `${chauffeur.firstName} ${chauffeur.lastName}`.toLowerCase().includes(search)
+                                );
+                            })
+                            .map((chauffeur) => (
                             <div key={chauffeur.id} className="px-6 py-4 hover:bg-gray-50">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center space-x-4">
