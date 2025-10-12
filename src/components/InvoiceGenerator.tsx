@@ -9,6 +9,7 @@ import { Modal } from './Modal';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface InvoiceGeneratorProps {
     commande: CommandeMetier;
@@ -36,7 +37,7 @@ const InvoiceGenerator: React.FC<InvoiceGeneratorProps> = ({
     const [notes, setNotes] = useState<string>('');
 
     // Vérifier si l'utilisateur a les droits d'admin
-    const isAdmin = user?.role === 'admin' || user?.role === 'direction';
+    const isAdmin = isAdminRole(user?.role);
 
     useEffect(() => {
         if (isOpen) {

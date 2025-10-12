@@ -9,6 +9,7 @@ import { useOffline } from '../contexts/OfflineContext';
 import { formatDate } from '../utils/formatters';
 import { PDFViewer } from './PDFViewer';
 import { toast } from 'react-toastify';
+import { isAdminRole } from '../utils/role-helpers';
 
 interface DocumentViewerProps {
     commande: CommandeMetier;
@@ -279,13 +280,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
     // ✅ DÉTERMINER QUELS DOCUMENTS PEUVENT ÊTRE GÉNÉRÉS
     const canGenerateBonCommande = (user?.role !== 'chauffeur');
 
-    const canGenerateDevis = (user?.role === 'admin' || user?.role === 'direction') && (
+    const canGenerateDevis = isAdminRole(user?.role) && (
         (commande.livraison?.equipiers && commande.livraison.equipiers > 2) ||
         commande.financier?.devisObligatoire ||
         parseFloat(commande.financier?.tarifHT?.toString() || '0') > 200
     );
 
-    const canGenerateFacture = (user?.role === 'admin' || user?.role === 'direction') &&
+    const canGenerateFacture = isAdminRole(user?.role) &&
         commande.statuts?.livraison === 'LIVREE';
 
     return (

@@ -15,6 +15,7 @@ import { NotificationService } from '../services/notificationService';
 import { useTheme } from '../contexts/ThemeContext';
 import { NotificationPanel } from './NotificationPanel';
 import { ThemeToggle } from './ThemeToggle';
+import { isAdminRole } from '../utils/role-helpers';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -141,7 +142,7 @@ const Header = () => {
                 )}
               </MenuItem>
 
-              {(user?.role === 'admin' || user?.role === 'direction') && (
+              {isAdminRole(user?.role) && (
                 <MenuItem>
                   {({ }) => (
                     <Link

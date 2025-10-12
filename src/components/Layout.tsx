@@ -7,6 +7,7 @@ import { AuthStatus } from './AuthStatus';
 import { useAuth } from '../contexts/AuthContext';
 import Breadcrumbs from './Breadcrumbs';
 import DatabaseErrorMonitor from './DatabaseErrorMonitor';
+import { isAdminRole } from '../utils/role-helpers';
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -141,7 +142,7 @@ const Layout = () => {
           </div>
         </main>
       </div>
-      {(user?.role === 'admin' || user?.role === 'direction') && <DatabaseErrorMonitor />}
+      {isAdminRole(user?.role) && <DatabaseErrorMonitor />}
     </div>
   );
 };

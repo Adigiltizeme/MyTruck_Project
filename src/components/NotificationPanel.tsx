@@ -6,6 +6,7 @@ import { useUnreadCounts } from '../hooks/useUnreadCounts';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api.service';
+import { isAdminRole } from '../utils/role-helpers';
 
 export const NotificationPanel: React.FC = () => {
     const { user } = useAuth();
@@ -69,7 +70,7 @@ export const NotificationPanel: React.FC = () => {
 
     // Fonction pour naviguer vers les contacts et marquer comme lus (admin uniquement)
     const handleContactsClick = async () => {
-        if (user?.role !== 'admin') return;
+        if (!isAdminRole(user?.role)) return;
 
         if (unreadContacts > 0) {
             await markAllContactsAsRead();
@@ -189,7 +190,7 @@ export const NotificationPanel: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    {unreadContacts > 0 && (user?.role === 'admin' || user?.role === 'direction') && (
+                                    {unreadContacts > 0 && isAdminRole(user?.role) && (
                                         <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 cursor-pointer transition-colors"
                                              onClick={handleContactsClick}>
                                             <div className="flex items-center space-x-2">
