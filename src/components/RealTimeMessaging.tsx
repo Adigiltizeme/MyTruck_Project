@@ -24,6 +24,7 @@ const RealTimeMessaging: React.FC = () => {
   // États pour les données des participants (méthode éprouvée)
   const [allMagasins, setAllMagasins] = useState<MagasinInfo[]>([]);
   const [allChauffeurs, setAllChauffeurs] = useState<PersonnelInfo[]>([]);
+  const [allUsers, setAllUsers] = useState<Map<string, { name: string; email: string }>>(new Map());
   const [participantsLoaded, setParticipantsLoaded] = useState(false);
 
   // États pour le modal de création de conversation
@@ -850,7 +851,13 @@ const RealTimeMessaging: React.FC = () => {
       // Chercher dans les chauffeurs
       const chauffeur = allChauffeurs.find(c => c.id === message.senderId);
       if (chauffeur) {
-        return `${chauffeur.nom} ${chauffeur.prenom}`.trim();
+        return `${chauffeur.prenom} ${chauffeur.nom}`.trim();
+      }
+
+      // Chercher dans les users (admin/direction)
+      const userInfo = allUsers.get(message.senderId);
+      if (userInfo) {
+        return userInfo.name || userInfo.email.split('@')[0];
       }
     }
 
@@ -859,8 +866,56 @@ const RealTimeMessaging: React.FC = () => {
       return conversation.magasin.nom;
     }
 
+    // Si c'est un message DIRECTION, essayer de charger les infos de l'user
+    if (message.senderType === 'DIRECTION' && message.senderId) {
+      // Charger les infos de cet user si pas encore fait
+      loadUserInfo(message.senderId);
+      // Fallback temporaire en attendant le chargement
+      return `Direction (ID: ${message.senderId.substring(0, 8)}...)`;
+    }
+
     // Fallback vers le type d'expéditeur
     return message.senderType;
+  };
+
+  // Fonction pour charger les infos d'un user par son ID
+  const loadUserInfo = async (userId: string) => {
+    // Ne pas recharger si déjà en cache
+    if (allUsers.has(userId)) return;
+
+    try {
+      // Marquer comme chargement en cours pour éviter les appels multiples
+      setAllUsers(prev => new Map(prev).set(userId, { name: 'Chargement...', email: '' }));
+
+      // Appel API pour récupérer les infos de l'user
+      const userResponse = await apiService.get(`/users/${userId}`) as {
+        id: string;
+        email: string;
+        nom?: string;
+        prenom?: string;
+        role: string;
+      };
+
+      if (userResponse) {
+        const userName = userResponse.prenom && userResponse.nom
+          ? `${userResponse.prenom} ${userResponse.nom}`
+          : userResponse.email.split('@')[0];
+
+        setAllUsers(prev => new Map(prev).set(userId, {
+          name: userName,
+          email: userResponse.email
+        }));
+
+        console.log('✅ User info chargée:', userId, userName);
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement user info:', error);
+      // En cas d'erreur, garder un placeholder
+      setAllUsers(prev => new Map(prev).set(userId, {
+        name: `Direction (${userId.substring(0, 8)})`,
+        email: ''
+      }));
+    }
   };
 
   const getCurrentTypingUsers = (conversationId: string): string[] => {
