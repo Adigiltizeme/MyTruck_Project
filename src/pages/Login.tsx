@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { SPECIAL_ACCOUNTS } from '../services/authService';
+import { isAdminRole } from '../utils/role-helpers';
 
 const Login = () => {
     const [email, setEmail] = useState('');

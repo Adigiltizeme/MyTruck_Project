@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { NotificationService } from '../services/notificationService';
 import { useOffline } from '../contexts/OfflineContext';
 import { UserRole } from '../types/roles';
+import { isAdminRole } from '../utils/role-helpers';
 
 const Signup: React.FC = () => {
     const [formData, setFormData] = useState<UserSignupData>({
