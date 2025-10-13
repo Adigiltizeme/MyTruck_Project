@@ -313,6 +313,15 @@ export const useMessaging = ({
       await messagingService.current.markConversationAsRead(convId);
       console.log('✅ markConversationAsRead API success');
 
+      // Mettre à jour immédiatement le compteur local pour cette conversation
+      setConversations(prevConversations =>
+        prevConversations.map(conv =>
+          conv.id === convId
+            ? { ...conv, _count: { ...conv._count, messages: 0 } }
+            : conv
+        )
+      );
+
       // Notifier via WebSocket
       if (socketRef.current?.connected) {
         console.log('🔌 Emitting mark-messages-read via WebSocket:', { conversationId: convId, userId: user.id });
@@ -323,10 +332,16 @@ export const useMessaging = ({
       } else {
         console.warn('❌ WebSocket not connected, skipping mark-messages-read emit');
       }
+
+      // Recharger les conversations pour avoir les données à jour du serveur
+      // Délai court pour laisser le serveur traiter
+      setTimeout(() => {
+        loadConversations();
+      }, 300);
     } catch (err) {
       console.error('❌ Erreur lors du marquage comme lu:', err);
     }
-  }, [user]);
+  }, [user, loadConversations]);
 
   const loadConversation = useCallback(async (convId: string) => {
     try {
