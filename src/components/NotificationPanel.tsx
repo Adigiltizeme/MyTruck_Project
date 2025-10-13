@@ -61,11 +61,10 @@ export const NotificationPanel: React.FC = () => {
 
     // Fonction pour naviguer vers les messages
     const handleMessagesClick = () => {
+        // Forcer un refresh des compteurs pour mise à jour immédiate
+        setTimeout(() => refreshCounts(), 100);
         navigate('/messagerie');
-        addNotification({
-            message: 'Redirection vers la messagerie',
-            type: 'info'
-        });
+        // Pas de notification supplémentaire - la navigation suffit
     };
 
     // Fonction pour naviguer vers les contacts et marquer comme lus (admin uniquement)
@@ -76,11 +75,10 @@ export const NotificationPanel: React.FC = () => {
             await markAllContactsAsRead();
         }
 
+        // Forcer un refresh des compteurs pour mise à jour immédiate
+        setTimeout(() => refreshCounts(), 100);
         navigate('/contacts');
-        addNotification({
-            message: 'Redirection vers les contacts',
-            type: 'info'
-        });
+        // Pas de notification supplémentaire - la navigation suffit
     };
 
     const formatTimestamp = (date: Date): string => {
@@ -172,48 +170,63 @@ export const NotificationPanel: React.FC = () => {
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">
-                        {/* Section messages et contacts non lus */}
-                        {(unreadMessages > 0 || unreadContacts > 0) && (
-                            <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-100 dark:border-gray-700">
-                                <div className="space-y-2">
-                                    {unreadMessages > 0 && (
-                                        <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800/30 cursor-pointer transition-colors"
-                                             onClick={handleMessagesClick}>
-                                            <div className="flex items-center space-x-2">
-                                                <ChatBubbleLeftRightIcon className="h-4 w-4 text-blue-600" />
-                                                <span className="text-gray-700 dark:text-gray-300">Messages non lus</span>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full">
-                                                    {unreadMessages}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {unreadContacts > 0 && isAdminRole(user?.role) && (
-                                        <div className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-green-100 dark:hover:bg-green-800/30 cursor-pointer transition-colors"
-                                             onClick={handleContactsClick}>
-                                            <div className="flex items-center space-x-2">
-                                                <UsersIcon className="h-4 w-4 text-green-600" />
-                                                <span className="text-gray-700 dark:text-gray-300">Nouveaux contacts</span>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <span className="bg-green-600 text-white text-xs font-medium px-2 py-1 rounded-full">
-                                                    {unreadContacts}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
                         {notifications.length === 0 && unreadMessages === 0 && unreadContacts === 0 ? (
                             <div className="py-6 px-4 text-center text-gray-500 dark:text-gray-400">
                                 <p>Pas de notifications</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                                {/* Messages non lus sous forme de notification cliquable */}
+                                {unreadMessages > 0 && (
+                                    <div
+                                        className="px-4 py-3 flex items-start gap-3 bg-blue-50 dark:bg-blue-900/20 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                                        onClick={handleMessagesClick}
+                                    >
+                                        <div className="flex-shrink-0 mt-0.5">
+                                            <ChatBubbleLeftRightIcon className="w-5 h-5 text-blue-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                {unreadMessages} message{unreadMessages > 1 ? 's' : ''} non lu{unreadMessages > 1 ? 's' : ''}
+                                            </div>
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Cliquez pour voir vos conversations
+                                            </p>
+                                        </div>
+                                        <div className="flex-shrink-0">
+                                            <span className="bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                                {unreadMessages}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Contacts non lus sous forme de notification cliquable (admin uniquement) */}
+                                {unreadContacts > 0 && isAdminRole(user?.role) && (
+                                    <div
+                                        className="px-4 py-3 flex items-start gap-3 bg-green-50 dark:bg-green-900/20 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                                        onClick={handleContactsClick}
+                                    >
+                                        <div className="flex-shrink-0 mt-0.5">
+                                            <UsersIcon className="w-5 h-5 text-green-600" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                {unreadContacts} nouveau{unreadContacts > 1 ? 'x' : ''} contact{unreadContacts > 1 ? 's' : ''}
+                                            </div>
+                                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                                Cliquez pour gérer les contacts
+                                            </p>
+                                        </div>
+                                        <div className="flex-shrink-0">
+                                            <span className="bg-green-600 text-white text-xs font-medium px-2 py-1 rounded-full">
+                                                {unreadContacts}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Notifications régulières de l'application */}
                                 {notifications.map((notification) => (
                                     <div
                                         key={notification.id}

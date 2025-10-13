@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiService } from '../services/api.service';
 import io from 'socket.io-client';
 import { isAdminRole } from '../utils/role-helpers';
+import { useLocation } from 'react-router-dom';
 
 interface UnreadCounts {
   messages: number;
@@ -16,6 +17,7 @@ interface UnreadCounts {
  */
 export const useUnreadCounts = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const socketRef = useRef<any>(null);
   const [isReady, setIsReady] = useState(false);
   const [counts, setCounts] = useState<UnreadCounts>({
@@ -151,6 +153,20 @@ export const useUnreadCounts = () => {
 
     return () => clearInterval(interval);
   }, [isReady, user?.id]);
+
+  // Rafraîchir immédiatement les compteurs lors du changement de route
+  // Ceci permet de mettre à jour les badges dès qu'on consulte une page (messagerie/contacts)
+  useEffect(() => {
+    if (!isReady || !user?.id) return;
+
+    // Délai court pour laisser la page se charger et marquer les messages comme lus
+    const timer = setTimeout(() => {
+      console.log('🔔 useUnreadCounts: Rafraîchissement suite au changement de route ->', location.pathname);
+      fetchUnreadCounts();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [location.pathname, isReady]);
 
   // DÉSACTIVÉ - Initialiser et nettoyer WebSocket
   useEffect(() => {
