@@ -240,11 +240,15 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       {/* Logo header */}
       <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100">
         <div className="w-28 py-2">
-          <img
-            src="/my-truck-logo.jpg"
-            alt="My Truck"
-            className="h-auto w-full object-contain"
-          />
+          <button
+            onClick={() => { navigate('/home') }}
+          >
+            <img
+              src="/my-truck-logo.jpg"
+              alt="My Truck"
+              className="h-auto w-full object-contain"
+            />
+          </button>
         </div>
       </div>
 
@@ -253,8 +257,8 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
             <span className="text-sm font-medium text-gray-600">
-              {displayUserData?.name ? displayUserData.name.charAt(0).toUpperCase() : 
-               user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              {displayUserData?.name ? displayUserData.name.charAt(0).toUpperCase() :
+                user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
             </span>
           </div>
           <div className="flex-1 min-w-0">
@@ -265,8 +269,8 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
             <p className="text-xs text-gray-500 truncate">
               {isAdminRole(user?.role) && !displayUserData ? 'Administrateur' :
                 user?.role === 'magasin' ? `${displayUserData?.storeName || displayUserData?.name || user.storeName || 'Magasin'}` :
-                user?.role === 'chauffeur' ? `Chauffeur` :
-                  'Administrateur'
+                  user?.role === 'chauffeur' ? `Chauffeur` :
+                    'Administrateur'
               }
             </p>
           </div>

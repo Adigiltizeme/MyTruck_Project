@@ -475,81 +475,81 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             case 'informations':
                 return (
                     // Section Informations existante
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                         {/* Magasin */}
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Magasin</h3>
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Magasin</h3>
                             <div className="space-y-2">
-                                <p><span className="text-gray-500">Nom:</span> {commande.magasin?.name || 'Non spécifié'}</p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
                                 {/* <p><span className="text-gray-500">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
                                     <p><span className="text-gray-500">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p> */}
                             </div>
                         </div>
 
                         {/* Client */}
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Client</h3>
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Client</h3>
                             <div className="space-y-2">
-                                <p><span className="text-gray-500">Nom:</span> {commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom || ''}</p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom || ''}</span></p>
                                 {/* <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p> */}
 
-                                <p><span className="text-gray-500">Téléphone:</span> {commande.client?.telephone?.principal || 'Non spécifié'}</p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.client?.telephone?.principal || 'Non spécifié'}</span></p>
 
                                 {commande.client?.telephone?.secondaire && (
-                                    <p><span className="text-gray-500">Téléphone secondaire:</span> {commande.client?.telephone?.secondaire}</p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Tél. secondaire:</span> <span className="inline-block">{commande.client?.telephone?.secondaire}</span></p>
                                 )}
 
-                                <p><span className="text-gray-500">Adresse:</span> {commande.client?.adresse?.ligne1 || 'Non spécifiée'}</p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.client?.adresse?.ligne1 || 'Non spécifiée'}</span></p>
 
                                 {commande.client?.adresse?.type && (
-                                    <p><span className="text-gray-500">Type d'adresse:</span> {commande.client?.adresse?.type}</p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Type d'adresse:</span> <span className="inline-block">{commande.client?.adresse?.type}</span></p>
                                 )}
 
                                 {commande.client?.adresse?.batiment && (
-                                    <p><span className="text-gray-500">Bâtiment:</span> {commande.client?.adresse?.batiment || commande.batiment}</p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Bâtiment:</span> <span className="inline-block">{commande.client?.adresse?.batiment || commande.batiment}</span></p>
                                 )}
 
-                                <p><span className="text-gray-500">Étage:</span> {
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Étage:</span> <span className="inline-block">{
                                     commande.client?.adresse?.etage !== undefined && commande.client?.adresse?.etage !== null
                                         ? commande.client.adresse.etage
                                         : (commande.etage !== undefined && commande.etage !== null
                                             ? commande.etage
                                             : 'Non spécifié')
-                                }</p>
+                                }</span></p>
 
-                                <p><span className="text-gray-500">Interphone/Code:</span> {
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Interphone/Code:</span> <span className="inline-block">{
                                     commande.client?.adresse?.interphone !== undefined && commande.client?.adresse?.interphone !== null
                                         ? commande.client.adresse.interphone
                                         : (commande.interphone !== undefined && commande.interphone !== null
                                             ? commande.interphone
                                             : 'Non spécifié')
-                                }</p>
+                                }</span></p>
 
-                                <p><span className="text-gray-500">Ascenseur:</span> {
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Ascenseur:</span> <span className="inline-block">{
                                     commande.client?.adresse?.ascenseur !== undefined
                                         ? (commande.client.adresse.ascenseur ? 'Oui' : 'Non')
                                         : (commande.ascenseur !== undefined
                                             ? (commande.ascenseur ? 'Oui' : 'Non')
                                             : 'Non spécifié')
-                                }</p>
+                                }</span></p>
                             </div>
                         </div>
 
                         {/* Livraison */}
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Livraison</h3>
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Livraison</h3>
                             <div className="space-y-2">
-                                <p><span className="text-gray-500">Date:</span> {dateFormatter.forDisplay(commande.dates?.livraison)}</p>
-                                <p><span className="text-gray-500">Créneau:</span> {commande.livraison?.creneau || 'Non spécifié'}</p>
-                                <p><span className="text-gray-500">Véhicule:</span> {commande.livraison?.vehicule || 'Non spécifié'}</p>
-                                <p><span className="text-gray-500">Équipiers:</span> {commande.livraison?.equipiers || '0'}</p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Date:</span> <span className="inline-block">{dateFormatter.forDisplay(commande.dates?.livraison)}</span></p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Créneau:</span> <span className="inline-block">{commande.livraison?.creneau || 'Non spécifié'}</span></p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Véhicule:</span> <span className="inline-block">{commande.livraison?.vehicule || 'Non spécifié'}</span></p>
+                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Équipiers:</span> <span className="inline-block">{commande.livraison?.equipiers || '0'}</span></p>
                             </div>
                         </div>
 
                         {/* Articles */}
                         {commande.articles && (
-                            <div className="space-y-4">
-                                <h3 className="font-medium text-lg">Articles</h3>
+                            <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 lg:col-span-2">
+                                <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Articles</h3>
                                 {(commande.articles?.photos && Array.isArray(commande.articles.photos)) && (
                                     <div className="grid grid-cols-2 gap-2 mt-2">
                                         {commande.articles.photos.map((photo: string | { url: string }, index) => {
@@ -608,25 +608,25 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                     </div>
                                 )}
                                 <div className="space-y-2">
-                                    <p><span className="text-gray-500">Nombre total:</span> {commande.articles.nombre || '0'}</p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nombre total:</span> <span className="inline-block">{commande.articles.nombre || '0'}</span></p>
                                     {commande.articles?.autresArticles > 0 && (
-                                        <p className="text-sm text-blue-700">
+                                        <p className="text-sm text-blue-700 break-words">
                                             Dont {commande.articles.autresArticles} autre{commande.articles.autresArticles > 1 ? 's' : ''} article{commande.articles.autresArticles > 1 ? 's' : ''}
-                                            <span className="text-xs text-gray-500 ml-1">(ni les plus grands, ni les plus lourds)</span>
+                                            <span className="text-xs text-gray-500 block sm:inline sm:ml-1">(ni les plus grands, ni les plus lourds)</span>
                                         </p>
                                     )}
-                                    <p><span className="text-gray-500">Détails:</span> {commande.articles.details || 'Aucun détail'}</p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Détails:</span> <span className="inline-block">{commande.articles.details || 'Aucun détail'}</span></p>
                                 </div>
                             </div>
                         )}
 
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Chauffeur(s)</h3>
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Chauffeur(s)</h3>
                             {commande?.chauffeurs?.length ?? 0 > 0 ? (
                                 commande.chauffeurs.map((chauffeur, index) => (
                                     <div key={index} className="bg-gray-50 p-3 rounded">
-                                        <p>{chauffeur.prenom} {chauffeur.nom}</p>
-                                        <p className="text-sm text-gray-600">{chauffeur.telephone}</p>
+                                        <p className="break-words">{chauffeur.prenom} {chauffeur.nom}</p>
+                                        <p className="text-sm text-gray-600 break-words">{chauffeur.telephone}</p>
                                     </div>
                                 ))
                             ) : (
@@ -635,12 +635,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         </div>
 
                         {/* Autres remarques */}
-                        <div className="space-y-4">
-                            <h3 className="font-medium text-lg">Autres remarques</h3>
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Autres remarques</h3>
 
                             {(commande?.livraison?.remarques || commande?.remarques) ? (
                                 <div className="space-y-2">
-                                    <p>{commande?.livraison?.remarques || commande?.remarques}</p>
+                                    <p className="break-words">{commande?.livraison?.remarques || commande?.remarques}</p>
                                 </div>
                             ) : (
                                 <p className="text-gray-500">Aucune remarque</p>
@@ -648,7 +648,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         </div>
 
                         {/* Commentaires/Rapports */}
-                        <div className="col-span-2 space-y-4">
+                        <div className="lg:col-span-2 space-y-4">
                             <RapportManager
                                 commande={commande}
                                 onUpdate={onUpdate}

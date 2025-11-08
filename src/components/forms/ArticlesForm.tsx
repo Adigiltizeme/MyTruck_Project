@@ -169,6 +169,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
     const [estimationTarif, setEstimationTarif] = useState<{ montantHT: number | 'devis'; detail: any } | null>(null);
+    const [showEstimation, setShowEstimation] = useState(false);
 
     const tarificationService = useMemo(() => new TarificationService(), []);
 
@@ -1105,61 +1106,86 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 )}
             </div>
 
-            {/* Estimation de tarif (sans frais kilométriques) */}
+            {/* Bouton pour afficher/masquer l'estimation */}
             {estimationTarif && hasUserInteracted && articleDimensions.length > 0 &&
                 articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 mb-6 shadow-md">
-                        <div className="flex items-center justify-between mb-3">
+                    <div className="mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setShowEstimation(!showEstimation)}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-green-100 hover:bg-green-200 border-2 border-green-300 rounded-lg transition-colors duration-200"
+                        >
                             <div className="flex items-center">
-                                <span className="text-3xl mr-3">💰</span>
-                                <div>
-                                    <h4 className="text-xl font-bold text-green-800">Estimation de prix "MY TRUCK"</h4>
-                                    <p className="text-sm text-green-700">Hors frais kilométriques</p>
-                                </div>
+                                <span className="text-lg font-semibold text-green-800">
+                                    {showEstimation ? 'Masquer l\'estimation de prix' : 'Voir l\'estimation de prix'}
+                                </span>
                             </div>
-                            {estimationTarif.montantHT === 'devis' ? (
-                                <div className="text-3xl font-bold text-orange-600">DEVIS</div>
-                            ) : (
-                                <div className="text-right">
-                                    <div className="text-4xl font-bold text-green-700">{estimationTarif.montantHT}€</div>
-                                    <div className="text-sm text-green-600 font-medium">HT</div>
-                                </div>
-                            )}
-                        </div>
+                            <svg
+                                className={`w-6 h-6 text-green-700 transform transition-transform duration-200 ${showEstimation ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
 
-                        {/* Détail de l'estimation */}
-                        {estimationTarif.montantHT !== 'devis' && (
-                            <div className="mt-4 pt-4 border-t border-green-200">
-                                <p className="text-sm font-medium text-green-800 mb-2">Détail du tarif :</p>
-                                <div className="grid grid-cols-2 gap-3 text-sm">
-                                    <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
-                                        <span className="text-gray-700">Véhicule {data.livraison?.vehicule} :</span>
-                                        <span className="font-semibold text-green-700">{estimationTarif.detail.vehicule}€</span>
+                        {/* Estimation de tarif (sans frais kilométriques) */}
+                        {showEstimation && (
+                            <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 shadow-md">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center">
+                                        <span className="text-3xl mr-3">💰</span>
+                                        <div>
+                                            <h4 className="text-xl font-bold text-green-800">Estimation de prix "MY TRUCK"</h4>
+                                            <p className="text-sm text-green-700">Hors frais kilométriques</p>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
-                                        <span className="text-gray-700">
-                                            {data.livraison?.equipiers === 0 ? 'Chauffeur seul' :
-                                                `Équipiers (+${data.livraison?.equipiers})`} :
-                                        </span>
-                                        <span className="font-semibold text-green-700">
-                                            {estimationTarif.detail.equipiers === 'devis' ? 'DEVIS' : `${estimationTarif.detail.equipiers}€`}
-                                        </span>
+                                    {estimationTarif.montantHT === 'devis' ? (
+                                        <div className="text-3xl font-bold text-orange-600">DEVIS</div>
+                                    ) : (
+                                        <div className="text-right">
+                                            <div className="text-4xl font-bold text-green-700">{estimationTarif.montantHT}€</div>
+                                            <div className="text-sm text-green-600 font-medium">HT</div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Détail de l'estimation */}
+                                {estimationTarif.montantHT !== 'devis' && (
+                                    <div className="mt-4 pt-4 border-t border-green-200">
+                                        <p className="text-sm font-medium text-green-800 mb-2">Détail du tarif :</p>
+                                        <div className="grid grid-cols-2 gap-3 text-sm">
+                                            <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                                <span className="text-gray-700">Véhicule {data.livraison?.vehicule} :</span>
+                                                <span className="font-semibold text-green-700">{estimationTarif.detail.vehicule}€</span>
+                                            </div>
+                                            <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                                <span className="text-gray-700">
+                                                    {data.livraison?.equipiers === 0 ? 'Chauffeur seul' :
+                                                        `Équipiers (+${data.livraison?.equipiers})`} :
+                                                </span>
+                                                <span className="font-semibold text-green-700">
+                                                    {estimationTarif.detail.equipiers === 'devis' ? 'DEVIS' : `${estimationTarif.detail.equipiers}€`}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Avertissement */}
+                                <div className="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-md flex items-start">
+                                    <span className="text-orange-600 text-xl mr-2">⚠️</span>
+                                    <div className="text-sm text-orange-800">
+                                        <p className="font-semibold mb-1">Tarif approximatif</p>
+                                        <p>
+                                            Cette estimation ne comprend <strong>pas les frais kilométriques</strong>.
+                                            Le tarif final sera calculé à l'étape suivante après la saisie de l'adresse de livraison.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         )}
-
-                        {/* Avertissement */}
-                        <div className="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-md flex items-start">
-                            <span className="text-orange-600 text-xl mr-2">⚠️</span>
-                            <div className="text-sm text-orange-800">
-                                <p className="font-semibold mb-1">Tarif approximatif</p>
-                                <p>
-                                    Cette estimation ne comprend <strong>pas les frais kilométriques</strong>.
-                                    Le tarif final sera calculé à l'étape suivante après la saisie de l'adresse de livraison.
-                                </p>
-                            </div>
-                        </div>
                     </div>
                 )}
         </div>
