@@ -3,7 +3,7 @@ import { RecapitulatifFormProps } from "../../types/form.types";
 import { VehicleValidationService } from "../../services/vehicle-validation.service";
 import FormInput from "./FormInput";
 
-export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, errors, onChange, showErrors = false }) => {
+export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, errors, onChange, showErrors = false, isCession = false }) => {
     const getDeliveryConditions = () => {
         // Extraire les conditions de livraison des données
         let deliveryConditions = null;
@@ -184,25 +184,42 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
 
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <h4 className="font-medium">Client</h4>
-                    <p>{data.client?.nom} {data.client?.prenom}</p>
-                    <p>{data.client?.adresse?.ligne1}</p>
-                    <p>Tél: {data.client?.telephone?.principal}</p>
-                    {data.client?.telephone?.secondaire && (
-                        <p>Tél 2: {data.client?.telephone?.secondaire}</p>
-                    )}
-                    <p>Type: {data.client?.adresse?.type}</p>
-                    {data.client?.adresse?.batiment && (
-                        <p>Bâtiment: {data.client?.adresse?.batiment}</p>
-                    )}
-                    {data.client?.adresse?.etage && (
-                        <p>Étage: {data.client?.adresse?.etage}</p>
-                    )}
-                    {data.client?.adresse?.interphone && (
-                        <p>Interphone: {data.client?.adresse?.interphone}</p>
-                    )}
-                    {data.client?.adresse?.ascenseur && (
-                        <p>Ascenseur: {data.client?.adresse?.ascenseur ? 'Oui' : 'Non'}</p>
+                    {isCession ? (
+                        <>
+                            <h4 className="font-medium">Magasin de destination</h4>
+                            <p className="font-semibold text-blue-800">{data.magasinDestination?.name}</p>
+                            <p>{data.magasinDestination?.address}</p>
+                            <p>Tél: {data.magasinDestination?.phone || 'Non renseigné'}</p>
+                            {data.magasinDestination?.email && (
+                                <p>Email: {data.magasinDestination.email}</p>
+                            )}
+                            {data.magasinDestination?.manager && (
+                                <p>Responsable: {data.magasinDestination.manager}</p>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <h4 className="font-medium">Client</h4>
+                            <p>{data.client?.nom} {data.client?.prenom}</p>
+                            <p>{data.client?.adresse?.ligne1}</p>
+                            <p>Tél: {data.client?.telephone?.principal}</p>
+                            {data.client?.telephone?.secondaire && (
+                                <p>Tél 2: {data.client?.telephone?.secondaire}</p>
+                            )}
+                            <p>Type: {data.client?.adresse?.type}</p>
+                            {data.client?.adresse?.batiment && (
+                                <p>Bâtiment: {data.client?.adresse?.batiment}</p>
+                            )}
+                            {data.client?.adresse?.etage && (
+                                <p>Étage: {data.client?.adresse?.etage}</p>
+                            )}
+                            {data.client?.adresse?.interphone && (
+                                <p>Interphone: {data.client?.adresse?.interphone}</p>
+                            )}
+                            {data.client?.adresse?.ascenseur && (
+                                <p>Ascenseur: {data.client?.adresse?.ascenseur ? 'Oui' : 'Non'}</p>
+                            )}
+                        </>
                     )}
                 </div>
 

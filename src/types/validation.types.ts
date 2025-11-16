@@ -35,6 +35,11 @@ export interface ValidationErrors {
         address?: string;
         manager?: string;
     };
+    magasinDestination?: {
+        id?: string;
+        name?: string;
+        address?: string;
+    };
     submit?: string;
     showErrors?: boolean;
 }

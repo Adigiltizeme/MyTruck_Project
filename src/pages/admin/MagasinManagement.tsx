@@ -945,6 +945,8 @@ export default function MagasinManagement() {
                 entityName={selectedMagasinForDependencies?.name || ''}
                 onForceDelete={handleForceDelete}
                 showDeleteButton={modalMode === 'delete'}
+                title={modalMode === 'delete' ? "Suppression du magasin" : "Dépendances du magasin"}
+                mode={modalMode}
             />
         </div>
     );

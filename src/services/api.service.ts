@@ -732,7 +732,9 @@ export class ApiService {
       // ✅ CRÉATION : Structure flat (qui fonctionne)
       return {
         // Champs de base
-        numeroCommande: commande.numeroCommande || `CMD${Date.now()}`,
+        numeroCommande: commande.numeroCommande && commande.numeroCommande.trim() !== ''
+          ? commande.numeroCommande.trim()
+          : undefined, // Ne pas générer côté frontend, laisser le backend le faire
         dateLivraison: commande.dates?.livraison || new Date().toISOString(),
         creneauLivraison: commande.livraison?.creneau,
         categorieVehicule: commande.livraison?.vehicule,

@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { handleStorageError } from '../utils/error-handler';
 
 
-export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>) => {
+export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>, isCession: boolean = false) => {
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
     const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed, forceClearAllDrafts } = useDraftStorage();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,8 +40,8 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     const [errors, setErrors] = useState({}); // État pour les erreurs de validation
 
     const [state, dispatch] = useReducer(formReducer, initialFormState);
-    const stepManagement = useStepManagement(state, dispatch, onSubmit);
-    const { validateStep } = useFormValidation(state.data);
+    const stepManagement = useStepManagement(state, dispatch, onSubmit, isCession);
+    const { validateStep } = useFormValidation(state.data, isCession);
 
     const { user } = useAuth();
 
@@ -89,7 +89,14 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     // }, [hasDraft, draftData, draftProposed, clearDraft, user?.storeId]);
 
     // Simplifier la vérification pour faire confiance à draftStorage
+    // DÉSACTIVÉ pour les cessions (les cessions ne sauvegardent pas de brouillon)
     useEffect(() => {
+        if (isCession) {
+            // Pas de brouillon pour les cessions
+            setDraftProposed(true);
+            return;
+        }
+
         if (hasDraft && draftData && !draftProposed) {
             console.log("Traitement UNIQUE du brouillon disponible:", draftData);
             console.log('Dimensions dans le brouillon:', draftData.articles?.dimensions);
@@ -171,7 +178,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
             }
             setDraftProposed(true);
         }
-    }, [hasDraft, draftData, draftProposed, clearDraft]);
+    }, [hasDraft, draftData, draftProposed, clearDraft, isCession]);
 
     // Sauvegarde automatique du brouillon
     useEffect(() => {

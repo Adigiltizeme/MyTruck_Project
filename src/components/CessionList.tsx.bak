@@ -88,26 +88,8 @@ const CessionList: React.FC<CessionListProps> = ({ filterByStore }) => {
 
     const handleCreateCession = async (formData: any) => {
         try {
-            // Transformer les données du formulaire vers le format attendu par le service
-            const cessionData = {
-                magasin_origine_id: user?.storeId || user?.magasin?.id || formData.magasin?.id || '',
-                magasin_destination_id: formData.magasinDestination?.id || '',
-                date_livraison_souhaitee: formData.dates?.livraison || '',
-                articles: formData.articles?.dimensions || [],
-                remarques: formData.livraison?.remarques || '',
-                creneau: formData.livraison?.creneau || '',
-                vehicule: formData.livraison?.vehicule || '',
-                equipiers: formData.livraison?.equipiers || 0,
-                adresse_livraison: formData.livraison?.adresse || '', // Ajouté pour correspondre à CessionFormData
-                priorite: formData.priorite || 'Normale', // Ajouté pour correspondre à CessionFormData
-                motif: formData.motif || '', // Optionnel, selon le type
-                commentaires: formData.commentaires || '' // Optionnel, selon le type
-            };
-
-            console.log('📦 Données cession transformées:', cessionData);
-
             // Créer la cession via le service
-            await cessionService.createCession(cessionData, user?.id || '');
+            await cessionService.createCession(formData, user?.id || '');
 
             // Recharger les cessions
             await loadCessions();

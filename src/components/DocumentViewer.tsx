@@ -178,7 +178,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
     // ✅ NOUVELLES MÉTHODES - Utiliser les endpoints dédiés
     const handleGenerateBonCommande = async () => {
         if (hasBonCommande) {
-            setError('Un bon de commande existe déjà. Supprimez-le d\'abord si nécessaire.');
+            setError('Un bon de livraison existe déjà. Supprimez-le d\'abord si nécessaire.');
             return;
         }
 
@@ -195,11 +195,11 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
             // ✅ NOTIFICATION SUCCÈS
             setError(null);
 
-            toast.success('Bon de commande généré avec succès !');
+            toast.success('Bon de livraison généré avec succès !');
 
         } catch (error) {
-            console.error('❌ Erreur génération bon commande:', error);
-            setError('Impossible de générer le bon de commande. Veuillez réessayer.');
+            console.error('❌ Erreur génération bon livraison:', error);
+            setError('Impossible de générer le bon de livraison. Veuillez réessayer.');
         } finally {
             setLoading(null);
         }
@@ -315,7 +315,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
                             ) : (
                                 <>
                                     <FileText className="w-4 h-4 mr-1" />
-                                    Bon de commande
+                                    Bon de livraison
                                 </>
                             )}
                         </button>
@@ -324,7 +324,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
                     {hasBonCommande && (
                         <div className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm flex items-center">
                             <FileText className="w-4 h-4 mr-1" />
-                            Bon déjà généré
+                            Bon de livraison déjà généré
                         </div>
                     )}
 
@@ -496,7 +496,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
                         <FileText className="w-12 h-12 mx-auto mb-2 text-gray-400" />
                         <p>Aucun document disponible pour cette commande</p>
                         {canGenerateBonCommande && canGenerateFacture && (
-                            <p className="text-sm mt-2">Cliquez sur "Bon de commande" ou "Facture" pour commencer</p>
+                            <p className="text-sm mt-2">Cliquez sur "Bon de livraison" ou "Facture" pour commencer</p>
                         )}
                     </div>
                 )}

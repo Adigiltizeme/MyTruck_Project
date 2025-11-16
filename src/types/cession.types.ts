@@ -69,17 +69,24 @@ export interface Cession {
 export interface CessionFormData {
     magasin_origine_id: string;
     magasin_destination_id: string;
-    adresse_livraison: string;
+    adresse_livraison?: string;
     date_livraison_souhaitee: string;
     articles: Array<{
         nom: string;
-        reference: string;
-        type: ArticleType;
+        reference?: string;
+        type?: ArticleType;
         quantite: number;
         description?: string;
-        photo?: File | null;
+        photo?: File | null | string;
+        hauteur?: number;
+        largeur?: number;
+        longueur?: number;
+        poids?: number;
     }>;
     motif?: string;
-    priorite: 'Normale' | 'Urgente' | 'Planifiée';
-    commentaires?: string;
+    priorite?: 'Normale' | 'Urgente' | 'Planifiée';
+    remarques?: string;
+    creneau?: string;
+    vehicule?: string;
+    equipiers?: number;
 }

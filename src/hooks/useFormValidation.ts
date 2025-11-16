@@ -3,7 +3,7 @@ import { CommandeMetier } from '../types/business.types';
 import { ValidationErrors } from '../types/validation.types';
 import { ERROR_MESSAGES } from '../components/constants/errorMessages';
 
-export const useFormValidation = (formData: Partial<CommandeMetier>) => {
+export const useFormValidation = (formData: Partial<CommandeMetier>, isCession: boolean = false) => {
     const validateStep = useCallback((step: number): ValidationErrors => {
         const errors: ValidationErrors = {};
 
@@ -17,51 +17,61 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
                 }
                 break;
 
-            case 2: // Informations client
-                if (!formData.client?.nom?.trim()) {
-                    errors.client = {
-                        ...errors.client,
-                        nom: ERROR_MESSAGES.required
-                    };
-                }
+            case 2: // Informations client OU Magasin de destination (pour cession)
+                if (isCession) {
+                    // Validation pour cession: seul le magasin de destination est requis
+                    if (!formData.magasinDestination?.id) {
+                        errors.magasinDestination = {
+                            id: 'Le magasin de destination est requis'
+                        };
+                    }
+                } else {
+                    // Validation pour commande normale: informations client requises
+                    if (!formData.client?.nom?.trim()) {
+                        errors.client = {
+                            ...errors.client,
+                            nom: ERROR_MESSAGES.required
+                        };
+                    }
 
-                if (!formData.client?.telephone?.principal) {
-                    errors.client = {
-                        ...errors.client,
-                        telephone: {
-                            principal: ERROR_MESSAGES.required
-                        }
-                    };
-                }
+                    if (!formData.client?.telephone?.principal) {
+                        errors.client = {
+                            ...errors.client,
+                            telephone: {
+                                principal: ERROR_MESSAGES.required
+                            }
+                        };
+                    }
 
-                if (!formData.client?.adresse?.ligne1?.trim()) {
-                    errors.client = {
-                        ...errors.client,
-                        adresse: {
-                            ...errors.client?.adresse,
-                            ligne1: ERROR_MESSAGES.adresse.required
-                        }
-                    };
-                }
+                    if (!formData.client?.adresse?.ligne1?.trim()) {
+                        errors.client = {
+                            ...errors.client,
+                            adresse: {
+                                ...errors.client?.adresse,
+                                ligne1: ERROR_MESSAGES.adresse.required
+                            }
+                        };
+                    }
 
-                if (!formData.client?.adresse?.etage) {
-                    errors.client = {
-                        ...errors.client,
-                        adresse: {
-                            ...errors.client?.adresse,
-                            etage: ERROR_MESSAGES.adresse.etage
-                        }
-                    };
-                }
+                    if (!formData.client?.adresse?.etage) {
+                        errors.client = {
+                            ...errors.client,
+                            adresse: {
+                                ...errors.client?.adresse,
+                                etage: ERROR_MESSAGES.adresse.etage
+                            }
+                        };
+                    }
 
-                if (!formData.client?.adresse?.interphone) {
-                    errors.client = {
-                        ...errors.client,
-                        adresse: {
-                            ...errors.client?.adresse,
-                            interphone: ERROR_MESSAGES.adresse.interphone
-                        }
-                    };
+                    if (!formData.client?.adresse?.interphone) {
+                        errors.client = {
+                            ...errors.client,
+                            adresse: {
+                                ...errors.client?.adresse,
+                                interphone: ERROR_MESSAGES.adresse.interphone
+                            }
+                        };
+                    }
                 }
                 break;
 
@@ -101,7 +111,7 @@ export const useFormValidation = (formData: Partial<CommandeMetier>) => {
         }
 
         return errors;
-    }, [formData]);
+    }, [formData]); // isCession retiré des dépendances car il ne change pas pendant le cycle de vie du hook
 
     const validateForm = useCallback(() => {
         const errors = {

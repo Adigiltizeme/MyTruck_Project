@@ -29,7 +29,7 @@ export class CessionService {
       }
 
       const response = await apiService.get('/cessions', params) as { data: any[] };
-      const cessions = response.data.map((cmd) => this.transformCommandeToCession(cmd));
+      const cessions = response.data.map(this.transformCommandeToCession);
 
       // Sauvegarder en local
       await this.saveCessionsToLocal(cessions);
@@ -86,8 +86,8 @@ export class CessionService {
       // Traiter les photos d'articles si présentes
       const articlesWithPhotos = await Promise.all(
         cessionData.articles.map(async (article) => {
-          // Si la photo est un objet File, l'uploader sur Cloudinary
-          if (article.photo && article.photo instanceof File) {
+          if (article.photo) {
+            // Upload de l'image sur Cloudinary
             const uploadResult = await this.cloudinaryService.uploadImage(article.photo);
 
             return {
@@ -96,7 +96,6 @@ export class CessionService {
             };
           }
 
-          // Si c'est déjà une URL string ou null, garder tel quel
           return article;
         })
       );
@@ -108,28 +107,18 @@ export class CessionService {
         dateLivraisonSouhaitee: cessionData.date_livraison_souhaitee,
         articles: articlesWithPhotos.map(article => ({
           nom: article.nom,
-          reference: article.reference || article.nom,
-          type: article.type || 'Autre',
+          reference: article.reference,
+          type: article.type,
           quantite: article.quantite,
           description: article.description || '',
-          photo: typeof article.photo === 'string' ? article.photo : undefined,
-          dimensions: (article.hauteur || article.largeur || article.longueur) ? {
-            hauteur: article.hauteur,
-            largeur: article.largeur,
-            profondeur: article.longueur
-          } : undefined,
-          poids: article.poids
+          photo: typeof article.photo === 'string' ? article.photo : undefined
         })),
         motif: cessionData.motif || '',
-        priorite: cessionData.priorite || 'Normale',
-        remarques: cessionData.remarques || '',
-        categorieVehicule: cessionData.vehicule || '',
-        optionEquipier: cessionData.equipiers || 0,
-        creneauLivraison: cessionData.creneau || ''
+        priorite: cessionData.priorite,
+        commentaires: cessionData.commentaires || ''
       };
 
       const response = await apiService.post('/cessions', dto) as { data: any };
-      console.log('✅ Réponse backend cession:', response.data);
       const cession = this.transformCommandeToCession(response.data);
 
       // Sauvegarder en local
@@ -226,24 +215,12 @@ export class CessionService {
       date_demande: commande.dateCommande || commande.createdAt,
       date_livraison_souhaitee: commande.dateLivraison,
       date_livraison_effective: commande.statutLivraison === 'LIVREE' ? commande.updatedAt : undefined,
-      magasin_origine: commande.magasin ? {
+      magasin_origine: {
         id: commande.magasin.id,
         name: commande.magasin.nom,
         address: commande.magasin.adresse,
         phone: commande.magasin.telephone || '',
         status: commande.magasin.status
-      } : commande.magasinOrigine ? {
-        id: commande.magasinOrigine.id,
-        name: commande.magasinOrigine.nom,
-        address: commande.magasinOrigine.adresse,
-        phone: commande.magasinOrigine.telephone || '',
-        status: commande.magasinOrigine.status || 'Actif'
-      } : {
-        id: '',
-        name: 'Non spécifié',
-        address: '',
-        phone: '',
-        status: 'Actif'
       },
       magasin_destination: commande.magasinDestination ? {
         id: commande.magasinDestination.id,

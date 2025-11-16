@@ -38,11 +38,10 @@ interface StepTransition {
 export const useStepManagement = (
     formState: FormState,
     dispatch: React.Dispatch<FormAction>,
-    onSubmit?: (data: CommandeMetier) => Promise<void>,
-    isCession: boolean = false
+    onSubmit?: (data: CommandeMetier) => Promise<void>
 ) => {
 
-    const { validateStep, validateForm } = useFormValidation(formState.data, isCession);
+    const { validateStep, validateForm } = useFormValidation(formState.data);
     const { saveDraft } = useDraftStorage();
 
     const emitValidationEvent = useCallback((step: number) => {

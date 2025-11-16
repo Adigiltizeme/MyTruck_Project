@@ -5,6 +5,7 @@ import { CRENEAUX_LIVRAISON, VEHICULES } from './constants/options';
 import { useDraftStorage } from '../hooks/useDraftStorage';
 import { useCommandeForm } from '../hooks/useCommandeForm';
 import { ClientForm } from './forms/ClientForm';
+import { MagasinDestinationForm } from './forms/MagasinDestinationForm';
 import { ArticlesForm } from './forms/ArticlesForm';
 import { LivraisonForm } from './forms/LivraisonForm';
 import { RecapitulatifForm } from './forms/RecapitulatifForm';
@@ -19,13 +20,15 @@ interface AjoutCommandeProps {
     isEditing: boolean;
     initialData: CommandeMetier;
     disabledFields?: string[];
+    isCession?: boolean; // Mode cession inter-magasins
 }
 
 const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     onSubmit,
     onCancel,
     isEditing,
-    initialData
+    initialData,
+    isCession = false
 }) => {
     const { user } = useAuth();
     // Préparer les données initiales avec l'adresse du magasin si disponible
@@ -125,7 +128,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     } = useCommandeForm(async (data) => {
         await onSubmit(data);
         onCancel(); // Ferme le modal après soumission réussie
-    });
+    }, isCession);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: any; } }) => {
         if ('target' in e && 'name' in e.target && 'value' in e.target) {
@@ -170,8 +173,16 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                     />
                 );
             case 2:
-                console.log("Rendu de ClientForm avec isEditing:", isEditing);
-                return (
+                console.log("Rendu de ClientForm/MagasinDestinationForm avec isEditing:", isEditing, "isCession:", isCession);
+                return isCession ? (
+                    <MagasinDestinationForm
+                        data={state.data}
+                        errors={state.errors}
+                        onChange={handleInputChange}
+                        isEditing={isEditing}
+                        magasinOrigineId={user?.storeId}
+                    />
+                ) : (
                     <ClientForm
                         data={state.data}
                         errors={state.errors}
@@ -200,6 +211,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         errors={state.errors}
                         onChange={handleInputChange}
                         showErrors={state.showErrors}
+                        isCession={isCession}
                     />
                 )
             default:
@@ -317,12 +329,15 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
             {/* En-tête avec bordure */}
             <div className="border-b mb-6">
                 <h2 className="text-xl font-medium text-center pb-4">
-                    Nouvelle commande
+                    {isCession ? 'Nouvelle cession inter-magasins' : 'Nouvelle commande'}
                 </h2>
             </div>
             {/* En-tête avec étapes */}
             <div className="flex justify-between items-center mb-8">
-                {['Articles', 'Client', 'Livraison', 'Confirmer'].map((step, index) => (
+                {(isCession
+                    ? ['Articles', 'Magasin', 'Livraison', 'Confirmer']
+                    : ['Articles', 'Client', 'Livraison', 'Confirmer']
+                ).map((step, index) => (
                     <div key={index} className="flex flex-col items-center">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center
                 ${state.step === index + 1

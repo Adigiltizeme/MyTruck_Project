@@ -455,17 +455,6 @@ export class TarificationService {
         fraisKm: number | 'devis';
     }> {
         try {
-            // Vérifier si l'adresse est dans une ville avec forfait Paris
-            const estZoneParis = this.VILLES_FORFAIT_PARIS.some(ville =>
-                // (adresseMagasin || '').toLowerCase().includes(ville.toLowerCase()) ||
-                (adresseLivraison || '').toLowerCase().includes(ville.toLowerCase())
-            );
-
-            if (estZoneParis) {
-                console.log('Zone Paris détectée, forfait appliqué');
-                return { distance: 0, fraisKm: 0 }; // Forfait Paris inclus
-            }
-
             // Si une des adresses est manquante
             if (!adresseMagasin || !adresseLivraison ||
                 adresseMagasin.trim() === '' || adresseLivraison.trim() === '') {
@@ -473,7 +462,7 @@ export class TarificationService {
                 return { distance: 0, fraisKm: 0 };
             }
 
-            // Obtenir la distance via Mapbox
+            // Obtenir la distance via Mapbox AVANT de vérifier le forfait Paris
             let distance;
             try {
                 console.log(`Calcul de distance: ${adresseMagasin} → ${adresseLivraison}`);
@@ -490,7 +479,7 @@ export class TarificationService {
             distance = Math.round(distance * this.FACTEUR_CORRECTION * 10) / 10;
             console.log(`Distance après correction (facteur ${this.FACTEUR_CORRECTION}): ${distance}km`);
 
-            // Vérifier si le forfait Paris s'applique (en fonction de la distance)
+            // Vérifier si le forfait Paris s'applique (en fonction de la distance ET des adresses)
             if (this.appliqueForfaitParis(adresseMagasin, adresseLivraison, distance)) {
                 console.log('Forfait Paris applicable - pas de frais kilométriques');
                 return { distance, fraisKm: 0 };

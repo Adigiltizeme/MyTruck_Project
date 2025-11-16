@@ -673,18 +673,18 @@ export class DataServiceAdapter {
 
     public async generateBonCommande(commandeId: string): Promise<any> {
         try {
-            console.log('📄 Génération bon de commande:', commandeId);
+            console.log('📄 Génération bon de livraison:', commandeId);
 
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
                 const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/bon-commande`, {});
 
-                console.log('✅ Bon de commande généré:', result);
+                console.log('✅ Bon de livraison généré:', result);
                 return result;
             } else {
                 throw new Error('Génération documents impossible hors ligne');
             }
         } catch (error) {
-            console.error('❌ Erreur génération bon commande:', error);
+            console.error('❌ Erreur génération bon livraison:', error);
             throw error;
         }
     }
@@ -697,7 +697,7 @@ export class DataServiceAdapter {
                 // 1. Générer le document
                 const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/bon-commande`, {});
 
-                console.log('✅ Bon de commande généré:', result);
+                console.log('✅ Bon de livraison généré:', result);
 
                 // 2. Invalider cache (pattern chauffeurs)
                 await this.invalidateCache();

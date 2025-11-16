@@ -96,12 +96,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       href: '/deliveries',
       roles: ['admin', 'magasin', 'chauffeur', 'direction'],
     },
-    // {
-    //   name: 'Cessions',
-    //   icon: ArrowsRightLeftIcon,
-    //   href: '/cessions',
-    //   roles: ['magasin', 'admin'],
-    // },
+    ...(import.meta.env.DEV ? [{
+      name: 'Cessions',
+      icon: ArrowsRightLeftIcon,
+      href: '/cessions',
+      roles: ['magasin', 'admin'],
+    }] : []),
     {
       name: 'Gestion Créneaux',
       icon: ClockIcon,

@@ -99,4 +99,5 @@ export interface LivraisonFormProps extends BaseFormProps {
 }
 export interface RecapitulatifFormProps extends BaseFormProps {
     showErrors: boolean;
+    isCession?: boolean;
 }

@@ -296,6 +296,13 @@ export interface CommandeMetier {
     };
     magasin: MagasinInfo;
     chauffeurs: PersonnelInfo[];
+    // Champs spécifiques aux cessions inter-magasins
+    magasinDestination?: MagasinInfo;
+    cession?: {
+        motif?: string;
+        priorite?: 'Normale' | 'Urgente' | 'Planifiée';
+        commentaires?: string;
+    };
     [key: string]: any;
 }
 
