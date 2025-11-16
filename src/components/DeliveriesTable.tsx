@@ -98,6 +98,7 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
 
         return {
             reference: commande.numeroCommande,
+            client: commande.client?.nom || 'Non spécifié',
             magasin: commande.magasin?.name || 'Non spécifié',
             chauffeur: commande.chauffeurs?.[0]
                 ? `${commande.chauffeurs[0].prenom} ${commande.chauffeurs[0].nom}`.trim()
@@ -127,6 +128,7 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
                         <tr>
                             {/* Colonnes conditionnelles selon le rôle */}
                             <th className="text-left">Référence</th>
+                            <th className="text-left">Client</th>
                             {userRole !== 'magasin' && <th className="text-left">Magasin</th>}
                             <th className="text-left">Chauffeur</th>
                             <th className="text-left">Statut</th>
@@ -137,6 +139,7 @@ export const DeliveriesTable: React.FC<DeliveriesTableProps> = ({
                         {recentDeliveries.map((delivery, index) => (
                             <tr key={`delivery-${index}`} className="border-b">
                                 <td className="py-4 text-sm">{delivery.reference}</td>
+                                <td className="py-4 text-sm">{delivery.client}</td>
                                 {userRole !== 'magasin' && (
                                     <td className="py-4 text-sm">{delivery.magasin}</td>
                                 )}
