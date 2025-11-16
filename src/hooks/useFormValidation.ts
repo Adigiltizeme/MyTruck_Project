@@ -76,6 +76,13 @@ export const useFormValidation = (formData: Partial<CommandeMetier>, isCession: 
                 break;
 
             case 3: // Livraison
+                if (!formData.dates?.livraison) {
+                    errors.dates = {
+                        ...errors.dates,
+                        livraison: ERROR_MESSAGES.required
+                    };
+                }
+                
                 if (!formData.livraison?.creneau) {
                     errors.livraison = {
                         ...errors.livraison,
@@ -94,6 +101,14 @@ export const useFormValidation = (formData: Partial<CommandeMetier>, isCession: 
                     errors.livraison = {
                         ...errors.livraison,
                         equipiers: ERROR_MESSAGES.equipiers.max
+                    };
+                }
+
+                // ✅ Bloquer si devis obligatoire (distance > 50km)
+                if (formData.financier?.devisObligatoire === true) {
+                    errors.livraison = {
+                        ...errors.livraison,
+                        devis: 'Un devis est obligatoire pour cette commande. Distance supérieure à 50km.'
                     };
                 }
 

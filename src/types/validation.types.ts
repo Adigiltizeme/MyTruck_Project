@@ -28,6 +28,7 @@ export interface ValidationErrors {
         creneau?: string;
         vehicule?: string;
         equipiers?: string;
+        devis?: string;
     };
     magasin?: {
         id?: string;

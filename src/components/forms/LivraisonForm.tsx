@@ -906,7 +906,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
             const devisEvent = {
                 target: {
-                    name: 'financier.devisRequis',
+                    name: 'financier.devisObligatoire',
                     value: tarif.montantHT === 'devis'
                 }
             };
