@@ -252,7 +252,24 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
                 console.log(`✅ ${type === 'INTER_MAGASIN' ? 'Cessions' : 'Commandes'} chargées:`, commandes.length);
 
-                setData(commandes);
+                // ✅ FILTRAGE SÉCURISÉ côté frontend selon le type de page
+                const filteredCommandes = type
+                    ? commandes.filter(cmd => {
+                        // Pour page /cessions : ne garder QUE les cessions (type INTER_MAGASIN OU magasinDestination présent)
+                        if (type === 'INTER_MAGASIN') {
+                            return cmd.magasinDestination != null;
+                        }
+                        // Pour page /deliveries : ne garder QUE les commandes CLIENT (PAS de magasinDestination)
+                        if (type === 'CLIENT') {
+                            return cmd.magasinDestination == null;
+                        }
+                        return true;
+                    })
+                    : commandes; // Si pas de type spécifié, tout afficher
+
+                console.log(`🔍 Après filtrage frontend: ${filteredCommandes.length} ${type === 'INTER_MAGASIN' ? 'cessions' : 'commandes'}`);
+
+                setData(filteredCommandes);
             } catch (err) {
                 console.error('❌ Erreur chargement Backend:', err);
                 setError(`Erreur: ${err}`);
@@ -304,7 +321,21 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         setLoading(true);
         try {
             const records = await simpleBackendService.getCommandes(type);
-            setData(records);
+
+            // ✅ FILTRAGE SÉCURISÉ côté frontend selon le type de page
+            const filteredRecords = type
+                ? records.filter(cmd => {
+                    if (type === 'INTER_MAGASIN') {
+                        return cmd.magasinDestination != null;
+                    }
+                    if (type === 'CLIENT') {
+                        return cmd.magasinDestination == null;
+                    }
+                    return true;
+                })
+                : records;
+
+            setData(filteredRecords);
 
             // ✅ Restaurer contexte après chargement SI fourni
             if (contextToPreserve) {

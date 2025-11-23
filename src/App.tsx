@@ -230,8 +230,7 @@ const App = () => {
               path="/deliveries"
               element={
                 <ProtectedRoute>
-                  <Deliveries />
-
+                  <Deliveries type="CLIENT" />
                 </ProtectedRoute>
               }
             />
