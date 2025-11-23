@@ -40,6 +40,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
 
     const existingDocuments = commande.documents || [];
     const hasBonCommande = existingDocuments.some((doc: any) => doc.type === 'BON_COMMANDE');
+    const hasBonCession = existingDocuments.some((doc: any) => doc.type === 'BON_CESSION');
     const hasFacture = existingDocuments.some((doc: any) => doc.type === 'FACTURE');
     const hasDevis = existingDocuments.some((doc: any) => doc.type === 'DEVIS');
 
@@ -177,7 +178,16 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
 
     // ✅ NOUVELLES MÉTHODES - Utiliser les endpoints dédiés
     const handleGenerateBonCommande = async () => {
-        if (hasBonCommande) {
+        // ✅ Détecter si c'est une cession (présence de magasinDestination)
+        const isCession = !!commande.magasinDestination;
+
+        // ✅ Vérifier selon le type de document
+        if (isCession && hasBonCession) {
+            setError('Un bon de cession existe déjà. Supprimez-le d\'abord si nécessaire.');
+            return;
+        }
+
+        if (!isCession && hasBonCommande) {
             setError('Un bon de livraison existe déjà. Supprimez-le d\'abord si nécessaire.');
             return;
         }
@@ -186,7 +196,9 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
             setLoading('bon-commande');
             setError(null);
 
-            await dataService.generateBonCommande(commande.id);
+            console.log('📄 Génération document - isCession:', isCession);
+
+            await dataService.generateBonCommande(commande.id, isCession);
 
             console.log('✅ Document généré avec succès !');
 
@@ -278,7 +290,8 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
     };
 
     // ✅ DÉTERMINER QUELS DOCUMENTS PEUVENT ÊTRE GÉNÉRÉS
-    const canGenerateBonCommande = (user?.role !== 'chauffeur');
+    const isCession = !!commande.magasinDestination;
+    const canGenerateBonCommande = (user?.role !== 'chauffeur') && !(isCession ? hasBonCession : hasBonCommande);
 
     const canGenerateDevis = isAdminRole(user?.role) && (
         (commande.livraison?.equipiers && commande.livraison.equipiers > 2) ||
@@ -301,7 +314,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium">📄 Documents</h3>
                 <div className="flex space-x-2">
-                    {canGenerateBonCommande && !hasBonCommande && (
+                    {canGenerateBonCommande && (
                         <button
                             onClick={handleGenerateBonCommande}
                             disabled={loading === 'bon-commande'}
@@ -315,16 +328,16 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ commande, onUpdate, onR
                             ) : (
                                 <>
                                     <FileText className="w-4 h-4 mr-1" />
-                                    Bon de livraison
+                                    {isCession ? 'Bon de cession' : 'Bon de livraison'}
                                 </>
                             )}
                         </button>
                     )}
 
-                    {hasBonCommande && (
+                    {(isCession ? hasBonCession : hasBonCommande) && (
                         <div className="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm flex items-center">
                             <FileText className="w-4 h-4 mr-1" />
-                            Bon de livraison déjà généré
+                            {isCession ? 'Bon de cession déjà généré' : 'Bon de livraison déjà généré'}
                         </div>
                     )}
 

@@ -120,6 +120,7 @@ export interface ArticlesType {
         file?: File;
     }>;
     dimensions?: ArticleDimension[];
+    nom?: ArticleDimension['nom'][];
     autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
     newPhotos: Array<{
         url: string;
@@ -268,7 +269,7 @@ export interface CommandeMetier {
     };
     // Historique des changements de statuts
     statusHistory?: StatusHistoryEntry[];
-    client: ClientInfo;
+    client?: ClientInfo; // Optionnel pour les cessions inter-magasins
     livraison: LivraisonInfo;
     articles: {
         nombre: number;

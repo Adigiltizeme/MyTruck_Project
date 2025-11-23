@@ -113,24 +113,37 @@ export class CessionService {
           quantite: article.quantite,
           description: article.description || '',
           photo: typeof article.photo === 'string' ? article.photo : undefined,
-          dimensions: (article.hauteur || article.largeur || article.longueur) ? {
+          dimensions: (article.hauteur || article.largeur || article.longueur || article.poids) ? {
             hauteur: article.hauteur,
             largeur: article.largeur,
-            profondeur: article.longueur
+            profondeur: article.longueur,
+            poids: article.poids
           } : undefined,
-          poids: article.poids
+          poids: article.poids,
+          autresArticles: article.autresArticles || 0
         })),
         motif: cessionData.motif || '',
         priorite: cessionData.priorite || 'Normale',
         remarques: cessionData.remarques || '',
         categorieVehicule: cessionData.vehicule || '',
         optionEquipier: cessionData.equipiers || 0,
-        creneauLivraison: cessionData.creneau || ''
+        creneauLivraison: cessionData.creneau || '',
+        tarifHT: cessionData.tarifHT || 0
       };
 
-      const response = await apiService.post('/cessions', dto) as { data: any };
-      console.log('✅ Réponse backend cession:', response.data);
-      const cession = this.transformCommandeToCession(response.data);
+      const response = await apiService.post('/cessions', dto) as any;
+      console.log('✅ Réponse backend cession COMPLÈTE:', response);
+
+      // Le backend peut retourner soit { data: ... } soit directement l'objet
+      const commandeData = response.data || response;
+      console.log('✅ Données commande extraites:', commandeData);
+
+      if (!commandeData || !commandeData.id) {
+        console.error('❌ Réponse backend invalide - pas d\'ID:', response);
+        throw new Error('La réponse du serveur ne contient pas d\'ID de cession');
+      }
+
+      const cession = this.transformCommandeToCession(commandeData);
 
       // Sauvegarder en local
       await SafeDbService.add('cessions', cession);
@@ -214,11 +227,38 @@ export class CessionService {
   }
 
   /**
+   * Supprime une cession (soft delete via statut ANNULEE)
+   * @param id ID de la cession à supprimer
+   * @returns Confirmation de suppression
+   */
+  async deleteCession(id: string): Promise<void> {
+    try {
+      await apiService.delete(`/cessions/${id}`);
+
+      // Supprimer en local
+      await SafeDbService.delete('cessions', id);
+
+      DbMonitor.recordDbOperation(true, 'deleteCession');
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de la cession ${id}:`, error);
+      DbMonitor.recordDbOperation(
+        false,
+        'deleteCession',
+        error instanceof Error ? error.message : String(error)
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Transforme une commande backend (type INTER_MAGASIN) en Cession frontend
    * @param commande Commande du backend
    * @returns Cession pour le frontend
    */
   private transformCommandeToCession(commande: any): Cession {
+    // 🔍 LOG DEBUG: Voir les articles reçus du backend
+    console.log('🔍 transformCommandeToCession - articles bruts:', JSON.stringify(commande.articles, null, 2));
+
     return {
       id: commande.id,
       numeroCession: commande.numeroCommande,
@@ -259,30 +299,105 @@ export class CessionService {
         status: 'Actif'
       },
       adresse_livraison: commande.magasinDestination?.adresse || '',
-      articles: (commande.articles || []).map((article: any) => ({
-        id: article.id,
-        nom: article.nom,
-        reference: article.reference || '',
-        type: article.type || 'Autre',
-        quantite: article.quantite,
-        description: article.description || '',
-        photo: article.photoUrl
-      })),
+      // Transformer articles array en objet ArticlesType (copie du modèle simple-backend.service.ts)
+      articles: (() => {
+        const articlesTransformed = {
+          nombre: commande.articles && commande.articles.length > 0
+            ? commande.articles[0].nombre
+            : 0,
+          details: commande.articles && commande.articles.length > 0
+            ? commande.articles[0].details || ''
+            : '',
+          photos: [],
+          newPhotos: [],
+          categories: commande.articles && commande.articles.length > 0
+            ? commande.articles[0].categories || []
+            : [],
+          dimensions: this.extractDimensions(commande),
+          autresArticles: commande.articles && commande.articles.length > 0
+            ? commande.articles[0].autresArticles || 0
+            : 0,
+          canBeTilted: commande.articles && commande.articles.length > 0
+            ? commande.articles[0].canBeTilted || false
+            : false
+        };
+        console.log('🔍 Articles transformés:', articlesTransformed);
+        return articlesTransformed;
+      })(),
       statut: this.mapCommandeStatusToCessionStatus(commande.statutCommande, commande.statutLivraison),
-      chauffeurs: (commande.chauffeurs || []).map((ch: any) => ({
-        id: ch.chauffeur.id,
-        nom: ch.chauffeur.nom,
-        prenom: ch.chauffeur.prenom,
-        telephone: ch.chauffeur.telephone,
-        role: ch.chauffeur.role || 'Chauffeur',
-        status: ch.chauffeur.status
-      })),
+      chauffeurs: (commande.chauffeurs || [])
+        .filter((ch: any) => ch.chauffeur && ch.chauffeur.id)
+        .map((ch: any) => ({
+          id: ch.chauffeur.id,
+          nom: ch.chauffeur.nom,
+          prenom: ch.chauffeur.prenom,
+          telephone: ch.chauffeur.telephone,
+          role: ch.chauffeur.role || 'Chauffeur',
+          status: ch.chauffeur.status
+        })),
       commentaires: commande.remarques ? [commande.remarques] : [],
       createdBy: commande.createdBy || '',
       updatedBy: commande.updatedBy || '',
       motif: commande.motifCession || '',
-      priorite: commande.prioriteCession as any || 'Normale'
-    };
+      priorite: commande.prioriteCession as any || 'Normale',
+      // ✅ Ajout des champs manquants depuis le backend
+      categorieVehicule: commande.categorieVehicule || '',
+      optionEquipier: commande.optionEquipier || 0,
+      creneauLivraison: commande.creneauLivraison || '',
+      tarifHT: commande.tarifHT || 0,
+      reserve: commande.reserve || false,
+      // ✅ Ajout documents, photos et historique pour les onglets
+      documents: commande.documents || [],
+      photos: commande.photos || [],
+      statusHistory: commande.statusHistory || []
+    } as any; // Cast to any car Cession n'a pas ces champs dans son type
+  }
+
+  /**
+   * Extrait les dimensions des articles (copie de simple-backend.service.ts)
+   */
+  private extractDimensions(backendData: any): any[] {
+    try {
+      console.log('🔍 extractDimensions - backendData.articles:', backendData.articles);
+
+      if (!backendData.articles || backendData.articles.length === 0) {
+        return [];
+      }
+
+      const article = backendData.articles[0];
+      const dimensionsRaw = article.dimensions;
+
+      console.log('🔍 extractDimensions - dimensionsRaw type:', typeof dimensionsRaw);
+      console.log('🔍 extractDimensions - dimensionsRaw value:', dimensionsRaw);
+
+      // Si c'est déjà un array
+      if (Array.isArray(dimensionsRaw)) {
+        console.log('✅ extractDimensions - Déjà un array:', dimensionsRaw);
+        return dimensionsRaw;
+      }
+
+      // Si c'est une string JSON
+      if (typeof dimensionsRaw === 'string') {
+        const parsed = JSON.parse(dimensionsRaw);
+        console.log('✅ extractDimensions - Parsé depuis string:', parsed);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+
+      // Si c'est un objet (JSON parse automatique de Prisma)
+      if (dimensionsRaw && typeof dimensionsRaw === 'object') {
+        // Si c'est un objet unique, le mettre dans un array
+        if (dimensionsRaw.hauteur || dimensionsRaw.largeur || dimensionsRaw.profondeur || dimensionsRaw.poids) {
+          console.log('✅ extractDimensions - Objet unique mis en array:', [dimensionsRaw]);
+          return [dimensionsRaw];
+        }
+      }
+
+      console.log('⚠️ extractDimensions - Aucune condition matchée, retour []');
+      return [];
+    } catch (error) {
+      console.error('❌ Erreur extraction dimensions:', error);
+      return [];
+    }
   }
 
   /**

@@ -96,12 +96,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       href: '/deliveries',
       roles: ['admin', 'magasin', 'chauffeur', 'direction'],
     },
-    ...(import.meta.env.DEV ? [{
-      name: 'Cessions',
+    {
+      name: 'Cessions Inter-magasins',
       icon: ArrowsRightLeftIcon,
       href: '/cessions',
       roles: ['magasin', 'admin'],
-    }] : []),
+    },
     {
       name: 'Gestion Créneaux',
       icon: ClockIcon,
@@ -150,12 +150,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       href: '/contact-mytruck',
       roles: ['magasin']
     },
-    {
+    ...(import.meta.env.DEV ? [{
       name: 'Messagerie Realtime',
       icon: ChatBubbleLeftRightIcon,
       href: '/messagerie',
       roles: ['magasin', 'admin', 'chauffeur', 'direction']
-    },
+    }] : []),
     {
       name: 'Profil',
       icon: UserCircleIcon,

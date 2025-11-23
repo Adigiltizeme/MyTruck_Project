@@ -211,18 +211,19 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                 </motion.div>
             )}
 
+
             {/* Commentaires optionnels */}
             <div className="space-y-2">
-                <label htmlFor="livraison.remarques" className="block text-sm font-medium text-gray-700">
-                    Remarques sur la livraison
+                <label htmlFor="cession.commentaires" className="block text-sm font-medium text-gray-700">
+                    Remarques sur la cession
                 </label>
                 <textarea
-                    id="livraison.remarques"
-                    name="livraison.remarques"
-                    value={data.livraison?.remarques || ''}
-                    onChange={(e) => onChange({ target: { name: 'livraison.remarques', value: e.target.value } })}
+                    id="cession.commentaires"
+                    name="cession.commentaires"
+                    value={data.cession?.commentaires || ''}
+                    onChange={(e) => onChange({ target: { name: 'cession.commentaires', value: e.target.value } })}
                     rows={3}
-                    placeholder="Précisions, informations complémentaires sur la livraison..."
+                    placeholder="Précisions, informations complémentaires sur la cession..."
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 />
             </div>

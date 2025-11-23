@@ -1,4 +1,4 @@
-import { MagasinInfo, PersonnelInfo } from "./business.types";
+import { ArticlesType, MagasinInfo, PersonnelInfo } from "./business.types";
 
 /**
  * Types d'articles qui peuvent être transférés
@@ -53,7 +53,7 @@ export interface Cession {
     magasin_destination: MagasinInfo;
     // ADRESSE DE LIVRAISON dans Airtable (fldBBoXnQKzHaeRYc)
     adresse_livraison: string;
-    articles: CessionArticle[];
+    articles: ArticlesType;
     statut: CessionStatus;
     chauffeurs?: PersonnelInfo[];
     commentaires?: string[];
@@ -61,6 +61,11 @@ export interface Cession {
     updatedBy?: string; // ID du dernier utilisateur à l'avoir modifiée
     motif?: string; // Motif de la cession (ex: "rupture de stock", "rééquilibrage")
     priorite?: 'Normale' | 'Urgente' | 'Planifiée';
+    categorieVehicule?: string;
+    optionEquipier?: number;
+    creneauLivraison?: string;
+    tarifHT?: number;
+    reserve?: boolean;
 }
 
 /**
@@ -82,6 +87,7 @@ export interface CessionFormData {
         largeur?: number;
         longueur?: number;
         poids?: number;
+        autresArticles?: number;
     }>;
     motif?: string;
     priorite?: 'Normale' | 'Urgente' | 'Planifiée';
@@ -89,4 +95,5 @@ export interface CessionFormData {
     creneau?: string;
     vehicule?: string;
     equipiers?: number;
+    tarifHT?: number;
 }

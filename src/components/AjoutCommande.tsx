@@ -202,6 +202,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         onChange={handleInputChange}
                         showErrors={state.showErrors}
                         isEditing={isEditing}
+                        isCession={isCession}
                     />
                 );
             case 4:

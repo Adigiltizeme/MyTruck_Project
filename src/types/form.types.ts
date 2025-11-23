@@ -38,6 +38,7 @@ export interface BaseFormProps {
     }) => void;
     readOnly?: boolean;
     isEditing?: boolean;
+    isCession?: boolean;
 }
 
 export interface AddressSuggestion {

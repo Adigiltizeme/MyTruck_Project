@@ -178,14 +178,14 @@
 //             console.log('Calcul du tarif avec les paramètres:', {
 //                 vehicule: data.livraison.vehicule,
 //                 adresseMagasin: addressToUse,
-//                 adresseLivraison: data.client.adresse.ligne1,
+//                 adresseLivraison: adresseLivraison,
 //                 equipiers: data.livraison.equipiers || 0
 //             });
 
 //             const tarif = await tarificationService.calculerTarif({
 //                 vehicule: data.livraison.vehicule as TypeVehicule,
 //                 adresseMagasin: addressToUse,
-//                 adresseLivraison: data.client.adresse.ligne1,
+//                 adresseLivraison: adresseLivraison,
 //                 equipiers: data.livraison.equipiers || 0
 //             });
 
@@ -444,7 +444,7 @@ import { SlotAvailability } from "../../types/slots.types";
 import { SlotsInfo } from "../SlotsInfo";
 import ContactForm from "../ContactForm";
 
-export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false }) => {
+export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false, isCession = false }) => {
     const [selectedVehicleLong, setSelectedVehicleLong] = useState('');
     const [selectedVehicleShort, setSelectedVehicleShort] = useState(data.livraison?.vehicule || '');
     const [calculatingTarif, setCalculatingTarif] = useState(false);
@@ -806,8 +806,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
     // Gérer le calcul du tarif SÉPARÉMENT, sans tenter de récupérer l'adresse ici
     useEffect(() => {
+        // ✅ Pour une cession, vérifier l'adresse du magasin de destination
+        const hasDestinationAddress = isCession
+            ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
+            : data.client?.adresse?.ligne1;
+
         // Ne pas calculer s'il manque des informations essentielles
-        if (!data.client?.adresse?.ligne1 || !data.livraison?.vehicule) {
+        if (!hasDestinationAddress || !data.livraison?.vehicule) {
             return;
         }
 
@@ -820,7 +825,9 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         data.livraison?.vehicule,
         data.livraison?.equipiers,
         data.client?.adresse?.ligne1,
-        data.magasin?.address
+        data.magasinDestination?.address,
+        data.magasin?.address,
+        isCession
     ]);
 
     // Effet pour initialiser le véhicule sélectionné
@@ -866,7 +873,12 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     // Calculer le tarif quand les données pertinentes changent
     // Fonction séparée, qui ne tente PAS de récupérer l'adresse
     const updateTarif = async () => {
-        if (!data.client?.adresse?.ligne1 || !data.livraison?.vehicule) {
+        // ✅ Pour une cession, vérifier l'adresse du magasin de destination
+        const hasDestinationAddress = isCession
+            ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
+            : data.client?.adresse?.ligne1;
+
+        if (!hasDestinationAddress || !data.livraison?.vehicule) {
             return;
         }
 
@@ -877,19 +889,24 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             // Utiliser l'adresse stockée localement OU récupérer la plus récente
             const addressToUse = storeAddress || await getLatestStoreAddress();
 
+            // ✅ Pour une cession, utiliser l'adresse du magasin de destination
+            const adresseLivraison = isCession
+                ? (data.magasinDestination?.address || data.client?.adresse?.ligne1 || '')
+                : data.client.adresse.ligne1;
+
             // Log de vérification
-            // CRITIQUE: Utiliser l'adresse stockée dans l'état local, pas data.magasin.address
             console.log('Calcul du tarif avec les paramètres:', {
+                mode: isCession ? '🔄 CESSION' : '📦 COMMANDE',
                 vehicule: data.livraison.vehicule,
                 adresseMagasin: addressToUse,
-                adresseLivraison: data.client.adresse.ligne1,
+                adresseLivraison: adresseLivraison,
                 equipiers: data.livraison.equipiers || 0
             });
 
             const tarif = await tarificationService.calculerTarif({
                 vehicule: data.livraison.vehicule as TypeVehicule,
                 adresseMagasin: addressToUse,
-                adresseLivraison: data.client.adresse.ligne1,
+                adresseLivraison: adresseLivraison,
                 equipiers: data.livraison.equipiers || 0
             });
 

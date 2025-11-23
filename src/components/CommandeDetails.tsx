@@ -58,8 +58,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         return <div className="p-4 bg-red-100 text-red-700 rounded">Données de commande indisponibles.</div>;
     }
 
-    // 🔍 DEBUG: Voir la vraie structure reçue
-    console.log('🔍 CommandeDetails - articles:', JSON.stringify(commande.articles, null, 2));
+    // ✅ Détecter si c'est une cession inter-magasin
+    const isCession = !!commande.magasinDestination;
 
     const [activeTab, setActiveTab] = useState(() => {
         // Restaurer l'onglet sauvegardé pour cette commande spécifique
@@ -486,52 +486,70 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             </div>
                         </div>
 
-                        {/* Client */}
+                        {/* Client OU Magasin destination (pour cessions) */}
                         <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200">
-                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">Client</h3>
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200">
+                                {isCession ? 'Magasin destination' : 'Client'}
+                            </h3>
                             <div className="space-y-2">
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.client?.nom.toUpperCase() || 'Non spécifié'} {commande.client?.prenom || ''}</span></p>
-                                {/* <p><span className="text-gray-500">Nom:</span> {commande.client?.nomComplet || 'Non spécifié'}</p> */}
+                                {isCession ? (
+                                    // ✅ CESSION : Afficher info magasin destination
+                                    <>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasinDestination?.name || 'Non spécifié'}</span></p>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.magasinDestination?.phone || 'Non spécifié'}</span></p>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.magasinDestination?.address || 'Non spécifiée'}</span></p>
+                                        {commande.cession?.motif && (
+                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Motif:</span> <span className="inline-block">{commande.cession.motif}</span></p>
+                                        )}
+                                        {commande.cession?.priorite && (
+                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Priorité:</span> <span className="inline-block font-medium">{commande.cession.priorite}</span></p>
+                                        )}
+                                    </>
+                                ) : (
+                                    // ✅ COMMANDE : Afficher info client
+                                    <>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'Non spécifié'}</span></p>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.client?.telephone?.principal || 'Non spécifié'}</span></p>
 
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.client?.telephone?.principal || 'Non spécifié'}</span></p>
+                                        {commande.client?.telephone?.secondaire && (
+                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Tél. secondaire:</span> <span className="inline-block">{commande.client?.telephone?.secondaire}</span></p>
+                                        )}
 
-                                {commande.client?.telephone?.secondaire && (
-                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Tél. secondaire:</span> <span className="inline-block">{commande.client?.telephone?.secondaire}</span></p>
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.client?.adresse?.ligne1 || 'Non spécifiée'}</span></p>
+
+                                        {commande.client?.adresse?.type && (
+                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Type d'adresse:</span> <span className="inline-block">{commande.client?.adresse?.type}</span></p>
+                                        )}
+
+                                        {commande.client?.adresse?.batiment && (
+                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Bâtiment:</span> <span className="inline-block">{commande.client?.adresse?.batiment || commande.batiment}</span></p>
+                                        )}
+
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Étage:</span> <span className="inline-block">{
+                                            commande.client?.adresse?.etage !== undefined && commande.client?.adresse?.etage !== null
+                                                ? commande.client.adresse.etage
+                                                : (commande.etage !== undefined && commande.etage !== null
+                                                    ? commande.etage
+                                                    : 'Non spécifié')
+                                        }</span></p>
+
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Interphone/Code:</span> <span className="inline-block">{
+                                            commande.client?.adresse?.interphone !== undefined && commande.client?.adresse?.interphone !== null
+                                                ? commande.client.adresse.interphone
+                                                : (commande.interphone !== undefined && commande.interphone !== null
+                                                    ? commande.interphone
+                                                    : 'Non spécifié')
+                                        }</span></p>
+
+                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Ascenseur:</span> <span className="inline-block">{
+                                            commande.client?.adresse?.ascenseur !== undefined
+                                                ? (commande.client.adresse.ascenseur ? 'Oui' : 'Non')
+                                                : (commande.ascenseur !== undefined
+                                                    ? (commande.ascenseur ? 'Oui' : 'Non')
+                                                    : 'Non spécifié')
+                                        }</span></p>
+                                    </>
                                 )}
-
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.client?.adresse?.ligne1 || 'Non spécifiée'}</span></p>
-
-                                {commande.client?.adresse?.type && (
-                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Type d'adresse:</span> <span className="inline-block">{commande.client?.adresse?.type}</span></p>
-                                )}
-
-                                {commande.client?.adresse?.batiment && (
-                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Bâtiment:</span> <span className="inline-block">{commande.client?.adresse?.batiment || commande.batiment}</span></p>
-                                )}
-
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Étage:</span> <span className="inline-block">{
-                                    commande.client?.adresse?.etage !== undefined && commande.client?.adresse?.etage !== null
-                                        ? commande.client.adresse.etage
-                                        : (commande.etage !== undefined && commande.etage !== null
-                                            ? commande.etage
-                                            : 'Non spécifié')
-                                }</span></p>
-
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Interphone/Code:</span> <span className="inline-block">{
-                                    commande.client?.adresse?.interphone !== undefined && commande.client?.adresse?.interphone !== null
-                                        ? commande.client.adresse.interphone
-                                        : (commande.interphone !== undefined && commande.interphone !== null
-                                            ? commande.interphone
-                                            : 'Non spécifié')
-                                }</span></p>
-
-                                <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Ascenseur:</span> <span className="inline-block">{
-                                    commande.client?.adresse?.ascenseur !== undefined
-                                        ? (commande.client.adresse.ascenseur ? 'Oui' : 'Non')
-                                        : (commande.ascenseur !== undefined
-                                            ? (commande.ascenseur ? 'Oui' : 'Non')
-                                            : 'Non spécifié')
-                                }</span></p>
                             </div>
                         </div>
 
@@ -608,14 +626,14 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                     </div>
                                 )}
                                 <div className="space-y-2">
-                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nombre total:</span> <span className="inline-block">{commande.articles.nombre || '0'}</span></p>
-                                    {commande.articles?.autresArticles > 0 && (
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nombre total:</span> <span className="inline-block">{commande.articles?.nombre || '0'}</span></p>
+                                    {(commande.articles?.autresArticles ?? 0) > 0 && (
                                         <p className="text-sm text-blue-700 break-words">
                                             Dont {commande.articles.autresArticles} autre{commande.articles.autresArticles > 1 ? 's' : ''} article{commande.articles.autresArticles > 1 ? 's' : ''}
                                             <span className="text-xs text-gray-500 block sm:inline sm:ml-1">(ni les plus grands, ni les plus lourds)</span>
                                         </p>
                                     )}
-                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Détails:</span> <span className="inline-block">{commande.articles.details || 'Aucun détail'}</span></p>
+                                    <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Détails:</span> <span className="inline-block">{commande.articles?.details || 'Aucun détail'}</span></p>
                                 </div>
                             </div>
                         )}

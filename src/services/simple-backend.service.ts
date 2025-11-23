@@ -112,27 +112,28 @@ export class SimpleBackendService {
                 // ✅ AJOUT CRITIQUE : Champ racine "reserve"
                 reserve: backendData.reserveTransport || false,
 
-                client: {
-                    nom: backendData.client?.nom || '',
-                    prenom: backendData.client?.prenom || '',
-                    nomComplet: `${backendData.client?.prenom || ''} ${backendData.client?.nom || ''}`.trim(),
+                // ✅ Client optionnel (absent pour les cessions inter-magasins)
+                client: backendData.client ? {
+                    nom: backendData.client.nom || '',
+                    prenom: backendData.client.prenom || '',
+                    nomComplet: `${backendData.client.prenom || ''} ${backendData.client.nom || ''}`.trim(),
                     telephone: {
-                        principal: backendData.client?.telephone || '',
-                        secondaire: backendData.client?.telephoneSecondaire || ''
+                        principal: backendData.client.telephone || '',
+                        secondaire: backendData.client.telephoneSecondaire || ''
                     },
                     adresse: {
-                        type: backendData.client?.typeAdresse || 'Domicile',
-                        ligne1: backendData.client?.adresseLigne1 || '',
-                        batiment: backendData.client?.batiment || '',
-                        etage: backendData.client?.etage !== undefined
+                        type: backendData.client.typeAdresse || 'Domicile',
+                        ligne1: backendData.client.adresseLigne1 || '',
+                        batiment: backendData.client.batiment || '',
+                        etage: backendData.client.etage !== undefined
                             ? String(backendData.client.etage)
                             : '',
-                        ascenseur: backendData.client?.ascenseur === true,
-                        interphone: backendData.client?.interphone !== undefined
+                        ascenseur: backendData.client.ascenseur === true,
+                        interphone: backendData.client.interphone !== undefined
                             ? String(backendData.client.interphone)
                             : '',
                     }
-                },
+                } : undefined,
 
                 magasin: backendData.magasin ? {
                     id: backendData.magasin.id,
@@ -154,6 +155,24 @@ export class SimpleBackendService {
                     manager: ''
                 },
 
+                // ✅ CESSIONS : Magasin de destination pour les transferts inter-magasins
+                magasinDestination: backendData.magasinDestination ? {
+                    id: backendData.magasinDestination.id,
+                    name: backendData.magasinDestination.nom, // ✅ Backend.nom → Frontend.name
+                    address: backendData.magasinDestination.adresse, // ✅ Backend.adresse → Frontend.address
+                    phone: backendData.magasinDestination.telephone,
+                    email: backendData.magasinDestination.email,
+                    status: backendData.magasinDestination.status || 'actif',
+                    photo: backendData.magasinDestination.photo || '',
+                    manager: backendData.magasinDestination.manager || ''
+                } : undefined,
+
+                // ✅ CESSIONS : Informations supplémentaires sur la cession
+                cession: backendData.motifCession || backendData.prioriteCession ? {
+                    motif: backendData.motifCession || '',
+                    priorite: backendData.prioriteCession || 'NORMALE'
+                } : undefined,
+
                 // ✅ CORRECTION CRITIQUE : Articles avec array[0]
                 articles: {
                     nombre: backendData.articles && backendData.articles.length > 0
@@ -172,6 +191,9 @@ export class SimpleBackendService {
                         ? backendData.articles[0].categories || []
                         : [],
                     dimensions: this.extractDimensions(backendData),
+                    autresArticles: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].autresArticles || 0
+                        : 0,
                     canBeTilted: backendData.articles && backendData.articles.length > 0
                         ? backendData.articles[0].canBeTilted || false
                         : false
@@ -196,16 +218,28 @@ export class SimpleBackendService {
                 createdAt: backendData.createdAt,
                 updatedAt: backendData.updatedAt
             };
+
+            // ✅ LOG DEBUG pour cessions
+            if (result.magasinDestination) {
+                console.log('🔄 CESSION détectée:', {
+                    numero: result.numeroCommande,
+                    magasinOrigine: result.magasin.name,
+                    magasinDestination: result.magasinDestination.name,
+                    motif: result.cession?.motif,
+                    priorite: result.cession?.priorite
+                });
+            }
+
             // console.log('🔍 ===== APRÈS TRANSFORMATION =====');
-            // console.log('🔍 Frontend etage:', result.client.adresse.etage);
-            // console.log('🔍 Frontend interphone:', result.client.adresse.interphone);
-            // console.log('🔍 Frontend ascenseur:', result.client.adresse.ascenseur);
-            // console.log('🔍 Frontend tel secondaire:', result.client.telephone.secondaire);
+            // console.log('🔍 Frontend etage:', result.client?.adresse?.etage);
+            // console.log('🔍 Frontend interphone:', result.client?.adresse?.interphone);
+            // console.log('🔍 Frontend ascenseur:', result.client?.adresse?.ascenseur);
+            // console.log('🔍 Frontend tel secondaire:', result.client?.telephone?.secondaire);
 
             // console.log('✅ Transformation réussie:', {
             //     id: result.id,
             //     numero: result.numeroCommande,
-            //     client: result.client.nomComplet,
+            //     client: result.client?.nomComplet,
             //     magasin: result.magasin.name,
             //     statutCommande: result.statuts.commande,
             //     statutLivraison: result.statuts.livraison
@@ -295,20 +329,25 @@ export class SimpleBackendService {
         return apiData;
     }
 
-    async getCommandes(): Promise<CommandeMetier[]> {
+    /**
+     * Récupère les commandes depuis le backend
+     * @param type Type de commande à filtrer : 'CLIENT' ou 'INTER_MAGASIN' (optionnel)
+     */
+    async getCommandes(type?: 'CLIENT' | 'INTER_MAGASIN'): Promise<CommandeMetier[]> {
         try {
-            console.log('🔄 SimpleBackendService: Tentative récupération commandes...');
+            const typeParam = type ? `&type=${type}` : '';
+            console.log(`🔄 SimpleBackendService: Tentative récupération commandes${type ? ` (type=${type})` : ''}...`);
 
             // ✅ SOLUTION PROGRESSIVE : Essayer d'abord avec moins de données
             let result;
             try {
                 console.log('📡 Essai avec take=100...');
-                result = await this.request<{ data: any[] }>('/commandes?take=100');
+                result = await this.request<{ data: any[] }>(`/commandes?take=100${typeParam}`);
                 console.log(`✅ Succès avec take=100: ${result.data.length} commandes`);
             } catch (error) {
                 console.warn('⚠️ Echec avec take=100, essai avec take=20');
                 console.log('📡 Essai avec take=20...');
-                result = await this.request<{ data: any[] }>('/commandes?take=20');
+                result = await this.request<{ data: any[] }>(`/commandes?take=20${typeParam}`);
                 console.log(`✅ Succès avec take=20: ${result.data.length} commandes`);
             }
 

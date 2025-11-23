@@ -11,7 +11,6 @@ export { default as DetailedQuoteForm } from '../DetailedQuoteForm';
 
 // Composants de gestion des cessions
 export { default as CessionForm } from '../CessionForm';
-export { default as CessionList } from '../CessionList';
 
 // Utilitaires et services
 export * from '../../services/document.service';

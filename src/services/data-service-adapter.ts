@@ -671,12 +671,18 @@ export class DataServiceAdapter {
 
     // ✅ Ces méthodes doivent être ajoutées à la classe DataServiceAdapter
 
-    public async generateBonCommande(commandeId: string): Promise<any> {
+    public async generateBonCommande(commandeId: string, isCession: boolean = false): Promise<any> {
         try {
-            console.log('📄 Génération bon de livraison:', commandeId);
+            console.log('📄 Génération bon de livraison:', commandeId, 'isCession:', isCession);
 
             if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
-                const result = await this.apiService.post<any>(`/documents/commandes/${commandeId}/bon-commande`, {});
+                // ✅ Utiliser le bon endpoint selon le type
+                const endpoint = isCession
+                    ? `/documents/cessions/${commandeId}/bon-cession`
+                    : `/documents/commandes/${commandeId}/bon-commande`;
+
+                console.log('📄 Endpoint utilisé:', endpoint);
+                const result = await this.apiService.post<any>(endpoint, {});
 
                 console.log('✅ Bon de livraison généré:', result);
                 return result;

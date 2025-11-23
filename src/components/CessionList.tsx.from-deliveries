@@ -27,12 +27,7 @@ declare global {
     }
 }
 
-interface DeliveriesProps {
-    /** Type de commande à afficher : undefined=toutes, 'CLIENT'=livraisons, 'INTER_MAGASIN'=cessions */
-    type?: 'CLIENT' | 'INTER_MAGASIN';
-}
-
-const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
+const Deliveries = () => {
     const { user } = useAuth();
     const { dataService, isOnline } = useOffline();
     // const airtable = useAirtable();
@@ -215,7 +210,6 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         'livraison.reserve',
         'chauffeurs',
         'financier.tarifHT',
-        'articles.dimensions',
     ];
 
     const { search, setSearch, filteredItems: searchedItems } = useSearch({
@@ -248,9 +242,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 setLoading(true);
                 setError(null);
 
-                const commandes = await simpleBackendService.getCommandes(type);
+                const commandes = await simpleBackendService.getCommandes();
 
-                console.log(`✅ ${type === 'INTER_MAGASIN' ? 'Cessions' : 'Commandes'} chargées:`, commandes.length);
+                console.log('✅ Commandes chargées:', commandes.length);
 
                 setData(commandes);
             } catch (err) {
@@ -303,7 +297,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     }) => {
         setLoading(true);
         try {
-            const records = await simpleBackendService.getCommandes(type);
+            const records = await simpleBackendService.getCommandes();
             setData(records);
 
             // ✅ Restaurer contexte après chargement SI fourni
@@ -533,7 +527,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     Vous êtes en mode hors ligne. Les données seront synchronisées lorsque vous serez à nouveau connecté.
                 </div>
             )} */}
-
+            
             {import.meta.env.DEV && (
                 <div className="mb-6">
                     <RoleSelector />
@@ -542,19 +536,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
                 <h1 className="text-xl sm:text-2xl font-bold">
-                    {type === 'INTER_MAGASIN' ? (
-                        <>
-                            {isAdminRole(user?.role) && 'Direction My Truck - Toutes les cessions'}
-                            {user?.role === 'magasin' && `Cessions ${user.storeName || 'du magasin'}`}
-                            {user?.role === 'chauffeur' && `Mes Cessions - ${user.driverName || 'Chauffeur'}`}
-                        </>
-                    ) : (
-                        <>
-                            {isAdminRole(user?.role) && 'Direction My Truck - Toutes les commandes'}
-                            {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
-                            {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
-                        </>
-                    )}
+                    {isAdminRole(user?.role) && 'Direction My Truck - Toutes les commandes'}
+                    {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
+                    {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
                 </h1>
                 <select
                     className="border rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 w-full sm:w-auto"
@@ -595,13 +579,13 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
-                        {user?.role === 'magasin' && (
+                        {user?.role !== 'chauffeur' && (
                             <button
                                 onClick={() => setShowNewCommandeModal(true)}
                                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 whitespace-nowrap"
                             >
-                                <span className="sm:hidden">{type === 'INTER_MAGASIN' ? 'Nouvelle cession' : 'Nouvelle commande'}</span>
-                                <span className="hidden sm:inline">{type === 'INTER_MAGASIN' ? 'Nouvelle cession' : 'Nouvelle commande'}</span>
+                                <span className="sm:hidden">Nouvelle commande</span>
+                                <span className="hidden sm:inline">Nouvelle commande</span>
                             </button>
                         )}
 
@@ -634,7 +618,6 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                             commande={{} as CommandeMetier}
                             isEditing={false}
                             initialData={{} as CommandeMetier}
-                            isCession={type === 'INTER_MAGASIN'}
                         />
                     </Modal>
                 </div>
@@ -817,15 +800,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             {commande.numeroCommande || 'N/A'}
                                         </h3>
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                                            {type === 'INTER_MAGASIN' ? (
-                                                <span className="flex items-center gap-1">
-                                                    <span className="text-blue-600 font-medium text-xs">{commande.magasin?.name || 'N/A'}</span>
-                                                    <span className="text-gray-400">→</span>
-                                                    <span className="text-green-600 font-medium text-xs">{commande.magasinDestination?.name || 'N/A'}</span>
-                                                </span>
-                                            ) : (
-                                                commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'N/A'
-                                            )}
+                                            {commande?.client?.nom?.toUpperCase() || 'N/A'} {commande.client?.prenom}
                                         </p>
                                     </div>
                                     <button
@@ -896,9 +871,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             sortConfig.direction === 'asc' ? '↑' : '↓'
                                         )}
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        {type === 'INTER_MAGASIN' ? 'Origine → Destination' : 'Client'}
-                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Client</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date livraison</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut livraison</th>
@@ -908,7 +881,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                     {isAdminRole(user?.role) && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tarif HT</th>
                                     )}
-                                    {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
+                                    {user?.role !== 'magasin' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
                                     )}
                                     {isAdminRole(user?.role) && (
@@ -949,15 +922,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                 {commande.numeroCommande || 'N/A'}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                {type === 'INTER_MAGASIN' ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-blue-600 font-medium">{commande.magasin?.name || 'N/A'}</span>
-                                                        <span className="text-gray-400">→</span>
-                                                        <span className="text-green-600 font-medium">{commande.magasinDestination?.name || 'N/A'}</span>
-                                                    </div>
-                                                ) : (
-                                                    commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'N/A'
-                                                )}
+                                                {commande?.client?.nom.toUpperCase() || 'N/A'} {commande.client?.prenom}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary">
                                                 {(commande.dates?.livraison) ?
@@ -993,7 +958,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                     }
                                                 </td>
                                             )}
-                                            {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
+                                            {user?.role !== 'magasin' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>

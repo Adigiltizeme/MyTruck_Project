@@ -663,8 +663,14 @@ export class ApiService {
     if (isModification) {
       console.log('🔄 Mode MODIFICATION - Structure nested');
 
+      // Détecter si c'est une cession
+      const isCession = !!commande.magasinDestination;
+
       // ✅ MODIFICATION : Structure nested
       return {
+        // ✅ Type de commande (ne peut pas être modifié après création, mais inclus pour cohérence)
+        type: isCession ? 'INTER_MAGASIN' : 'CLIENT',
+
         // Champs de base
         dateLivraison: commande.dates?.livraison,
         creneauLivraison: commande.livraison?.creneau,
@@ -673,6 +679,13 @@ export class ApiService {
         tarifHT: Number(commande.financier?.tarifHT || 0),
         reserveTransport: commande.livraison?.reserve || false,
         remarques: commande.livraison?.remarques || '',
+
+        // ✅ Cessions : Magasin destination et métadonnées
+        ...(isCession && {
+          magasinDestinationId: commande.magasinDestination.id,
+          motifCession: commande.cession?.motif || '',
+          prioriteCession: commande.cession?.priorite || 'NORMALE'
+        }),
 
         // Client nested
         ...(commande.client && {
@@ -730,7 +743,13 @@ export class ApiService {
       console.log('🔄 Mode CRÉATION - Structure flat');
 
       // ✅ CRÉATION : Structure flat (qui fonctionne)
+      // Détecter si c'est une cession
+      const isCession = !!commande.magasinDestination;
+
       return {
+        // ✅ Type de commande
+        type: isCession ? 'INTER_MAGASIN' : 'CLIENT',
+
         // Champs de base
         numeroCommande: commande.numeroCommande && commande.numeroCommande.trim() !== ''
           ? commande.numeroCommande.trim()
@@ -745,7 +764,14 @@ export class ApiService {
         remarques: commande.livraison?.remarques || '',
         magasinId: commande.magasin?.id,
 
-        // Client flat
+        // ✅ Cessions : Magasin destination et métadonnées
+        ...(isCession && {
+          magasinDestinationId: commande.magasinDestination.id,
+          motifCession: commande.cession?.motif || '',
+          prioriteCession: commande.cession?.priorite || 'NORMALE'
+        }),
+
+        // Client flat (optionnel pour cessions)
         clientNom: commande.client?.nom || '',
         clientPrenom: commande.client?.prenom || '',
         clientTelephone: commande.client?.telephone?.principal || commande.client?.telephone || '',
