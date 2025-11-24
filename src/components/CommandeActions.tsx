@@ -10,7 +10,7 @@ import { isValidForModification, validateCommande } from '../utils/validation.ut
 import { Modal } from './Modal';
 import AjoutCommande from './AjoutCommande';
 import { useNavigate } from 'react-router-dom';
-import { ArticlesForm, ClientForm, LivraisonForm, RecapitulatifForm } from './forms';
+import { ArticlesForm, ClientForm, LivraisonForm, RecapitulatifForm, MagasinDestinationForm } from './forms';
 import { CloudinaryService } from '../services/cloudinary.service';
 import { useOffline } from '../contexts/OfflineContext';
 import { ApiService } from '../services/api.service';
@@ -206,6 +206,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                     detailsArticles: editData.articles.details || '',
                     categoriesArticles: editData.articles.categories || [],
                     dimensionsArticles: editData.articles.dimensions || [],
+                    autresArticles: Number(editData.articles.autresArticles || 0),
                     canBeTiltedArticles: editData.articles.canBeTilted || false,
                 }),
 
@@ -244,58 +245,117 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
         }
     };
 
-    const steps = [
-        { id: 1, label: 'Client' },
-        { id: 2, label: 'Articles' },
-        { id: 3, label: 'Livraison' },
-        { id: 4, label: 'Confirmer' }
-    ];
+    // Détecter si c'est une cession en vérifiant le type
+    const isCession = commande.type === 'INTER_MAGASIN';
+    console.log('🔍 DEBUG CommandeActions - Type:', commande.type, 'isCession:', isCession);
+
+    const steps = isCession
+        ? [
+            { id: 1, label: 'Articles' },
+            { id: 2, label: 'Magasin' },
+            { id: 3, label: 'Livraison' },
+            { id: 4, label: 'Confirmer' }
+        ]
+        : [
+            { id: 1, label: 'Articles' },
+            { id: 2, label: 'Client' },
+            { id: 3, label: 'Livraison' },
+            { id: 4, label: 'Confirmer' }
+        ];
 
     const renderEditStep = () => {
-        switch (currentStep) {
-            case 1:
-                return (
-                    <ClientForm
-                        data={editData}
-                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
-                        errors={{}} // Add appropriate error handling here
-                        handleAddressSearch={async (query: string) => { /* Add appropriate address search handling here */ }} // Add appropriate address search handling here
-                        handleAddressSelect={() => { [] }} // Add appropriate address select handling here
-                        addressSuggestions={[]} // Add appropriate address suggestions here
-                        setAddressSuggestions={() => { }} // Add appropriate setAddressSuggestions handling here
-                        isEditing
-                    />
-                );
-            case 2:
-                return (
-                    <ArticlesForm
-                        data={editData}
-                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
-                        errors={{}} // Add the errors prop here
-                    />
-                );
-            case 3:
-                return (
-                    <LivraisonForm
-                        data={editData}
-                        onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
-                        showErrors={false}
-                        errors={{}}
-                        isEditing={true}
-                    />
-                );
-            case 4:
-                return (
-                    <RecapitulatifForm
-                        data={editData}
-                        readOnly
-                        showErrors={false}
-                        errors={{}} // Add appropriate error handling here
-                        onChange={() => { }} // Add appropriate onChange handling here
-                    />
-                );
-            default:
-                return null;
+        if (isCession) {
+            // Pour les cessions: Articles → Magasin → Livraison → Confirmer
+            switch (currentStep) {
+                case 1:
+                    return (
+                        <ArticlesForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            errors={{}}
+                        />
+                    );
+                case 2:
+                    return (
+                        <MagasinDestinationForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            errors={{}}
+                            isEditing={true}
+                        />
+                    );
+                case 3:
+                    return (
+                        <LivraisonForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            showErrors={false}
+                            errors={{}}
+                            isEditing={true}
+                            isCession={true}
+                        />
+                    );
+                case 4:
+                    return (
+                        <RecapitulatifForm
+                            data={editData}
+                            readOnly
+                            showErrors={false}
+                            errors={{}}
+                            onChange={() => { }}
+                            isCession={true}
+                        />
+                    );
+                default:
+                    return null;
+            }
+        } else {
+            // Pour les commandes: Articles → Client → Livraison → Confirmer
+            switch (currentStep) {
+                case 1:
+                    return (
+                        <ArticlesForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            errors={{}}
+                        />
+                    );
+                case 2:
+                    return (
+                        <ClientForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            errors={{}}
+                            handleAddressSearch={async (query: string) => { }}
+                            handleAddressSelect={() => { [] }}
+                            addressSuggestions={[]}
+                            setAddressSuggestions={() => { }}
+                            isEditing
+                        />
+                    );
+                case 3:
+                    return (
+                        <LivraisonForm
+                            data={editData}
+                            onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
+                            showErrors={false}
+                            errors={{}}
+                            isEditing={true}
+                        />
+                    );
+                case 4:
+                    return (
+                        <RecapitulatifForm
+                            data={editData}
+                            readOnly
+                            showErrors={false}
+                            errors={{}}
+                            onChange={() => { }}
+                        />
+                    );
+                default:
+                    return null;
+            }
         }
     };
 

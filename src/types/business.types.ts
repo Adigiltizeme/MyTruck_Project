@@ -255,6 +255,7 @@ export interface StatusHistoryEntry {
 export interface CommandeMetier {
     id: string;
     numeroCommande: string;
+    type?: 'CLIENT' | 'INTER_MAGASIN'; // Type de commande
     dates: {
         commande: string;
         livraison: string;

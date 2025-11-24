@@ -2,6 +2,7 @@ export * from './ClientForm';
 export * from './ArticlesForm';
 export * from './LivraisonForm';
 export * from './RecapitulatifForm';
+export * from './MagasinDestinationForm';
 
 // Composants de gestion des documents
 export { default as QuoteGenerator } from '../QuoteGenerator';

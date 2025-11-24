@@ -69,6 +69,7 @@ export class SimpleBackendService {
             const result = {
                 id: backendData.id,
                 numeroCommande: backendData.numeroCommande,
+                type: backendData.type, // ✅ AJOUT: Type de commande (CLIENT ou INTER_MAGASIN)
 
                 dates: {
                     livraison: backendData.dateLivraison,
