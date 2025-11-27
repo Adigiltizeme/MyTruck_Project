@@ -4,8 +4,6 @@ import { CommandeMetier } from '../types/business.types';
 import { DocumentService } from '../services/document.service';
 import { getDocumentInfo } from '../utils/documents.utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Map, Marker } from 'react-map-gl';
-import mapboxgl from 'mapbox-gl';
 import { isValidForModification, validateCommande } from '../utils/validation.utils';
 import { Modal } from './Modal';
 import AjoutCommande from './AjoutCommande';
@@ -15,6 +13,9 @@ import { CloudinaryService } from '../services/cloudinary.service';
 import { useOffline } from '../contexts/OfflineContext';
 import { ApiService } from '../services/api.service';
 import { StatusManager } from './StatusManager';
+import { LiveTrackingMap } from './LiveTrackingMap';
+import { useDriverTracking } from '../hooks/useDriverTracking';
+import { DriverTrackingToggle } from './DriverTrackingToggle';
 
 interface CommandeActionsProps {
     commande: CommandeMetier;
@@ -39,11 +40,8 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
     const [currentStep, setCurrentStep] = useState(1);
     const [editData, setEditData] = useState<Partial<CommandeMetier>>(commande);
     const [loading, setLoading] = useState(false);
-    const [showMap, setShowMap] = useState(false);
     const [mapVisible, setMapVisible] = useState(false);
-    const [driverLocation, setDriverLocation] = useState<{ longitude?: number; latitude?: number } | null>(null);
     const [downloading, setDownloading] = useState(false);
-    const [driverLocations, setDriverLocations] = useState<any[]>([]);
     const [showEditModal, setShowEditModal] = useState(false);
 
     const documentService = new DocumentService();
@@ -53,33 +51,21 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
     // Utilisation des validations
     const canModify = isValidForModification(commande);
 
-    // Suivi en temps réel
-    useEffect(() => {
-        if (mapVisible && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON') {
-            // Initialiser la carte
-            mapboxgl.accessToken = `${import.meta.env.VITE_MAPBOX_TOKEN}`;
-            const map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/streets-v11',
-                center: [2.3488, 48.8534], // Paris par défaut
-                zoom: 12
-            });
+    // Hook de tracking GPS temps réel
+    const token = localStorage.getItem('authToken');
+    const { drivers } = useDriverTracking(token);
 
-            // Mettre à jour la position
-            const interval = setInterval(async () => {
-                const updatedCommandes = await apiService.getCommandes();
-                const updatedCommande = updatedCommandes.data.find((c: CommandeMetier) => c.id === commande?.id);
-                if (updatedCommande?.chauffeurs?.[0]?.location) {
-                    setDriverLocation(updatedCommande.chauffeurs[0].location);
-                }
-            }, 30000);
+    // ✅ Filtrer les chauffeurs liés à cette commande PAR commandeId (pas chauffeurId)
+    const commandeDrivers = drivers.filter(d => d.commandeId === commande.id);
 
-            return () => {
-                clearInterval(interval);
-                map.remove();
-            };
-        }
-    }, [mapVisible, commande?.id]);
+    // Debug GPS tracking
+    console.log('[CommandeActions] GPS Debug:', {
+        commandeId: commande.id,
+        allDrivers: drivers,
+        commandeDrivers,
+        driversCount: drivers.length,
+        matchedCount: commandeDrivers.length
+    });
 
     // Utilisation de la gestion des documents
     const handleDocumentDownload = async (type: 'facture' | 'devis') => {
@@ -247,7 +233,6 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
 
     // Détecter si c'est une cession en vérifiant le type
     const isCession = commande.type === 'INTER_MAGASIN';
-    console.log('🔍 DEBUG CommandeActions - Type:', commande.type, 'isCession:', isCession);
 
     const steps = isCession
         ? [
@@ -488,25 +473,63 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                 </Modal>
             )}
 
-            {/* Section de suivi */}
-            {commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
-                <div className="p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium mb-4">Suivi des livraisons (BIENTÔT DISPONIBLE)</h3>
+            {/* ✅ Toggle GPS pour Chauffeurs */}
+            {user?.role === 'chauffeur' && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
+                <div className="mb-4">
+                    <DriverTrackingToggle
+                        commandeId={commande.id}
+                        statutLivraison={commande.statuts.livraison}
+                        isDeliveryActive={true}
+                    />
+                </div>
+            )}
+
+            {/* Section Suivi GPS Temps Réel (Carte pour Magasins) */}
+            {import.meta.env.DEV && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
+                <div className="p-4 border rounded-lg bg-gradient-to-r from-green-50 to-emerald-50">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Suivi GPS en Temps Réel
+                    </h3>
                     <div className="flex justify-between items-center mb-4">
-                        <span className='text-sm font-medium text-gray-500'>En temps réel</span>
+                        <div>
+                            <p className='text-sm font-medium text-gray-700'>Localisation des chauffeurs</p>
+                            {commandeDrivers.length > 0 ? (
+                                <p className="text-xs text-green-600 mt-1">
+                                    ✓ {commandeDrivers.length} chauffeur(s) localisé(s)
+                                </p>
+                            ) : (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    En attente de position GPS...
+                                </p>
+                            )}
+                        </div>
                         <button
                             onClick={() => setMapVisible(!mapVisible)}
-                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-md"
                         >
                             {mapVisible ? 'Masquer la carte' : 'Voir sur la carte'}
                         </button>
                     </div>
                     {mapVisible && (
-                        <div id="map" className="h-96 mt-4 rounded-lg overflow-hidden">
-                            {/* La carte sera montée ici */}
-                            {driverLocation && (
-                                <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow">
-                                    Position du transporteur mise à jour
+                        <div className="mt-4 rounded-lg overflow-hidden shadow-lg border-2 border-green-200 relative">
+                            {commandeDrivers.length > 0 ? (
+                                <LiveTrackingMap
+                                    drivers={commandeDrivers}
+                                    height="400px"
+                                />
+                            ) : (
+                                <div className="h-96 flex items-center justify-center bg-gray-50">
+                                    <div className="text-center p-4">
+                                        <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p className="text-gray-600 font-medium">En attente de localisation</p>
+                                        <p className="text-sm text-gray-500">Les chauffeurs doivent activer leur tracking GPS</p>
+                                    </div>
                                 </div>
                             )}
                         </div>

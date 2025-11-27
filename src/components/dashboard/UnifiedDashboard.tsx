@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useMetricsData } from '../../hooks/useMetricsData';
 import { useCommandesRealtime } from '../../hooks/useCommandesRealtime';
 import { MetricCard } from './MetricCard';
@@ -13,6 +12,8 @@ import { CommandeMetier } from '../../types/business.types';
 import { DateRange } from '../../types/hooks.types';
 import { simpleBackendService } from '../../services/simple-backend.service';
 import { isAdminRole } from '../../utils/role-helpers';
+import { useDriverTracking } from '../../hooks/useDriverTracking';
+import { useNavigate } from 'react-router-dom';
 
 interface UnifiedDashboardProps {
     role: UserRole;
@@ -25,7 +26,6 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     storeId,
     driverId
 }) => {
-    const { user } = useAuth();
 
     // ✅ État unifié pour tous les dashboards
     const [filters, setFilters] = useState<FilterOptions>({
@@ -62,18 +62,18 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
     const { data, loading, error } = useMetricsData(filtersWithCustomDates);
 
     // ✅ SYNCHRONISATION TEMPS RÉEL avec WebSocket
-    const handleCommandeUpdate = useCallback((data: any) => {
+    const handleCommandeUpdate = useCallback((data: unknown) => {
         console.log('📡 [UnifiedDashboard] Commande mise à jour reçue:', data);
         // Rafraîchir les données en incrémentant le trigger
         setRefreshTrigger(prev => prev + 1);
     }, []);
 
-    const handleStatusChange = useCallback((data: any) => {
+    const handleStatusChange = useCallback((data: unknown) => {
         console.log('📡 [UnifiedDashboard] Changement statut reçu:', data);
         setRefreshTrigger(prev => prev + 1);
     }, []);
 
-    const handleChauffeurAssigned = useCallback((data: any) => {
+    const handleChauffeurAssigned = useCallback((data: unknown) => {
         console.log('📡 [UnifiedDashboard] Chauffeur assigné reçu:', data);
         setRefreshTrigger(prev => prev + 1);
     }, []);
@@ -85,6 +85,16 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
         onCommandeChauffeurAssigned: handleChauffeurAssigned,
         autoConnect: true
     });
+
+    // ✅ Hook GPS tracking pour admins
+    const token = localStorage.getItem('authToken');
+    const { drivers } = useDriverTracking(isAdminRole(role) ? token : null);
+    const navigate = useNavigate();
+
+    // Filtrer les chauffeurs actifs en livraison
+    const activeDrivers = drivers.filter(d =>
+        d.statutLivraison && ['EN COURS DE LIVRAISON', 'EN COURS', 'EN ROUTE'].includes(d.statutLivraison)
+    );
 
     // ✅ Gestionnaires des filtres
     const handlePeriodChange = (period: PeriodType) => {
@@ -112,24 +122,8 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
         }
     };
 
-    // ✅ Chargement spécifique chauffeur
-    useEffect(() => {
-        if (role === 'chauffeur' && driverId) {
-            loadCommandesChauffeur();
-        }
-    }, [role, driverId]);
-
-    // ✅ Mise à jour des filtres quand les props changent
-    useEffect(() => {
-        if (role === 'magasin' && storeId && filters.store !== storeId) {
-            setFilters(prev => ({ ...prev, store: storeId }));
-        }
-        if (role === 'chauffeur' && driverId && filters.driver !== driverId) {
-            setFilters(prev => ({ ...prev, driver: driverId }));
-        }
-    }, [role, storeId, driverId, filters.store, filters.driver]);
-
-    const loadCommandesChauffeur = async () => {
+    // ✅ Fonction chargement commandes chauffeur
+    const loadCommandesChauffeur = useCallback(async () => {
         if (!driverId) return;
 
         try {
@@ -142,7 +136,24 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
         } finally {
             setChauffeurLoading(false);
         }
-    };
+    }, [driverId]);
+
+    // ✅ Chargement spécifique chauffeur
+    useEffect(() => {
+        if (role === 'chauffeur' && driverId) {
+            loadCommandesChauffeur();
+        }
+    }, [role, driverId, loadCommandesChauffeur]);
+
+    // ✅ Mise à jour des filtres quand les props changent
+    useEffect(() => {
+        if (role === 'magasin' && storeId && filters.store !== storeId) {
+            setFilters(prev => ({ ...prev, store: storeId }));
+        }
+        if (role === 'chauffeur' && driverId && filters.driver !== driverId) {
+            setFilters(prev => ({ ...prev, driver: driverId }));
+        }
+    }, [role, storeId, driverId, filters.store, filters.driver]);
 
     // ✅ Gestion du loading unifié
     const isLoading = role === 'chauffeur' ? chauffeurLoading : loading;
@@ -252,6 +263,8 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
                 onChange={handleCustomDateChange}
             />
 
+            {/* ✅ GPS Tracking déplacé dans CommandeDetails (onglet Actions) */}
+
             {/* Métriques principales */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <MetricCard
@@ -283,6 +296,56 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
                     color="#8B5CF6"
                 />
             </div>
+
+            {/* ✅ Widget GPS Tracking pour Admins */}
+            {isAdminRole(role) && (
+                <div
+                    onClick={() => navigate('/tracking')}
+                    className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border-2 border-green-200 cursor-pointer hover:shadow-lg transition-all"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-bold text-gray-900">
+                                    {activeDrivers.length} chauffeur{activeDrivers.length > 1 ? 's' : ''}
+                                </h3>
+                                <p className="text-gray-600">
+                                    {activeDrivers.length > 0 ? 'en livraison actuellement' : 'Aucun chauffeur actif'}
+                                </p>
+                                {activeDrivers.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {activeDrivers.slice(0, 3).map((driver) => (
+                                            <span
+                                                key={driver.chauffeurId}
+                                                className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full"
+                                            >
+                                                {driver.chauffeurName}
+                                            </span>
+                                        ))}
+                                        {activeDrivers.length > 3 && (
+                                            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">
+                                                +{activeDrivers.length - 3} autres
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <button className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors shadow-md">
+                                Voir la carte GPS →
+                            </button>
+                            <p className="text-xs text-gray-500 mt-2">Suivi en temps réel</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Graphiques (cachés pour chauffeur) */}
             {dashboardData.historique && (

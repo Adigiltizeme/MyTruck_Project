@@ -39,6 +39,7 @@ import ContactsManagement from './pages/admin/ContactsManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
 import MagasinContactMessages from './components/MagasinContactMessages';
 import RealTimeMessaging from './components/RealTimeMessaging';
+import { LiveTracking } from './pages/admin/LiveTracking';
 
 const App = () => {
 
@@ -319,6 +320,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['magasin', 'admin', 'direction', 'chauffeur']}>
                   <RealTimeMessaging />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tracking"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
+                  <LiveTracking />
                 </ProtectedRoute>
               }
             />

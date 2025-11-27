@@ -58,8 +58,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         return <div className="p-4 bg-red-100 text-red-700 rounded">Données de commande indisponibles.</div>;
     }
 
-    console.log('🔍 DEBUG CommandeDetails - commande.type:', commande.type, 'magasinDestination:', !!commande.magasinDestination);
-
     // ✅ Détecter si c'est une cession inter-magasin
     const isCession = !!commande.magasinDestination;
 

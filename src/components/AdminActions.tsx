@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ChauffeurStatus, CommandeMetier, DevisInfo, PersonnelInfo } from '../types/business.types';
 import { motion, AnimatePresence } from 'framer-motion';
-import mapboxgl from 'mapbox-gl';
-import { Map } from 'react-map-gl';
-import { Marker } from 'react-map-gl';
 import { Modal } from './Modal';
 import { useOffline } from '../contexts/OfflineContext';
 import { StatusManager } from './StatusManager';
 import { useAuth } from '../contexts/AuthContext';
 import { isAdminRole } from '../utils/role-helpers';
+import { LiveTrackingMap } from './LiveTrackingMap';
+import { useDriverTracking } from '../hooks/useDriverTracking';
+import { DriverTrackingToggle } from './DriverTrackingToggle';
 
 interface AdminActionsProps {
     commande: CommandeMetier;
@@ -29,44 +29,28 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
     const [tarif, setTarif] = useState(commande.financier?.tarifHT || 0);
     const [showFactureModal, setShowFactureModal] = useState(false);
     const [dateFacture, setDateFacture] = useState(new Date().toISOString().split('T')[0]);
-    const [showMap, setShowMap] = useState(false);
     const [mapVisible, setMapVisible] = useState(false);
-    const [driverLocations, setDriverLocations] = useState<any[]>([]);
-    const [driverLocation, setDriverLocation] = useState<{ longitude?: number; latitude?: number } | null>(null);
     const [showManageChauffeursModal, setShowManageChauffeursModal] = useState(false);
     const [currentChauffeurs, setCurrentChauffeurs] = useState<string[]>([]);
 
     const { dataService, isOnline } = useOffline();
     const { user } = useAuth();
 
-    // Suivi en temps réel
-    useEffect(() => {
-        if (mapVisible && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON') {
-            // Initialiser la carte
-            mapboxgl.accessToken = `${import.meta.env.VITE_MAPBOX_TOKEN}`;
-            const map = new mapboxgl.Map({
-                container: 'map',
-                style: 'mapbox://styles/mapbox/streets-v11',
-                // center: [-8.000337, 12.649319], Bamako par défaut
-                center: [2.3488, 48.8534], // Paris par défaut
-                zoom: 12
-            });
+    // Hook de tracking GPS temps réel
+    const token = localStorage.getItem('authToken');
+    const { drivers } = useDriverTracking(token);
 
-            // Mettre à jour la position
-            const interval = setInterval(async () => {
-                const updatedCommandes = await dataService.getCommandes();
-                const updatedCommande = updatedCommandes.find(cmd => cmd.id === commande.id);
-                if (updatedCommande?.chauffeurs?.[0]?.location) {
-                    setDriverLocation(updatedCommande.chauffeurs[0].location);
-                }
-            }, 30000);
+    // ✅ Filtrer les chauffeurs liés à cette commande PAR commandeId (pas chauffeurId)
+    const commandeDrivers = drivers.filter(d => d.commandeId === commande.id);
 
-            return () => {
-                clearInterval(interval);
-                map.remove();
-            };
-        }
-    }, [mapVisible, commande.id]);
+    // Debug GPS tracking
+    console.log('[AdminActions] GPS Debug:', {
+        commandeId: commande.id,
+        allDrivers: drivers,
+        commandeDrivers,
+        driversCount: drivers.length,
+        matchedCount: commandeDrivers.length
+    });
 
     useEffect(() => {
         const loadChauffeurs = async () => {
@@ -401,82 +385,84 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 )}
 
             {/* Modal de gestion complète */}
-            {showManageChauffeursModal && (
-                <Modal
-                    isOpen={showManageChauffeursModal}
-                    onClose={() => setShowManageChauffeursModal(false)}
-                >
-                    <div className="p-6">
-                        <h2 className="text-xl font-semibold mb-4">
-                            {commande.chauffeurs && commande.chauffeurs.length > 0
-                                ? "Modifier les chauffeurs assignés"
-                                : "Assigner des chauffeurs"
-                            }
-                        </h2>
+            {
+                showManageChauffeursModal && (
+                    <Modal
+                        isOpen={showManageChauffeursModal}
+                        onClose={() => setShowManageChauffeursModal(false)}
+                    >
+                        <div className="p-6">
+                            <h2 className="text-xl font-semibold mb-4">
+                                {commande.chauffeurs && commande.chauffeurs.length > 0
+                                    ? "Modifier les chauffeurs assignés"
+                                    : "Assigner des chauffeurs"
+                                }
+                            </h2>
 
-                        {/* ✅ Affichage conditionnel intelligent */}
-                        {chauffeursData && chauffeursData.length > 0 ? (
-                            <>
-                                <div className="max-h-96 overflow-y-auto">
-                                    {chauffeursData.map(chauffeur => (
-                                        <div key={chauffeur.id} className="flex items-center p-3 border-b hover:bg-gray-50">
-                                            <input
-                                                type="checkbox"
-                                                checked={currentChauffeurs.includes(chauffeur.id)}
-                                                onChange={() => handleChauffeurToggle(chauffeur.id)}
-                                                className="mr-3"
-                                            />
-                                            <div className="flex-1">
-                                                <div className="font-medium">{chauffeur.prenom} {chauffeur.nom}</div>
-                                                <div className="text-sm text-gray-500">{chauffeur.telephone}</div>
-                                                <div className="text-sm text-gray-500">Status: {chauffeur.status}</div>
+                            {/* ✅ Affichage conditionnel intelligent */}
+                            {chauffeursData && chauffeursData.length > 0 ? (
+                                <>
+                                    <div className="max-h-96 overflow-y-auto">
+                                        {chauffeursData.map(chauffeur => (
+                                            <div key={chauffeur.id} className="flex items-center p-3 border-b hover:bg-gray-50">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={currentChauffeurs.includes(chauffeur.id)}
+                                                    onChange={() => handleChauffeurToggle(chauffeur.id)}
+                                                    className="mr-3"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="font-medium">{chauffeur.prenom} {chauffeur.nom}</div>
+                                                    <div className="text-sm text-gray-500">{chauffeur.telephone}</div>
+                                                    <div className="text-sm text-gray-500">Status: {chauffeur.status}</div>
+                                                </div>
+                                                {/* ✅ Indicateur si déjà assigné */}
+                                                {(commande.chauffeurs?.some(c => c.id === chauffeur.id)) && (
+                                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                                        Actuellement assigné
+                                                    </span>
+                                                )}
                                             </div>
-                                            {/* ✅ Indicateur si déjà assigné */}
-                                            {(commande.chauffeurs?.some(c => c.id === chauffeur.id)) && (
-                                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                    Actuellement assigné
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="mt-4 flex justify-between items-center">
-                                    <span className="text-sm text-gray-600">
-                                        {currentChauffeurs.length} chauffeur(s) sélectionné(s)
-                                        {commande.chauffeurs && commande.chauffeurs.length > 0 &&
-                                            ` (${commande.chauffeurs.length} actuellement assigné(s))`
-                                        }
-                                    </span>
-                                    <div className="space-x-2">
-                                        <button
-                                            onClick={() => setShowManageChauffeursModal(false)}
-                                            className="px-4 py-2 border rounded-lg"
-                                        >
-                                            Annuler
-                                        </button>
-                                        <button
-                                            onClick={handleSaveChauffeursChanges}
-                                            disabled={loading}
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                                        >
-                                            {commande.chauffeurs && commande.chauffeurs.length > 0
-                                                ? "Mettre à jour"
-                                                : "Assigner"
-                                            }
-                                        </button>
+                                        ))}
                                     </div>
+
+                                    <div className="mt-4 flex justify-between items-center">
+                                        <span className="text-sm text-gray-600">
+                                            {currentChauffeurs.length} chauffeur(s) sélectionné(s)
+                                            {commande.chauffeurs && commande.chauffeurs.length > 0 &&
+                                                ` (${commande.chauffeurs.length} actuellement assigné(s))`
+                                            }
+                                        </span>
+                                        <div className="space-x-2">
+                                            <button
+                                                onClick={() => setShowManageChauffeursModal(false)}
+                                                className="px-4 py-2 border rounded-lg"
+                                            >
+                                                Annuler
+                                            </button>
+                                            <button
+                                                onClick={handleSaveChauffeursChanges}
+                                                disabled={loading}
+                                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                            >
+                                                {commande.chauffeurs && commande.chauffeurs.length > 0
+                                                    ? "Mettre à jour"
+                                                    : "Assigner"
+                                                }
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                    <p>Chargement des chauffeurs...</p>
                                 </div>
-                            </>
-                        ) : (
-                            <div className="text-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                <p>Chargement des chauffeurs...</p>
-                            </div>
-                        )}
-                    </div>
-                </Modal>
-            )}
+                            )}
+                        </div>
+                    </Modal>
+                )
+            }
 
             <StatusManager
                 commande={commande}
@@ -486,25 +472,63 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                 showAdvancedOnly={false}
             />
 
-            {/* Section Suivi */}
+            {/* ✅ Toggle GPS pour Chauffeurs (si admin teste en mode chauffeur) */}
+            {user?.role === 'chauffeur' && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
+                <div className="mb-4">
+                    <DriverTrackingToggle
+                        commandeId={commande.id}
+                        statutLivraison={commande.statuts.livraison}
+                        isDeliveryActive={true}
+                    />
+                </div>
+            )}
+
+            {/* Section Suivi GPS Temps Réel (Carte pour Admins) */}
             {commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
-                <div className="p-4 border rounded-lg">
-                    <h3 className="text-lg font-medium mb-4">Suivi en temps réel (BIENTÔT DISPONIBLE)</h3>
+                <div className="p-4 border rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Suivi GPS en Temps Réel
+                    </h3>
                     <div className="flex justify-between items-center mb-4">
-                        <span className='text-sm font-medium text-gray-500'>Localisation des chauffeurs</span>
+                        <div>
+                            <p className='text-sm font-medium text-gray-700'>Localisation des chauffeurs</p>
+                            {commandeDrivers.length > 0 ? (
+                                <p className="text-xs text-green-600 mt-1">
+                                    ✓ {commandeDrivers.length} chauffeur(s) localisé(s)
+                                </p>
+                            ) : (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    En attente de position GPS...
+                                </p>
+                            )}
+                        </div>
                         <button
                             onClick={() => setMapVisible(!mapVisible)}
-                            className="px-4 py-2 bg-primary text-white rounded-lg"
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-md"
                         >
                             {mapVisible ? 'Masquer la carte' : 'Voir sur la carte'}
                         </button>
                     </div>
                     {mapVisible && (
-                        <div id="map" className="h-96 mt-4 rounded-lg overflow-hidden">
-                            {/* La carte sera montée ici */}
-                            {driverLocation && (
-                                <div className="absolute bottom-4 right-4 bg-white p-2 rounded shadow">
-                                    Position du transporteur mise à jour
+                        <div className="mt-4 rounded-lg overflow-hidden shadow-lg border-2 border-blue-200 relative">
+                            {commandeDrivers.length > 0 ? (
+                                <LiveTrackingMap
+                                    drivers={commandeDrivers}
+                                    height="400px"
+                                />
+                            ) : (
+                                <div className="h-96 flex items-center justify-center bg-gray-50">
+                                    <div className="text-center p-4">
+                                        <svg className="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        <p className="text-gray-600 font-medium">En attente de localisation</p>
+                                        <p className="text-sm text-gray-500">Les chauffeurs doivent activer leur tracking GPS</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -513,19 +537,20 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
             )}
 
             {/* Section Tarification */}
-            {isAdminRole(user?.role) && (
-                <>
-                    <div className="p-4 border rounded-lg">
-                        <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
-                        <div className="space-y-4 space-x-2">
-                            <button
-                                onClick={() => setShowTarifModal(true)}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                            >
-                                Définir le tarif
-                            </button>
+            {
+                isAdminRole(user?.role) && (
+                    <>
+                        <div className="p-4 border rounded-lg">
+                            <h3 className="text-lg font-medium mb-4">💰 Gestion financière</h3>
+                            <div className="space-y-4 space-x-2">
+                                <button
+                                    onClick={() => setShowTarifModal(true)}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Définir le tarif
+                                </button>
 
-                            {/* {besoinDevis ? (
+                                {/* {besoinDevis ? (
                                 <button
                                     onClick={genererDevis}
                                     disabled={loading || !tarif}
@@ -542,49 +567,49 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                                     Générer une facture
                                 </button>
                             )} */}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Modal Tarif */}
-                    <AnimatePresence>
-                        {showTarifModal && (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-                            >
-                                <div className="bg-white p-6 rounded-lg w-96">
-                                    <h3 className="text-lg font-medium mb-4">Définir le tarif</h3>
-                                    <input
-                                        type="number"
-                                        value={tarif}
-                                        onChange={(e) => setTarif(Number(e.target.value))}
-                                        className="w-full border rounded-lg px-3 py-2 mb-4"
-                                        placeholder="Montant HT"
-                                    />
-                                    <div className="flex justify-end space-x-2">
-                                        <button
-                                            onClick={() => setShowTarifModal(false)}
-                                            className="px-4 py-2 border rounded-lg"
-                                        >
-                                            Annuler
-                                        </button>
-                                        <button
-                                            onClick={handleTarifUpdate}
-                                            disabled={loading}
-                                            className="px-4 py-2 bg-primary text-white rounded-lg"
-                                        >
-                                            Valider
-                                        </button>
+                        {/* Modal Tarif */}
+                        <AnimatePresence>
+                            {showTarifModal && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                                >
+                                    <div className="bg-white p-6 rounded-lg w-96">
+                                        <h3 className="text-lg font-medium mb-4">Définir le tarif</h3>
+                                        <input
+                                            type="number"
+                                            value={tarif}
+                                            onChange={(e) => setTarif(Number(e.target.value))}
+                                            className="w-full border rounded-lg px-3 py-2 mb-4"
+                                            placeholder="Montant HT"
+                                        />
+                                        <div className="flex justify-end space-x-2">
+                                            <button
+                                                onClick={() => setShowTarifModal(false)}
+                                                className="px-4 py-2 border rounded-lg"
+                                            >
+                                                Annuler
+                                            </button>
+                                            <button
+                                                onClick={handleTarifUpdate}
+                                                disabled={loading}
+                                                className="px-4 py-2 bg-primary text-white rounded-lg"
+                                            >
+                                                Valider
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                    {/* Modal Facture */}
-                    {/* <AnimatePresence>
+                        {/* Modal Facture */}
+                        {/* <AnimatePresence>
                         {showFactureModal && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -619,8 +644,9 @@ const AdminActions: React.FC<AdminActionsProps> = ({ commande, chauffeurs, onUpd
                             </motion.div>
                         )}
                     </AnimatePresence> */}
-                </>
-            )}
+                    </>
+                )
+            }
         </div>
     );
 };

@@ -442,10 +442,10 @@ export default function ChauffeurManagement() {
                     if (!searchTerm) return true;
                     const search = searchTerm.toLowerCase();
                     return (
-                        chauffeur.lastName?.toLowerCase().includes(search) ||
-                        chauffeur.firstName?.toLowerCase().includes(search) ||
+                        chauffeur.nom?.toLowerCase().includes(search) ||
+                        chauffeur.prenom?.toLowerCase().includes(search) ||
                         chauffeur.email?.toLowerCase().includes(search) ||
-                        `${chauffeur.firstName} ${chauffeur.lastName}`.toLowerCase().includes(search)
+                        `${chauffeur.nom} ${chauffeur.prenom}`.toLowerCase().includes(search)
                     );
                 }).length === 0 ? (
                     <div className="text-center py-12">
@@ -485,10 +485,10 @@ export default function ChauffeurManagement() {
                                 if (!searchTerm) return true;
                                 const search = searchTerm.toLowerCase();
                                 return (
-                                    chauffeur.lastName?.toLowerCase().includes(search) ||
-                                    chauffeur.firstName?.toLowerCase().includes(search) ||
+                                    chauffeur.nom?.toLowerCase().includes(search) ||
+                                    chauffeur.prenom?.toLowerCase().includes(search) ||
                                     chauffeur.email?.toLowerCase().includes(search) ||
-                                    `${chauffeur.firstName} ${chauffeur.lastName}`.toLowerCase().includes(search)
+                                    `${chauffeur.nom} ${chauffeur.prenom}`.toLowerCase().includes(search)
                                 );
                             })
                             .map((chauffeur) => (
@@ -784,6 +784,8 @@ export default function ChauffeurManagement() {
                     setShowDependenciesModal(false);
                     setSelectedChauffeurForDependencies(null);
                 }}
+                title={modalMode === 'delete' ? 'Confirmation de suppression' : 'Dépendances du chauffeur'}
+                mode={modalMode}
                 entityType="chauffeur"
                 entityId={selectedChauffeurForDependencies?.id || ''}
                 entityName={

@@ -71,6 +71,10 @@ export class SimpleBackendService {
                 numeroCommande: backendData.numeroCommande,
                 type: backendData.type, // ✅ AJOUT: Type de commande (CLIENT ou INTER_MAGASIN)
 
+                // ✅ AJOUT: Champs racine pour compatibilité avec dashboard chauffeur
+                statutLivraison: backendData.statutLivraison || 'EN ATTENTE',
+                statutCommande: backendData.statutCommande || 'En attente',
+
                 dates: {
                     livraison: backendData.dateLivraison,
                     commande: backendData.dateCommande,
@@ -219,17 +223,6 @@ export class SimpleBackendService {
                 createdAt: backendData.createdAt,
                 updatedAt: backendData.updatedAt
             };
-
-            // ✅ LOG DEBUG pour cessions
-            if (result.magasinDestination) {
-                console.log('🔄 CESSION détectée:', {
-                    numero: result.numeroCommande,
-                    magasinOrigine: result.magasin.name,
-                    magasinDestination: result.magasinDestination.name,
-                    motif: result.cession?.motif,
-                    priorite: result.cession?.priorite
-                });
-            }
 
             // console.log('🔍 ===== APRÈS TRANSFORMATION =====');
             // console.log('🔍 Frontend etage:', result.client?.adresse?.etage);
