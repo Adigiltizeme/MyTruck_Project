@@ -131,17 +131,24 @@ const MagasinContactMessages: React.FC = () => {
       setLoading(true);
       setError(null);
 
+      console.log('🔍 [MAGASIN-CONTACTS] Chargement des contacts...');
+
       // Utiliser la route spécifique aux magasins
       const response = await contactService.getMyContacts();
 
+      console.log('📥 [MAGASIN-CONTACTS] Réponse reçue:', JSON.stringify(response, null, 2));
+
       if (response.success) {
         setContacts(response.data);
+        console.log(`✅ [MAGASIN-CONTACTS] ${response.data.length} contacts chargés`);
       } else {
-        throw new Error('Impossible de charger les messages');
+        const errorMsg = response.message || 'Impossible de charger les messages';
+        console.error('❌ [MAGASIN-CONTACTS] Échec:', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
-      console.error('Erreur lors du chargement des contacts:', err);
-      setError('Impossible de charger les messages de contact');
+      console.error('❌ [MAGASIN-CONTACTS] Erreur lors du chargement des contacts:', err);
+      setError(err instanceof Error ? err.message : 'Impossible de charger les messages de contact');
     } finally {
       setLoading(false);
     }

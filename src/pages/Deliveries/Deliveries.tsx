@@ -456,6 +456,25 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
     const [showNewCommandeModal, setShowNewCommandeModal] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [prefilledData, setPrefilledData] = useState<any>(null);
+
+    // ✅ Charger données pré-remplies depuis localStorage (approche ContactsManagement.tsx)
+    useEffect(() => {
+        const storedData = localStorage.getItem('commandeFromContact');
+        if (storedData) {
+            try {
+                const parsedData = JSON.parse(storedData);
+                console.log('✅ Deliveries - Données contact chargées depuis localStorage:', parsedData);
+                setPrefilledData(parsedData);
+                setShowNewCommandeModal(true);
+                // Nettoyer le localStorage après récupération
+                localStorage.removeItem('commandeFromContact');
+            } catch (error) {
+                console.error('❌ Erreur parsing données contact:', error);
+                localStorage.removeItem('commandeFromContact');
+            }
+        }
+    }, []);
 
     const handleCreateCommande = async (commande: Partial<CommandeMetier>) => {
         // Éviter les créations multiples
@@ -626,7 +645,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2">
-                        {user?.role === 'magasin' && (
+                        {user?.role !== 'chauffeur' && (
                             <button
                                 onClick={() => setShowNewCommandeModal(true)}
                                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 whitespace-nowrap"
@@ -653,6 +672,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         onClose={() => {
                             // Nettoyer complètement lors de la fermeture
                             setShowNewCommandeModal(false);
+                            setPrefilledData(null);
                             // Utiliser un court délai pour s'assurer que le modal est bien fermé
                             // setTimeout(() => {
                             //     clearDraft().catch(err => console.error('Erreur lors du nettoyage du brouillon:', err));
@@ -660,11 +680,15 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         }}
                     >
                         <AjoutCommande
+                            key={prefilledData ? JSON.stringify(prefilledData) : 'new'}
                             onSubmit={handleCreateCommande}
-                            onCancel={() => setShowNewCommandeModal(false)}
-                            commande={{} as CommandeMetier}
+                            onCancel={() => {
+                                setShowNewCommandeModal(false);
+                                setPrefilledData(null);
+                            }}
+                            commande={prefilledData || ({} as CommandeMetier)}
                             isEditing={false}
-                            initialData={{} as CommandeMetier}
+                            initialData={prefilledData || ({} as CommandeMetier)}
                             isCession={type === 'INTER_MAGASIN'}
                         />
                     </Modal>

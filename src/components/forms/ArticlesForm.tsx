@@ -160,7 +160,7 @@ import { VehicleType, VehicleValidationService } from "../../services/vehicle-va
 import { CommandeMetier } from "../../types/business.types";
 import { TarificationService } from "../../services/tarification.service";
 
-export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true }) => {
+export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true, userRole }) => {
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
@@ -651,7 +651,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             try {
                 const estimation = tarificationService.calculerEstimationSansKm({
                     vehicule: data.livraison.vehicule,
-                    equipiers: data.livraison.equipiers
+                    equipiers: data.livraison.equipiers,
+                    userRole // 🆕 Passer userRole pour bypass admin
                 });
                 setEstimationTarif(estimation);
                 console.log('💰 Estimation calculée:', estimation);
@@ -662,7 +663,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         } else {
             setEstimationTarif(null);
         }
-    }, [data.livraison?.vehicule, data.livraison?.equipiers, tarificationService, hasUserInteracted]);
+    }, [data.livraison?.vehicule, data.livraison?.equipiers, tarificationService, hasUserInteracted, userRole]);
 
     return (
         <div className="space-y-6 mb-6">
@@ -1029,6 +1030,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                             initialCanBeTilted={data.articles?.canBeTilted || false}
                             deliveryInfo={localDeliveryInfo}
                             isEditing={isEditing}
+                            userRole={userRole}
                         />
                     </div>
                 )}

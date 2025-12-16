@@ -444,7 +444,7 @@ import { SlotAvailability } from "../../types/slots.types";
 import { SlotsInfo } from "../SlotsInfo";
 import ContactForm from "../ContactForm";
 
-export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false, isCession = false }) => {
+export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange, showErrors = false, isEditing = false, isCession = false, userRole }) => {
     const [selectedVehicleLong, setSelectedVehicleLong] = useState('');
     const [selectedVehicleShort, setSelectedVehicleShort] = useState(data.livraison?.vehicule || '');
     const [calculatingTarif, setCalculatingTarif] = useState(false);
@@ -907,7 +907,8 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 vehicule: data.livraison.vehicule as TypeVehicule,
                 adresseMagasin: addressToUse,
                 adresseLivraison: adresseLivraison,
-                equipiers: data.livraison.equipiers || 0
+                equipiers: data.livraison.equipiers || 0,
+                userRole // 🆕 Rôle utilisateur pour bypass devis obligatoire
             });
 
             setTarifDetails(tarif);
@@ -1595,7 +1596,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                                     Demandez votre devis ici
                                 </button>
                                 <span className="ml-2 text-gray-500 text-sm">
-                                    ou contactez-nous au 01 23 45 67 89
+                                    ou contactez-nous au 06 22 15 62 60.
                                 </span>
                             </div>
                         </div>
@@ -1636,7 +1637,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 isOpen={showContactForm}
                 onClose={() => setShowContactForm(false)}
                 reason="DEVIS"
-                prefilledData={data}
+                prefilledData={{
+                    ...data,
+                    magasin: {
+                        id: user?.storeId || data.magasin?.id,
+                        nom: user?.storeName || data.magasin?.name || (data.magasin as any)?.nom,
+                        manager: user?.name || user?.storeName, // Nom du vendeur/manager
+                    }
+                }}
             />
 
             {/* Modal d'aide sur les véhicules */}

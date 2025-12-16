@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   EnvelopeIcon,
   PhoneIcon,
@@ -12,11 +12,18 @@ import {
   ArchiveBoxIcon,
   FunnelIcon,
   MagnifyingGlassIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  DocumentTextIcon,
+  PlusCircleIcon
 } from '@heroicons/react/24/outline';
 import { ContactService, Contact, ContactFilters, ContactStats } from '../../services/contact.service';
+import { parseContactMessage } from '../../utils/contact-parser';
+import { TarificationService } from '../../services/tarification.service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../contexts/NotificationContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { isAdminRole, isMagasinRole } from '../../utils/role-helpers';
 
 interface ContactDetailModalProps {
   contact: Contact | null;
@@ -33,6 +40,9 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
 }) => {
   const [response, setResponse] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingDevis, setIsGeneratingDevis] = useState(false);
+  const { addNotification } = useNotifications();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (contact) {
@@ -88,6 +98,122 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
       console.error('Erreur lors de la mise à jour:', error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateDevis = async () => {
+    if (!contact) return;
+
+    setIsGeneratingDevis(true);
+    try {
+      // Parser le message du contact pour extraire les données
+      const contactData = parseContactMessage(contact.message);
+
+      console.log('📦 Données contact parsées:', contactData);
+
+      // Calculer le tarif avec TarificationService
+      const tarificationService = new TarificationService();
+
+      const tarifResult = await tarificationService.calculerTarif({
+        vehicule: contactData.livraison?.vehicule || '1M3',
+        adresseMagasin: contactData.magasin?.adresse || '',
+        adresseLivraison: contactData.client?.adresse?.ligne1 || '',
+        equipiers: contactData.livraison?.equipiers || 0,
+        userRole: 'admin' // Admin peut bypasser les limites de devis
+      });
+
+      console.log('💰 Tarif calculé:', tarifResult);
+
+      // Vérifier si un devis est requis
+      if (tarifResult.montantHT === 'devis') {
+        addNotification({
+          type: 'warning',
+          message: 'Cette commande nécessite un devis personnalisé (conditions exceptionnelles)'
+        });
+        setIsGeneratingDevis(false);
+        return;
+      }
+
+      // Envoyer la demande de génération avec les montants calculés
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/contacts/${contact.id}/generate-devis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          montantHT: tarifResult.montantHT,
+          montantTTC: (tarifResult.montantHT as number) * 1.2,
+          detail: tarifResult.detail
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de la génération du devis');
+      }
+
+      const result = await response.json();
+
+      addNotification({
+        type: 'success',
+        message: `Devis ${result.data.numeroDocument} généré avec succès !`
+      });
+
+      // Ouvrir le devis dans un nouvel onglet
+      if (result.data.url) {
+        window.open(result.data.url, '_blank');
+      }
+
+    } catch (error) {
+      console.error('❌ Erreur génération devis:', error);
+      addNotification({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Impossible de générer le devis'
+      });
+    } finally {
+      setIsGeneratingDevis(false);
+    }
+  };
+
+  const handleCreateCommande = () => {
+    if (!contact) return;
+
+    try {
+      // Parser le message du contact pour extraire les données
+      const contactData = parseContactMessage(contact.message);
+
+      const prefilledFormData = {
+        contactId: contact.id,
+        magasin: {
+          nom: contact.nomMagasin,
+          adresse: contact.adresse,
+          telephone: contact.telephone,
+        },
+        ...contactData
+      };
+
+      console.log('✅ ContactsManagement - Ouverture formulaire avec données:', prefilledFormData);
+
+      // Stocker les données dans localStorage pour pré-remplir le formulaire
+      localStorage.setItem('commandeFromContact', JSON.stringify(prefilledFormData));
+
+      // Naviguer vers la page des livraisons avec le flag d'ouverture du formulaire
+      navigate('/deliveries?openForm=true');
+
+      addNotification({
+        type: 'success',
+        message: 'Redirection vers le formulaire de création de commande...'
+      });
+
+      onClose();
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de commande:', error);
+      addNotification({
+        type: 'error',
+        message: 'Impossible de créer la commande à partir de ce contact'
+      });
     }
   };
 
@@ -183,7 +309,7 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
           {contact.statut !== 'TRAITE' && (
             <div className="mb-6">
               <h3 className="font-medium text-gray-900 mb-2">Actions</h3>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2">
                 {contact.statut === 'NOUVEAU' && (
                   <button
                     onClick={() => handleStatusChange('LU')}
@@ -202,6 +328,38 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
                     Prendre en charge
                   </button>
                 )}
+
+                {/* Bouton Générer Devis - uniquement pour demandes de devis */}
+                {contact.raison === 'DEVIS' && (
+                  <button
+                    onClick={handleGenerateDevis}
+                    disabled={isGeneratingDevis}
+                    className="px-3 py-1 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center space-x-1"
+                  >
+                    {isGeneratingDevis ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <span>Génération...</span>
+                      </>
+                    ) : (
+                      <>
+                        <DocumentTextIcon className="w-4 h-4" />
+                        <span>Générer devis PDF</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                {/* Bouton Créer Commande - pour toutes les demandes */}
+                <button
+                  onClick={handleCreateCommande}
+                  disabled={isSubmitting}
+                  className="px-3 py-1 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-1"
+                  title="Créer une commande avec les données de ce contact"
+                >
+                  <PlusCircleIcon className="w-4 h-4" />
+                  <span>Créer commande</span>
+                </button>
               </div>
             </div>
           )}
@@ -250,6 +408,7 @@ export default function ContactsManagement() {
 
   const contactService = new ContactService();
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadContacts();
@@ -259,16 +418,55 @@ export default function ContactsManagement() {
   const loadContacts = async () => {
     try {
       setLoading(true);
-      const response = await contactService.getAllContacts(filters);
-      if (response.success) {
-        setContacts(response.data);
+
+      let contactsData: Contact[] = [];
+
+      if (isAdminRole(user?.role)) {
+        // Admin : Récupérer tous les contacts
+        const response = await contactService.getAllContacts(filters);
+        contactsData = response.data || [];
+      } else if (isMagasinRole(user?.role)) {
+        // Magasin : Récupérer ses propres contacts
+        const response = await contactService.getMyContacts();
+        contactsData = response.data || [];
+
+        // Appliquer les filtres côté client pour les magasins
+        if (filters.raison) {
+          contactsData = contactsData.filter(c => c.raison === filters.raison);
+        }
+        if (filters.statut) {
+          contactsData = contactsData.filter(c => c.statut === filters.statut);
+        }
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          contactsData = contactsData.filter(c =>
+            c.nomMagasin?.toLowerCase().includes(searchLower) ||
+            c.email?.toLowerCase().includes(searchLower) ||
+            c.telephone?.toLowerCase().includes(searchLower)
+          );
+        }
       }
+
+      setContacts(contactsData);
     } catch (error) {
       console.error('Erreur lors du chargement des contacts:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // ✅ FILTRAGE PAR RÔLE (pattern Deliveries.tsx) - Pour RoleSelector
+  const filteredByRoleContacts = useMemo(() => {
+    // Si c'est un admin, pas de filtrage
+    if (isAdminRole(user?.role)) return contacts;
+
+    // Si c'est un magasin, filtrer par storeId
+    if (user?.role === 'magasin' && user.storeId) {
+      return contacts.filter(contact => contact.magasinId === user.storeId);
+    }
+
+    return contacts;
+  }, [contacts, user?.role, user?.storeId]);
 
   const loadStats = async () => {
     try {
@@ -487,7 +685,7 @@ export default function ContactsManagement() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
             <p className="mt-2 text-gray-600">Chargement...</p>
           </div>
-        ) : contacts.length === 0 ? (
+        ) : filteredByRoleContacts.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <ChatBubbleLeftRightIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
             <p className="text-lg font-medium">Aucun contact trouvé</p>
@@ -519,7 +717,7 @@ export default function ContactsManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {contacts.map((contact) => (
+                {filteredByRoleContacts.map((contact) => (
                   <tr key={contact.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">

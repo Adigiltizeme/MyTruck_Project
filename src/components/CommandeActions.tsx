@@ -258,6 +258,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                             data={editData}
                             onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
                             errors={{}}
+                            userRole={user?.role}
                         />
                     );
                 case 2:
@@ -303,6 +304,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                             data={editData}
                             onChange={(e) => handleInputChange(e as React.ChangeEvent<HTMLInputElement | HTMLSelectElement>)}
                             errors={{}}
+                            userRole={user?.role}
                         />
                     );
                 case 2:

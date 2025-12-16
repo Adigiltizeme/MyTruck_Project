@@ -18,13 +18,15 @@ interface QuoteGeneratorProps {
     isOpen: boolean;
     onClose: () => void;
     onQuoteGenerated: (devisInfo: any) => void;
+    userRole?: string;
 }
 
 const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
     commande,
     isOpen,
     onClose,
-    onQuoteGenerated
+    onQuoteGenerated,
+    userRole
 }) => {
     const { dataService } = useOffline();
     const [loading, setLoading] = useState(false);
@@ -65,7 +67,8 @@ const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
                 vehicule: commande.livraison.vehicule,
                 adresseMagasin: storeAddress,
                 adresseLivraison: deliveryAddress,
-                equipiers: commande.livraison.equipiers
+                equipiers: commande.livraison.equipiers,
+                userRole
             });
 
             setTarifDetails(tarifResponse);

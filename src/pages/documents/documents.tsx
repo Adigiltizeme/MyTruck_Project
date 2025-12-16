@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../contexts/OfflineContext';
 import { CommandeMetier, FactureInfo, DevisInfo } from '../../types/business.types';
@@ -8,7 +8,8 @@ import { motion } from 'framer-motion';
 import { Download, FileText, FilePlus, Filter, Search, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import DetailedQuoteForm from '../../components/DetailedQuoteForm';
-import { isAdminRole } from '../../utils/role-helpers';
+import { isAdminRole, isMagasinRole } from '../../utils/role-helpers';
+import DevisFromContacts from '../../components/DevisFromContacts';
 
 /**
  * Page pour la gestion centralisée des devis et factures
@@ -43,11 +44,23 @@ const DocumentsPage: React.FC = () => {
             const commandesData = await dataService.getCommandes();
             setCommandes(commandesData);
 
-            // Extraire tous les devis et factures des commandes
+            // ✅ FILTRAGE PAR RÔLE (pattern Deliveries.tsx) - Pour RoleSelector
+            let commandesToProcess = commandesData;
+
+            // Si admin (ou pas de rôle spécifique), tout afficher
+            if (isAdminRole(user?.role)) {
+                commandesToProcess = commandesData;
+            }
+            // Si magasin, filtrer par storeId
+            else if (isMagasinRole(user?.role) && user.storeId) {
+                commandesToProcess = commandesData.filter(item => item.magasin?.id === user.storeId);
+            }
+
+            // Extraire tous les devis et factures des commandes FILTRÉES
             const allDevis: DevisInfo[] = [];
             const allFactures: FactureInfo[] = [];
 
-            commandesData.forEach((commande: CommandeMetier) => {
+            commandesToProcess.forEach((commande: CommandeMetier) => {
                 // Ajouter les devis avec référence à la commande
                 if (commande.financier?.devis && commande.financier.devis.length > 0) {
                     commande.financier.devis.forEach(devis => {
@@ -154,14 +167,7 @@ const DocumentsPage: React.FC = () => {
             });
         }
 
-        // Filtrer par magasin si l'utilisateur est un magasin
-        if (user?.role === 'magasin' && user.storeId) {
-            documents = documents.filter(doc => {
-                // Trouver la commande associée
-                const commande = commandes.find(c => c.id === doc.id);
-                return commande && commande.magasin?.id === user.storeId;
-            });
-        }
+        // Le filtrage par magasin est déjà fait dans loadData(), pas besoin de refiltrer ici
 
         // Trier par date (plus récent en premier)
         return documents.sort((a, b) => {
@@ -352,6 +358,22 @@ const DocumentsPage: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Section Devis issus des demandes */}
+                <div className="mb-8">
+                    <DevisFromContacts searchTerm={searchTerm} />
+                </div>
+
+                {/* Séparateur */}
+                <div className="my-8 border-t-2 border-gray-200"></div>
+
+                {/* Titre section documents de commandes */}
+                <div className="mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Documents de commandes</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                        Devis et factures générés depuis les commandes existantes
+                    </p>
+                </div>
+
                 {/* Liste des documents */}
                 {loading ? (
                     <div className="flex justify-center items-center py-12">
@@ -460,6 +482,7 @@ const DocumentsPage: React.FC = () => {
                         isOpen={showNewDevisForm}
                         onClose={() => setShowNewDevisForm(false)}
                         onQuoteGenerated={handleDevisGenerated}
+                        userRole={user?.role}
                     />
                 </Modal>
             )}

@@ -264,7 +264,7 @@ export const RoleSelector = () => {
     return (
         <div className="mb-4 flex items-center gap-4 flex-wrap">
             <div>
-                <label className="text-sm font-medium mr-2">Rôle test :</label>
+                <label className="text-sm font-medium mr-2">Rôle :</label>
                 <select
                     value={user?.role || 'admin' || 'direction'}
                     onChange={handleRoleChange}

@@ -27,6 +27,7 @@ interface ContactFormProps {
       dimensions?: any[];
       categories?: string[];
       photos?: any[];
+      autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
     };
     livraison?: {
       creneau?: string;
@@ -106,17 +107,13 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
     // Informations articles
     if (articles) {
       message += '=== ARTICLES ===\n';
-      message += `Nombre d'articles : ${articles.nombre || 1}\n`;
-      if (articles.details) {
-        message += `Détails : ${articles.details}\n`;
-      }
-      if (articles.categories && articles.categories.length > 0) {
-        message += `Catégories : ${articles.categories.join(', ')}\n`;
-      }
+      message += `Nombre total d'articles : ${articles.nombre || 1}\n`;
+
       if (articles.dimensions && articles.dimensions.length > 0) {
-        message += 'Dimensions :\n';
+        message += '\nArticles avec dimensions (les plus grands/lourds) :\n';
         articles.dimensions.forEach((dim: any, index: number) => {
-          message += `  ${index + 1}. ${dim.nom || 'Article'} (x${dim.quantite || 1})`;
+          const title = index === 0 ? '📦 [Article le plus grand]' : index === 1 ? '⚖️ [Article le plus lourd]' : '';
+          message += `  ${index + 1}. ${title ? title + ' ' : ''}${dim.nom || 'Article'} (x${dim.quantite || 1})`;
           if (dim.longueur || dim.largeur || dim.hauteur) {
             message += ` - `;
             if (dim.longueur) message += `L:${dim.longueur}cm `;
@@ -128,6 +125,17 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
           }
           message += '\n';
         });
+      }
+
+      if ((articles as any).autresArticles && (articles as any).autresArticles > 0) {
+        message += `\nAutres articles (ni les plus grands, ni les plus lourds) : ${(articles as any).autresArticles}\n`;
+      }
+
+      if (articles.details) {
+        message += `\nDétails : ${articles.details}\n`;
+      }
+      if (articles.categories && articles.categories.length > 0) {
+        message += `Catégories : ${articles.categories.join(', ')}\n`;
       }
       message += '\n';
     }

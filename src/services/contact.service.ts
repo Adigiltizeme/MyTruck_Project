@@ -29,10 +29,14 @@ export interface Contact {
   email: string;
   raison: string;
   message: string;
-  statut: 'NOUVEAU' | 'LU' | 'EN_COURS' | 'TRAITE' | 'ARCHIVE';
+  statut: 'NOUVEAU' | 'LU' | 'EN_COURS' | 'DEVIS_GENERE' | 'DEVIS_VALIDE' | 'DEVIS_REFUSE' | 'TRAITE' | 'ARCHIVE';
   response?: string;
   magasinId?: string;
   userId?: string;
+  devisDocumentId?: string;
+  validatedAt?: string;
+  validatedBy?: string;
+  validationNote?: string;
   createdAt: string;
   updatedAt: string;
   treatedAt?: string;
@@ -250,6 +254,7 @@ export class ContactService {
     success: boolean;
     data: Contact[];
     total: number;
+    message?: string;
   }> {
     return this.apiService.get('/contacts/magasin/my-contacts');
   }
@@ -263,5 +268,38 @@ export class ContactService {
     data: Contact;
   }> {
     return this.apiService.patch(`/contacts/magasin/${id}/reply`, { response });
+  }
+
+  /**
+   * Récupérer le devis d'un contact
+   */
+  async getContactDevis(contactId: string): Promise<{
+    success: boolean;
+    message?: string;
+    data: any | null;
+  }> {
+    return this.apiService.get(`/contacts/${contactId}/devis`);
+  }
+
+  /**
+   * Valider un devis (Magasin)
+   */
+  async validateDevis(contactId: string, note?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: Contact;
+  }> {
+    return this.apiService.patch(`/contacts/${contactId}/validate-devis`, { note });
+  }
+
+  /**
+   * Rejeter un devis (Magasin)
+   */
+  async rejectDevis(contactId: string, note?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: Contact;
+  }> {
+    return this.apiService.patch(`/contacts/${contactId}/reject-devis`, { note });
   }
 }

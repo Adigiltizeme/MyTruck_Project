@@ -97,6 +97,30 @@ export function formReducer(state: FormState, action: FormAction): FormState {
             }
 
             if (fieldPath[0] === 'livraison' && fieldPath[1] === 'details') {
+                // Si c'est un champ spécifique dans details (ex: livraison.details.paletteComplete)
+                if (fieldPath.length === 3) {
+                    return {
+                        ...state,
+                        isDirty: true,
+                        data: {
+                            ...state.data,
+                            livraison: {
+                                ...state.data.livraison,
+                                details: {
+                                    ...state.data.livraison?.details,
+                                    [fieldPath[2]]: action.payload.value
+                                },
+                                vehicule: state.data.livraison?.vehicule || '',
+                                equipiers: state.data.livraison?.equipiers || 0,
+                                creneau: state.data.livraison?.creneau || '',
+                                reserve: typeof state.data.livraison?.reserve === 'boolean'
+                                    ? state.data.livraison.reserve
+                                    : false
+                            }
+                        }
+                    };
+                }
+                // Si c'est tout l'objet details (ex: livraison.details)
                 return {
                     ...state,
                     isDirty: true,
@@ -105,7 +129,6 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                         livraison: {
                             ...state.data.livraison,
                             details: action.payload.value as import('../types/business.types').DeliveryDetails,
-                            // Assurez-vous que les autres champs sont préservés
                             vehicule: state.data.livraison?.vehicule || '',
                             equipiers: state.data.livraison?.equipiers || 0,
                             creneau: state.data.livraison?.creneau || '',
@@ -124,6 +147,7 @@ export function formReducer(state: FormState, action: FormAction): FormState {
             };
         case 'RESTORE_DRAFT':
             console.log("Reducer - Restauration du brouillon:", action.payload.data);
+            console.log("📦 Dimensions dans le brouillon:", JSON.stringify(action.payload.data?.articles?.dimensions, null, 2));
             // s'assurer que les dimensions sont correctement restaurées
             let restoredData = { ...action.payload.data };
 

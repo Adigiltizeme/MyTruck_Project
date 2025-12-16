@@ -83,3 +83,20 @@ export function hasPermission(
 
     return expandedRoles.includes(userRole);
 }
+
+/**
+ * Vérifie si l'utilisateur peut bypasser la limite de devis obligatoire
+ *
+ * ✅ COMPORTEMENT ACTUEL:
+ * - Utilise le rôle SIMULÉ (userRole) pour que l'admin respecte les contraintes du rôle testé
+ * - Quand admin bascule en mode magasin, il doit subir le "devis obligatoire" comme un vrai magasin
+ * - Cela permet à l'admin de tester l'expérience utilisateur complète
+ *
+ * @param userRole Rôle actif de l'utilisateur (peut être simulé via RoleSelector)
+ * @param originalRole (Non utilisé actuellement) Rôle réel avant simulation
+ * @returns true si le rôle actif est admin/direction, false sinon
+ */
+export function canBypassQuoteLimit(userRole?: UserRole | string, originalRole?: UserRole | string): boolean {
+    // ✅ Utiliser le rôle ACTIF (simulé) pour respecter l'expérience du rôle testé
+    return isAdminRole(userRole);
+}

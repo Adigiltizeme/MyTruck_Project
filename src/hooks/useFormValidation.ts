@@ -2,8 +2,13 @@ import { useCallback } from 'react';
 import { CommandeMetier } from '../types/business.types';
 import { ValidationErrors } from '../types/validation.types';
 import { ERROR_MESSAGES } from '../components/constants/errorMessages';
+import { canBypassQuoteLimit } from '../utils/role-helpers';
 
-export const useFormValidation = (formData: Partial<CommandeMetier>, isCession: boolean = false) => {
+export const useFormValidation = (
+    formData: Partial<CommandeMetier>,
+    isCession: boolean = false,
+    userRole?: string // 🆕 Rôle utilisateur pour bypass devis obligatoire
+) => {
     const validateStep = useCallback((step: number): ValidationErrors => {
         const errors: ValidationErrors = {};
 
@@ -97,19 +102,28 @@ export const useFormValidation = (formData: Partial<CommandeMetier>, isCession: 
                     };
                 }
 
+                // ✅ Bloquer si >2 équipiers - SAUF si admin (bypass devis obligatoire)
                 if ((formData.livraison?.equipiers ?? 0) > 2) {
-                    errors.livraison = {
-                        ...errors.livraison,
-                        equipiers: ERROR_MESSAGES.equipiers.max
-                    };
+                    if (!canBypassQuoteLimit(userRole)) {
+                        errors.livraison = {
+                            ...errors.livraison,
+                            equipiers: ERROR_MESSAGES.equipiers.max
+                        };
+                    } else {
+                        console.log(`✅ Admin bypass: ${formData.livraison?.equipiers} équipiers autorisés`);
+                    }
                 }
 
-                // ✅ Bloquer si devis obligatoire (distance > 50km)
+                // ✅ Bloquer si devis obligatoire (distance > 50km) - SAUF si admin
                 if (formData.financier?.devisObligatoire === true) {
-                    errors.livraison = {
-                        ...errors.livraison,
-                        devis: 'Un devis est obligatoire pour cette commande. Distance supérieure à 50km.'
-                    };
+                    if (!canBypassQuoteLimit(userRole)) {
+                        errors.livraison = {
+                            ...errors.livraison,
+                            devis: 'Un devis est obligatoire pour cette commande. Distance supérieure à 50km.'
+                        };
+                    } else {
+                        console.log('✅ Admin bypass: Devis obligatoire ignoré (distance >50km ou ≥3 équipiers)');
+                    }
                 }
 
                 break;

@@ -7,6 +7,7 @@ interface AuthUser {
     email: string;
     name: string;
     role: UserRole;
+    originalRole?: UserRole; // 🆕 Rôle réel de l'utilisateur (avant simulation RoleSelector)
     storeId?: string;
     storeName?: string;
     storeAddress?: string;
@@ -121,12 +122,14 @@ class ApiAuthService {
             }
 
             const user = JSON.parse(userData);
+            const userRole = user.role?.toLowerCase() as UserRole;
 
             const authUser = {
                 id: user.id,
                 email: user.email,
                 name: user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim(),
-                role: user.role?.toLowerCase() as UserRole,
+                role: userRole,
+                originalRole: user.originalRole || userRole, // 🆕 Préserver ou initialiser originalRole
                 token,
                 lastLogin: new Date(),
                 magasin: user.magasin ? {
@@ -230,11 +233,13 @@ class ApiAuthService {
             this.storeUser(data.access_token, data.user);
 
             // Transformer au format AuthUser
+            const userRole = data.user.role?.toLowerCase() as UserRole;
             const authUser: AuthUser = {
                 id: data.user.id,
                 email: data.user.email,
                 name: `${data.user.prenom || ''} ${data.user.nom || ''}`.trim(),
-                role: data.user.role?.toLowerCase() as UserRole,
+                role: userRole,
+                originalRole: userRole, // 🆕 Stocker le rôle réel
                 token: data.access_token,
                 lastLogin: new Date(),
                 magasin: data.user.magasin ? {
@@ -420,6 +425,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedUser = {
             ...user,
             role,
+            // 🆕 Préserver originalRole lors de la simulation RoleSelector
+            originalRole: user.originalRole || user.role,
             storeId: options?.storeId || user.storeId,
             storeName: options?.storeName || user.storeName,
             storeAddress: options?.storeAddress || user.storeAddress,
@@ -440,6 +447,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const updatedUser = {
             ...user,
             role,
+            // 🆕 Préserver originalRole lors de la simulation RoleSelector
+            originalRole: user.originalRole || user.role,
             ...options
         };
 

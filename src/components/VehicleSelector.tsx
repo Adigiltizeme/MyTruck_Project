@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { VehicleType, VehicleValidationService } from '../services/vehicle-validation.service';
+import { canBypassQuoteLimit } from '../utils/role-helpers';
 
 interface ArticleDimensions {
   longueur?: number;
@@ -32,6 +33,7 @@ interface VehicleSelectorProps {
     deliveryToUpperFloor?: boolean;
   };
   isEditing?: boolean;
+  userRole?: string; // 🆕 Rôle de l'utilisateur pour bypass devis obligatoire
 }
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({
@@ -44,7 +46,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   initialCrew,
   initialCanBeTilted = false,
   deliveryInfo = {},
-  isEditing = false
+  isEditing = false,
+  userRole // 🆕 Récupération du rôle utilisateur
 }) => {
   const [selectedVehicleShort, setSelectedVehicleShort] = useState<VehicleType | null>(null); // Format court
   const [selectedVehicleLong, setSelectedVehicleLong] = useState<string>('');
@@ -90,15 +93,19 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     return effectiveFloor;
   }, [deliveryInfo]);
 
-  const validateCrewSize = useCallback((crewSize: number): { isRestricted: boolean, reasons: string[] } => {
+  const validateCrewSize = useCallback((crewSize: number): {
+    isRestricted: boolean;
+    reasons: string[];
+    requiredCrewSize: number; // 🆕 Ajout pour bypass admin
+  } => {
     const reasons: string[] = [];
 
     if (!articles || articles.length === 0) {
-      return { isRestricted: false, reasons: [] };
+      return { isRestricted: false, reasons: [], requiredCrewSize: 0 };
     }
 
     const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
-    
+
     // ✅ UTILISER LA FONCTION UTILITAIRE au lieu de recalculer
     const effectiveFloor = calculateEffectiveFloor();
 
@@ -131,6 +138,7 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     return {
       isRestricted: !validation.isValid,
+      requiredCrewSize: validation.requiredCrewSize, // 🆕 Retourner pour bypass admin
       reasons: validation.isValid ? [] : [
         ...validation.triggeredConditions.map(condition => `• ${condition}`),
         ...validation.recommendations.map(rec => `➜ ${rec}`)
@@ -475,11 +483,15 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   }, [articles, deliveryInfo]);
 
   // ========== FONCTIONS DE VALIDATION DES ÉQUIPIERS MISES À JOUR ==========
-  // const isCrewSizeRestricted = (crew: number): boolean => {
-  //   return restrictedCrewSizes.includes(crew);
-  // };
   const isCrewSizeRestricted = (crew: number): boolean => {
     const validation = validateCrewSize(crew);
+
+    // 🆕 Si l'utilisateur est admin/direction, il peut bypasser la limite devis obligatoire (≥3 équipiers)
+    if (validation.requiredCrewSize >= 3 && canBypassQuoteLimit(userRole)) {
+      console.log(`✅ [VEHICLE-SELECTOR] Admin bypass: Devis obligatoire autorisé pour ${crew} équipiers`);
+      return false; // Pas de restriction pour admin
+    }
+
     return validation.isRestricted;
   };
 

@@ -39,10 +39,11 @@ export const useStepManagement = (
     formState: FormState,
     dispatch: React.Dispatch<FormAction>,
     onSubmit?: (data: CommandeMetier) => Promise<void>,
-    isCession: boolean = false
+    isCession: boolean = false,
+    userRole?: string // 🆕 Rôle utilisateur pour bypass devis obligatoire
 ) => {
 
-    const { validateStep, validateForm } = useFormValidation(formState.data, isCession);
+    const { validateStep, validateForm } = useFormValidation(formState.data, isCession, userRole);
     const { saveDraft } = useDraftStorage();
 
     const emitValidationEvent = useCallback((step: number) => {

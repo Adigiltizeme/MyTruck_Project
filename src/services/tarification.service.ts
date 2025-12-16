@@ -1,5 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { MapboxService } from './mapbox.service';
+import { canBypassQuoteLimit } from '../utils/role-helpers';
 
 export type TypeVehicule = '1M3' | '6M3' | '10M3' | '20M3';
 
@@ -231,6 +232,7 @@ export class TarificationService {
         adresseMagasin: string;
         adresseLivraison: string;
         equipiers: number;
+        userRole?: string; // 🆕 Rôle utilisateur pour bypass devis obligatoire
     }): Promise<{
         montantHT: number | 'devis';
         detail: {
@@ -254,9 +256,15 @@ export class TarificationService {
 
             // 2. Calcul tarif équipiers selon nouvelle logique hiérarchique
             let tarifEquipiers: number | 'devis' = 0;
-            
+
             if (params.equipiers >= 3) {
-                tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+                // 🆕 Si admin, calculer le tarif même pour ≥3 équipiers (pas de devis obligatoire)
+                if (canBypassQuoteLimit(params.userRole)) {
+                    tarifEquipiers = params.equipiers * 22; // Niveau 3 admin: calcul tarif
+                    console.log(`✅ Admin bypass: Tarif calculé pour ${params.equipiers} équipiers = ${tarifEquipiers}€`);
+                } else {
+                    tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+                }
             } else if (params.equipiers === 2) {
                 tarifEquipiers = 44; // Niveau 2: +2 équipiers
             } else if (params.equipiers === 1) {
@@ -292,7 +300,8 @@ export class TarificationService {
             // 3. Calcul distance et frais kilométriques
             const { distance, fraisKm } = await this.calculerFraisKilometriques(
                 params.adresseMagasin,
-                params.adresseLivraison
+                params.adresseLivraison,
+                params.userRole // 🆕 Passer le rôle utilisateur pour bypass distance >50km
             );
 
             console.log(`Distance calculée: ${distance}km, frais kilométriques: ${fraisKm}`);
@@ -342,6 +351,7 @@ export class TarificationService {
     calculerEstimationSansKm(params: {
         vehicule: string;
         equipiers: number;
+        userRole?: string; // 🆕 Rôle utilisateur pour bypass devis obligatoire
     }): {
         montantHT: number | 'devis';
         detail: {
@@ -363,7 +373,13 @@ export class TarificationService {
             let tarifEquipiers: number | 'devis' = 0;
 
             if (params.equipiers >= 3) {
-                tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+                // 🆕 Si admin, calculer le tarif même pour ≥3 équipiers
+                if (canBypassQuoteLimit(params.userRole)) {
+                    tarifEquipiers = params.equipiers * 22; // Niveau 3 admin: calcul tarif
+                    console.log(`✅ [ESTIMATION] Admin bypass: Tarif calculé pour ${params.equipiers} équipiers = ${tarifEquipiers}€`);
+                } else {
+                    tarifEquipiers = 'devis'; // Niveau 3: Devis obligatoire
+                }
             } else if (params.equipiers === 2) {
                 tarifEquipiers = 44; // Niveau 2: +2 équipiers
             } else if (params.equipiers === 1) {
@@ -450,7 +466,11 @@ export class TarificationService {
         }
     }
 
-    private async calculerFraisKilometriques(adresseMagasin: string, adresseLivraison: string): Promise<{
+    private async calculerFraisKilometriques(
+        adresseMagasin: string,
+        adresseLivraison: string,
+        userRole?: string // 🆕 Rôle utilisateur pour bypass distance >50km
+    ): Promise<{
         distance: number;
         fraisKm: number | 'devis';
     }> {
@@ -488,8 +508,21 @@ export class TarificationService {
             // Calculer les frais selon la grille tarifaire
             let fraisKm = 0;
             if (distance > 50) {
-                console.log('Distance > 50km, un devis est requis');
-                return { distance, fraisKm: 'devis' };
+                // 🆕 Si admin, calculer le tarif même pour distance >50km (pas de devis obligatoire)
+                if (canBypassQuoteLimit(userRole)) {
+                    // Logique: +8€ par tranche de 10km au-delà de 50km
+                    // Base: 32€ (pour 40-50km)
+                    // 50-60km: 32€ + 8€ = 40€
+                    // 60-70km: 32€ + 16€ = 48€
+                    // 70-80km: 32€ + 24€ = 56€
+                    const kmAuDelaDe50 = distance - 50;
+                    const tranchesSupplementaires = Math.ceil(kmAuDelaDe50 / 10);
+                    fraisKm = 32 + (tranchesSupplementaires * 8);
+                    console.log(`✅ Admin bypass: Distance ${distance}km > 50km, tarif calculé = ${fraisKm}€ (32€ + ${tranchesSupplementaires} tranches × 8€)`);
+                } else {
+                    console.log('Distance > 50km, un devis est requis');
+                    return { distance, fraisKm: 'devis' };
+                }
             } else if (distance > 40) {
                 fraisKm = 32; // Tarif 40-50km
                 console.log('Tarif distance 40-50km appliqué: 32€');

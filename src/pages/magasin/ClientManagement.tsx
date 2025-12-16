@@ -93,6 +93,12 @@ export default function ClientManagement() {
         loadClients();
     };
 
+    // ✅ Pas de filtrage frontend pour les clients car ils n'ont pas de magasinId direct
+    // Le backend filtre déjà via la relation commandes->magasinId
+    // Le RoleSelector change user.role côté frontend, mais le JWT reste "admin"
+    // donc le backend doit gérer le filtrage (ce qui est déjà le cas)
+
+    // Filtrage par recherche (le backend a déjà filtré par magasin)
     const filteredClients = clients.filter(client =>
         client.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (client.prenom && client.prenom.toLowerCase().includes(searchTerm.toLowerCase()))

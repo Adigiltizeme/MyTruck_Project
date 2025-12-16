@@ -38,6 +38,7 @@ export interface BaseFormProps {
     }) => void;
     readOnly?: boolean;
     isEditing?: boolean;
+    userRole?: string; // 🆕 Rôle utilisateur pour bypass devis obligatoire (admin/direction)
     isCession?: boolean;
 }
 

@@ -128,16 +128,16 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       roles: ['admin', 'direction'],
     },
     {
-      name: 'Gestion Contacts',
-      icon: ChatBubbleLeftRightIcon,
-      href: '/contacts',
-      roles: ['admin', 'direction'],
-    },
-    {
       name: 'Gestion Clients',
       icon: UsersIcon,
       href: '/clients',
       roles: ['admin', 'magasin', 'direction'],
+    },
+    {
+      name: 'Gestion Contacts',
+      icon: ChatBubbleLeftRightIcon,
+      href: '/contacts',
+      roles: ['admin', 'direction'],
     },
     {
       name: 'Documents',

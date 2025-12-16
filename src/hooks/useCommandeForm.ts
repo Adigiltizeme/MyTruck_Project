@@ -37,13 +37,16 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
             }
         }
     });
-    const [errors, setErrors] = useState({}); // État pour les erreurs de validation
+    const [errors, setErrors] = useState({});
 
     const [state, dispatch] = useReducer(formReducer, initialFormState);
-    const stepManagement = useStepManagement(state, dispatch, onSubmit, isCession);
-    const { validateStep } = useFormValidation(state.data, isCession);
 
     const { user } = useAuth();
+    // ✅ Utiliser le rôle SIMULÉ pour respecter l'expérience utilisateur
+    // Quand admin bascule en mode magasin, il doit subir les mêmes contraintes qu'un vrai magasin
+    const effectiveRole = user?.role;
+    const stepManagement = useStepManagement(state, dispatch, onSubmit, isCession, effectiveRole);
+    const { validateStep } = useFormValidation(state.data, isCession, effectiveRole);
 
     const isSubmittingRef = useRef(false); // Référence persistante
 
@@ -106,9 +109,31 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 draftData.articles.dimensions = [];
             }
 
-            const hasContent = !deepEqual(draftData, initialFormState.data);
+            // Vérifier si le brouillon contient du vrai contenu utilisateur
+            // Ignorer les champs auto-remplis (magasin admin, dates par défaut, etc.)
+            const hasRealContent = (
+                // Articles avec dimensions ou quantité
+                (draftData.articles?.dimensions && draftData.articles.dimensions.length > 0) ||
+                (draftData.articles?.nombre && draftData.articles.nombre > 0) ||
+                draftData.articles?.details ||
 
-            if (hasContent) {
+                // Client rempli
+                draftData.client?.nom ||
+                draftData.client?.prenom ||
+                draftData.client?.telephone?.principal ||
+                draftData.client?.adresse?.ligne1 ||
+
+                // Livraison configurée
+                draftData.livraison?.vehicule ||
+                (draftData.livraison?.equipiers && draftData.livraison.equipiers > 0) ||
+                draftData.livraison?.creneau ||
+
+                // Vendeur renseigné
+                draftData.vendeur?.prenom
+            );
+
+            if (hasRealContent) {
+                console.log('✅ Brouillon avec contenu détecté');
                 // Vérifier si la date de livraison est dans le passé
                 const livraisonDate = draftData.dates?.livraison ? new Date(draftData.dates.livraison) : null;
                 const isPastDate = livraisonDate && livraisonDate < new Date();
@@ -175,6 +200,11 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                         clearDraft();
                     }
                 }
+            } else {
+                // Brouillon vide détecté - nettoyage automatique silencieux
+                console.log('🗑️ Brouillon vide détecté - nettoyage automatique');
+                clearDraft();
+                setDraftProposed(true);
             }
             setDraftProposed(true);
         }
@@ -217,6 +247,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                     }
 
                     console.log("Sauvegarde automatique du brouillon avec dimensions:", dataToSave.articles.dimensions?.length || 0);
+                    console.log("📦 Détail dimensions sauvegardées:", JSON.stringify(dataToSave.articles.dimensions, null, 2));
                     saveDraft(dataToSave);
                 }, 2000); // Augmenter le délai pour éviter les sauvegardes trop fréquentes
 
@@ -620,6 +651,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
     return {
         state,
+        dispatch,
         handleInputChange,
         handleSubmit,
         isSubmitting,

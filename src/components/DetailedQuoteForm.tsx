@@ -16,13 +16,15 @@ interface DetailedQuoteFormProps {
   isOpen: boolean;
   onClose: () => void;
   onQuoteGenerated: (devisInfo: any) => void;
+  userRole?: string;
 }
 
 const DetailedQuoteForm: React.FC<DetailedQuoteFormProps> = ({
   commande,
   isOpen,
   onClose,
-  onQuoteGenerated
+  onQuoteGenerated,
+  userRole
 }) => {
   const { dataService } = useOffline();
   const [currentStep, setCurrentStep] = useState(1);
@@ -105,7 +107,8 @@ const DetailedQuoteForm: React.FC<DetailedQuoteFormProps> = ({
         vehicule: commande.livraison.vehicule,
         adresseMagasin: commande.magasin?.address || '',
         adresseLivraison: commande.client?.adresse?.ligne1 || '',
-        equipiers: commande.livraison?.equipiers || 0
+        equipiers: commande.livraison?.equipiers || 0,
+        userRole
       });
 
       // Mettre à jour le prix du transport

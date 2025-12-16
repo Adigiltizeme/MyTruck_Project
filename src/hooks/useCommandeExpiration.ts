@@ -79,7 +79,7 @@ export const useCommandeExpiration = ({
                         await dataService.updateStatutsCommande(
                             commande.id,
                             'Annulée',
-                            // 'ANNULEE',
+                            'ANNULEE',
                             'Expiration automatique - Date de livraison passée'
                         );
                         console.log(`❌ Commande ${commande.numeroCommande} annulée automatiquement (expirée)`);
