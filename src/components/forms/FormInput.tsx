@@ -88,10 +88,12 @@ const FormInput = React.memo(({
                     max={max}
                     onChange={handleChange}
                     disabled={isDisabledField}
+                    readOnly={readOnly}
                     // onInput={onSearch ? (e) => onSearch(e.currentTarget.value) : undefined}
                     // list={onSearch ? `${name}-suggestions` : undefined}
-                    className={`mt-1 block w-full rounded-md border ${error ? 'border-red-500' : 'border-gray-300'
-                        }`}
+                    className={`mt-1 block w-full rounded-md border px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 ${
+                        error ? 'border-red-500' : 'border-gray-300'
+                    } ${isDisabledField || readOnly ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                     required={required}
                 />
                 {error && (

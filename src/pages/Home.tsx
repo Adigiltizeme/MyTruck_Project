@@ -302,6 +302,9 @@ const HomePage: React.FC = () => {
                         <p className="mt-1">
                             Conçu pour l'excellence dans le transport d'articles volumineux.
                         </p>
+                        <p className="mt-1 secondary">
+                            Développé par DIGILTIZEME
+                        </p>
                     </div>
                 </div>
             </footer>

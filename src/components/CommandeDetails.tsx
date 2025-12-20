@@ -8,8 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { VehicleValidationService } from '../services/vehicle-validation.service';
 import CommandeActions from './CommandeActions';
 import AdminActions from './AdminActions';
-import { AirtableService } from '../services/airtable.service';
-import { Personnel } from '../types/airtable.types';
+import { PersonnelInfo } from '../types/business.types';
 import { getStatutCommandeStyle, getStatutLivraisonStyle } from '../styles/getStatus';
 import PhotoUploader from './PhotoUploader';
 import { Upload, XCircle } from 'lucide-react';
@@ -66,7 +65,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
         const savedTab = localStorage.getItem(`commandeDetails_tab_${commande.id}`);
         return savedTab || 'informations';
     });
-    const [chauffeurs, setChauffeurs] = useState<Personnel[]>([]);
+    const [chauffeurs, setChauffeurs] = useState<PersonnelInfo[]>([]);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth();
 

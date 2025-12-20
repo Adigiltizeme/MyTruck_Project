@@ -1,5 +1,5 @@
 import { CommandeMetier, PersonnelInfo, MagasinInfo } from '../types/business.types';
-import { StatutCommande, StatutLivraison } from '../types/airtable.types';
+import { StatutCommande, StatutLivraison } from '../types/commande.types';
 import { apiService } from './api.service';
 
 export class BackendApiService {

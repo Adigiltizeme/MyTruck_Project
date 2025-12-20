@@ -30,6 +30,15 @@ export class TarificationService {
 
     constructor() {
         this.mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+
+        // Log pour vérifier si le token Mapbox est chargé
+        if (!this.mapboxToken || this.mapboxToken === 'undefined') {
+            console.error('❌ VITE_MAPBOX_TOKEN manquant ou invalide en production!');
+            console.log('Variables env disponibles:', Object.keys(import.meta.env));
+        } else {
+            console.log('✅ Mapbox token chargé:', this.mapboxToken.substring(0, 15) + '...');
+        }
+
         mapboxgl.accessToken = this.mapboxToken;
         this.mapboxService = new MapboxService(import.meta.env.VITE_MAPBOX_TOKEN);
     }

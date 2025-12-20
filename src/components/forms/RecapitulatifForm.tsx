@@ -282,6 +282,9 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     onChange={onChange}
                     error={showErrors ? errors.magasin?.manager : undefined}
                     required
+                    disabled={false}
+                    readOnly={false}
+                    placeholder="Entrez le nom du vendeur"
                 />
             </div>
         </div>

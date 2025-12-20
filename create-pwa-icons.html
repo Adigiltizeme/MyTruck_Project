@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Créateur d'Icônes PWA My Truck</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        canvas { border: 2px solid #ddd; margin: 10px 0; }
+        button { background: #0066CC; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0052a3; }
+        .icons { display: flex; gap: 20px; flex-wrap: wrap; }
+        .icon-box { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Créateur d'Icônes PWA - My Truck</h1>
+        <p>Cliquez sur les boutons ci-dessous pour générer et télécharger les icônes PWA.</p>
+
+        <div class="icons">
+            <div class="icon-box">
+                <h3>192x192</h3>
+                <canvas id="canvas192" width="192" height="192"></canvas>
+                <br>
+                <button onclick="downloadIcon(192)">Télécharger 192x192</button>
+            </div>
+
+            <div class="icon-box">
+                <h3>512x512</h3>
+                <canvas id="canvas512" width="512" height="512"></canvas>
+                <br>
+                <button onclick="downloadIcon(512)">Télécharger 512x512</button>
+            </div>
+        </div>
+
+        <hr>
+        <h3>Instructions</h3>
+        <ol>
+            <li>Téléchargez les deux icônes ci-dessus</li>
+            <li>Sauvegardez-les comme <code>icon-192x192.png</code> et <code>icon-512x512.png</code></li>
+            <li>Placez-les dans <code>frontend/public/</code></li>
+            <li>Relancez <code>npm run dev</code></li>
+        </ol>
+
+        <p><strong>Note :</strong> Ces icônes sont des placeholders. Pour un design professionnel, utilisez les outils mentionnés dans <code>CREATE_ICONS.md</code></p>
+    </div>
+
+    <script>
+        // Dessiner l'icône My Truck
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+
+            // Fond bleu My Truck
+            ctx.fillStyle = '#0066CC';
+            ctx.fillRect(0, 0, size, size);
+
+            // Texte "MT" en blanc
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = `bold ${size * 0.4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('MT', size / 2, size / 2);
+
+            // Sous-titre "Transport"
+            ctx.font = `${size * 0.1}px Arial`;
+            ctx.fillText('TRANSPORT', size / 2, size * 0.75);
+        }
+
+        // Télécharger l'icône
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}x${size}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        // Initialiser les canvas au chargement
+        window.onload = () => {
+            drawIcon(document.getElementById('canvas192'), 192);
+            drawIcon(document.getElementById('canvas512'), 512);
+        };
+    </script>
+</body>
+</html>

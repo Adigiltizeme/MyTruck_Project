@@ -3,6 +3,8 @@ import { NotificationService } from './notificationService';
 import { UserRole } from '../types/dashboard.types';
 import { db } from './offline-db.service';
 import { v4 as uuidv4 } from 'uuid';
+import { UserAirtableService } from './userAirtableService';
+import { AirtableService } from './airtable.service';
 import { handleStorageError } from '../utils/error-handler';
 import { SafeDbService } from './safe-db.service';
 
@@ -76,15 +78,116 @@ export class AuthService {
         }
     ];
 
+    private static userAirtableService = new UserAirtableService(
+        import.meta.env.VITE_AIRTABLE_TOKEN
+    );
+
+    // private static airtableService = new AirtableService(
+    //     import.meta.env.VITE_AIRTABLE_TOKEN,
+    //     import.meta.env.VITE_AIRTABLE_BASE_ID
+    // );
+
     // Vérifier si le mode hors ligne est activé
     private static isOfflineMode(): boolean {
         return localStorage.getItem('forceOfflineMode') === 'true';
     }
 
-    // Méthode pour synchroniser les utilisateurs locaux (Legacy - Non utilisée avec Backend API)
+    // Méthode pour synchroniser les utilisateurs locaux avec Airtable
     static async syncUsers(): Promise<void> {
-        console.log('syncUsers: Méthode legacy - Synchronisation ignorée (Backend API utilisé)');
-        return;
+        if (this.isOfflineMode()) {
+            console.log('Mode hors ligne actif - Synchronisation ignorée');
+            return;
+        }
+
+        // ✅ NOUVEAU: Vérifier si on doit synchroniser avec Airtable
+        const userSource = localStorage.getItem('userSource');
+        const preferredSource = localStorage.getItem('preferredDataSource');
+
+        if (userSource === 'backend' || preferredSource === 'backend_api') {
+            console.log('🚫 syncUsers: Backend API actif, synchronisation Airtable ignorée');
+            return;
+        }
+
+        // Vérifier format utilisateur Backend
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.nom && (user.magasin || user.chauffeur)) {
+                    console.log('🚫 syncUsers: Format Backend détecté, synchronisation Airtable ignorée');
+                    return;
+                }
+            } catch (e) {
+                // Continue avec la synchronisation
+            }
+        }
+
+        try {
+            console.log('Synchronisation des utilisateurs depuis Airtable...');
+
+            try {
+                // Récupérer les utilisateurs d'Airtable
+                const airtableService = new UserAirtableService(
+                    import.meta.env.VITE_AIRTABLE_TOKEN as string
+                );
+
+                const airtableUsers = await airtableService.fetchAllUsers();
+                console.log(`${airtableUsers.length} utilisateurs récupérés depuis Airtable`);
+
+                // Vérifier que users est bien initialisé comme un tableau
+                if (!Array.isArray(this.users)) {
+                    console.log("Initialisation du tableau d'utilisateurs");
+                    this.users = [];
+                }
+
+                // Fusionner avec les utilisateurs existants en mémoire pour éviter les doublons
+                const existingEmails = new Set(
+                    this.users
+                        .filter(u => u && u.email && typeof u.email === 'string')
+                        .map(u => u.email.toLowerCase())
+                );
+
+                for (const airtableUser of airtableUsers) {
+                    if (airtableUser.email && typeof airtableUser.email === 'string' &&
+                        !existingEmails.has(airtableUser.email.toLowerCase())) {
+                        this.users.push(airtableUser);
+                        existingEmails.add(airtableUser.email.toLowerCase());
+                    }
+                }
+
+                // Mettre à jour la base de données locale
+                try {
+                    await db.transaction('rw', db.users, async () => {
+                        // Ne pas vider la table pour conserver les utilisateurs locaux
+
+                        // Mettre à jour ou ajouter les utilisateurs d'Airtable
+                        for (const user of airtableUsers) {
+                            const existingUser = await db.users.get(user.id);
+                            if (existingUser) {
+                                // Préserver le mot de passe local s'il existe
+                                if (existingUser.passwordHash) {
+                                    user.passwordHash = existingUser.passwordHash;
+                                }
+                                await db.users.update(user.id, user);
+                            } else {
+                                await db.users.add(user);
+                            }
+                        }
+                    });
+
+                    console.log('Utilisateurs synchronisés avec succès');
+                } catch (dbError) {
+                    console.error('Erreur lors de la mise à jour de la base locale:', dbError);
+                    // Ne pas faire échouer la synchronisation pour un problème de base locale
+                }
+            } catch (error) {
+                console.error('Erreur lors de la récupération des utilisateurs depuis Airtable:', error);
+                // Continuer avec les utilisateurs locaux
+            }
+        } catch (error) {
+            console.error('Erreur lors de la synchronisation des utilisateurs:', error);
+            throw error;
+        }
     }
 
     // Charger les utilisateurs depuis la base de données locale
@@ -107,12 +210,12 @@ export class AuthService {
             // Vérifier si c'est un compte spécial (sans vérification de mot de passe)
             const isSpecialAccount = SPECIAL_ACCOUNTS.includes(email.toLowerCase());
 
-            // Synchroniser les utilisateurs si possible
+            // Synchroniser depuis Airtable si possible
             if (!this.isOfflineMode()) {
                 try {
                     await this.syncUsers();
                 } catch (error) {
-                    console.warn('Impossible de synchroniser les utilisateurs:', error);
+                    console.warn('Impossible de synchroniser les utilisateurs depuis Airtable:', error);
                 }
             }
 
@@ -240,6 +343,15 @@ export class AuthService {
                         console.warn('Erreur lors de la récupération des infos magasin depuis la BD locale:', dbError);
                     }
 
+                    // Si non trouvé localement et en ligne, essayer via Airtable
+                    if (!storeInfo && !this.isOfflineMode()) {
+                        try {
+                            // storeInfo = await this.airtableService.getMagasinById(user.storeId);
+                        } catch (airtableError) {
+                            console.warn('Erreur lors de la récupération des infos magasin depuis Airtable:', airtableError);
+                        }
+                    }
+
                     // Si on a trouvé les infos du magasin, compléter l'utilisateur
                     if (storeInfo) {
                         authenticatedUser = {
@@ -338,10 +450,19 @@ export class AuthService {
 
     static async signup(userData: UserSignupData): Promise<{ success: boolean; user?: AuthUser; message?: string }> {
         try {
-            // Vérifier si l'email existe déjà (vérification locale uniquement)
+            // Vérifier si l'email existe déjà
             let emailExists = false;
 
-            if (Array.isArray(this.users)) {
+            if (!this.isOfflineMode()) {
+                try {
+                    emailExists = await this.userAirtableService.checkEmailExists(userData.email);
+                } catch (error) {
+                    console.warn('Erreur lors de la vérification de l\'email sur Airtable:', error);
+                }
+            }
+
+            // Vérification locale (en mode hors ligne ou comme double check)
+            if (!emailExists && Array.isArray(this.users)) {
                 emailExists = this.users.some(user =>
                     user && user.email && typeof user.email === 'string' &&
                     user.email.toLowerCase() === userData.email.toLowerCase()
@@ -394,6 +515,15 @@ export class AuthService {
                     newUser.storeAddress = storeData.address;
                 }
 
+                // En ligne : créer le magasin dans Airtable
+                if (!this.isOfflineMode()) {
+                    try {
+                        // await this.airtableService.createMagasin(storeData);
+                    } catch (error) {
+                        console.error('Erreur lors de la création du magasin dans Airtable:', error);
+                    }
+                }
+
                 // Ajouter à la table locale des magasins
                 try {
                     await SafeDbService.add('magasins', storeData);
@@ -431,6 +561,15 @@ export class AuthService {
                     newUser.driverId = driverData.id;
                 }
 
+                // En ligne : créer le chauffeur dans Airtable
+                if (!this.isOfflineMode()) {
+                    try {
+                        // await this.airtableService.createPersonnel(driverData);
+                    } catch (error) {
+                        console.error('Erreur lors de la création du chauffeur dans Airtable:', error);
+                    }
+                }
+
                 // Ajouter à la table locale du personnel
                 try {
                     await SafeDbService.add('personnel', driverData);
@@ -448,6 +587,16 @@ export class AuthService {
                         data: driverData,
                         timestamp: Date.now()
                     });
+                }
+            }
+
+            if (!this.isOfflineMode()) {
+                try {
+                    // Créer l'utilisateur dans Airtable
+                    newUser = await this.userAirtableService.createUser(userData);
+                } catch (error) {
+                    console.error('Erreur lors de la création dans Airtable:', error);
+                    // Continuer avec l'utilisateur local temporaire
                 }
             }
 
@@ -544,8 +693,32 @@ export class AuthService {
                 });
             }
 
-            // En mode hors ligne, ajouter aux changements en attente
-            if (this.isOfflineMode()) {
+            // En mode connecté, mettre à jour dans Airtable
+            if (!this.isOfflineMode()) {
+                try {
+                    await this.userAirtableService.updateUser(userId, {
+                        name: updates.name,
+                        email: updates.email,
+                        storePhone: updates.storePhone
+                    });
+                } catch (error) {
+                    console.error('Erreur lors de la mise à jour dans Airtable:', error);
+                    // Ajouter aux changements en attente
+                    await db.pendingChanges.add({
+                        id: uuidv4(),
+                        entityType: 'user',
+                        entityId: userId,
+                        action: 'update',
+                        data: {
+                            name: updates.name,
+                            email: updates.email,
+                            phone: updates.storePhone
+                        },
+                        timestamp: Date.now()
+                    });
+                }
+            } else {
+                // En mode hors ligne, ajouter aux changements en attente
                 await db.pendingChanges.add({
                     id: uuidv4(),
                     entityType: 'user',
@@ -586,7 +759,8 @@ export class AuthService {
             // Mettre à jour l'utilisateur en base locale
             await db.users.update(userId, { passwordHash: newPasswordHash });
 
-            // Note: Les mots de passe sont gérés localement uniquement
+            // Note: Nous ne mettons pas à jour le mot de passe dans Airtable pour des raisons de sécurité
+            // Les mots de passe sont gérés localement uniquement
 
             return updatedUser;
         } catch (error) {
@@ -636,8 +810,11 @@ export class AuthService {
             // Supprimer de la base locale
             await db.users.delete(userId);
 
-            // En mode hors ligne, ajouter aux changements en attente
-            if (this.isOfflineMode()) {
+            if (!this.isOfflineMode()) {
+                // Supprimer dans Airtable
+                await this.userAirtableService.deleteUser(userId);
+            } else {
+                // En mode hors ligne, ajouter aux changements en attente
                 await db.pendingChanges.add({
                     id: uuidv4(),
                     entityType: 'user',

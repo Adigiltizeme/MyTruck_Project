@@ -1,49 +1,63 @@
-// import { defineConfig } from 'vite';
-// import react from '@vitejs/plugin-react';
-// import path from 'path';
-// import { dirname } from 'path';
-// import { fileURLToPath } from 'url';
-
-// const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// export default defineConfig({
-//   plugins: [react()],
-//   server: {
-//     port: 3001, // Pour éviter les conflits avec le backend sur 3000
-//     proxy: {
-//       '/api': {
-//         target: 'http://localhost:3000',
-//         changeOrigin: true,
-//         secure: false,
-//         configure: (proxy) => {
-//           proxy.on('error', (err) => {
-//             // eslint-disable-next-line no-console
-//             console.log('Erreur de proxy:', err);
-//           });
-//           proxy.on('proxyReq', (_, req) => {
-//             // eslint-disable-next-line no-console
-//             console.log('Requête envoyée:', req.method, req.url);
-//           });
-//         },
-//       },
-//     },
-//   },
-//   resolve: {
-//     alias: {
-//       '@': path.resolve(__dirname, 'src'),
-//     },
-//   },
-// });
-
-// vite.config.ts - Correction pour process.env
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'My Truck - Gestion de Transport',
+        short_name: 'My Truck',
+        description: 'Application de gestion de transport et livraison',
+        theme_color: '#0066CC',
+        background_color: '#ffffff',
+        display: 'standalone',
+        scope: '/',
+        start_url: '/',
+        orientation: 'portrait-primary',
+        icons: [
+          {
+            src: '/icon-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/icon-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\./,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      },
+      devOptions: {
+        enabled: true
+      }
+    })
+  ],
   define: {
-    // Exposer seulement les variables VITE_ nécessaires (sécurisé)
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     global: 'globalThis',
   },
