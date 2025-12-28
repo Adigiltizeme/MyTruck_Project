@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { VehicleType, VehicleValidationService } from '../services/vehicle-validation.service';
 import { canBypassQuoteLimit } from '../utils/role-helpers';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ArticleDimensions {
   longueur?: number;
@@ -68,12 +69,24 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     []
   );
 
-  const VEHICULES = useMemo(() => ({
-    "1M3 (Utilitaire 150kg, 100x100x100cm)": "1M3",
-    "6M3 (Camionnette 300kg, 260x160x125cm)": "6M3",
-    "10M3 (Camionnette 800kg, 310x178x190cm)": "10M3",
-    "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
-  }), []);
+  const { user } = useAuth();
+
+  const VEHICULES = useMemo(() => {
+    const allVehicles = {
+      "1M3 (Utilitaire 150kg, 100x100x100cm)": "1M3",
+      "6M3 (Camionnette 300kg, 260x160x125cm)": "6M3",
+      "10M3 (Camionnette 800kg, 310x178x190cm)": "10M3",
+      "20M3 (Avec hayon 750kg, 410, 200, 210cm)": "20M3"
+    };
+
+    // ❌ Cacher le véhicule 1M3 uniquement pour le magasin Truffaut Bry-Sur-Marne
+    if (user?.storeName === 'Truffaut Bry-Sur-Marne') {
+      const { "1M3 (Utilitaire 150kg, 100x100x100cm)": _, ...vehiclesWithout1M3 } = allVehicles;
+      return vehiclesWithout1M3;
+    }
+
+    return allVehicles;
+  }, [user?.storeName]);
 
   // 🔧 UTILITAIRE : Calculer l'étage effectif UNE SEULE FOIS
   const calculateEffectiveFloor = useCallback((): number => {
@@ -269,7 +282,21 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
 
     setRestrictedVehicles(restricted);
 
-    const recommended = VehicleValidationService.recommendVehicle(articles, canBeTilted);
+    let recommended = VehicleValidationService.recommendVehicle(articles, canBeTilted);
+
+    // ❌ Si le véhicule recommandé est 1M3 et que l'utilisateur est du magasin Bry-Sur-Marne,
+    // trouver le prochain véhicule compatible
+    if (recommended === '1M3' && user?.storeName === 'Truffaut Bry-Sur-Marne') {
+      // Chercher le prochain véhicule compatible (6M3, 10M3, ou 20M3)
+      const alternativeVehicles: VehicleType[] = ['6M3', '10M3', '20M3'];
+      const alternative = alternativeVehicles.find(vehicleType => {
+        return articles.every(article =>
+          VehicleValidationService.canFitInVehicle(article, vehicleType, canBeTilted)
+        );
+      });
+      recommended = alternative || null;
+    }
+
     setRecommendedVehicle(recommended);
 
     // ========== NOUVELLE LOGIQUE ÉQUIPIERS ==========
@@ -357,7 +384,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
     deliveryInfo?.rueInaccessible,
     deliveryInfo?.paletteComplete,
     calculateRecommendedCrewSize,
-    validateCrewSize
+    validateCrewSize,
+    user?.storeName // 🆕 Ajout pour réagir au changement de magasin
   ]);
 
   // Fonction de conversion améliorée

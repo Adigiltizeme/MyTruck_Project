@@ -484,6 +484,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     const [slotsError, setSlotsError] = useState<string | null>(null);
     const [useDynamicSlots, setUseDynamicSlots] = useState(true);
     const [showContactForm, setShowContactForm] = useState(false);
+    const [showTarifEstimation, setShowTarifEstimation] = useState(false); // 🆕 État pour afficher/masquer l'estimation
 
     const slotsService = new SlotsService();
 
@@ -1566,60 +1567,123 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 </div>
             </div>
 
-            {/* ========== AFFICHAGE DU TARIF ========== */}
-            {calculatingTarif ? (
-                <div className="mt-4 p-4 border rounded-lg">
-                    <p className="text-gray-600">Calcul du tarif en cours...</p>
-                </div>
-            ) : tarifDetails && (
-                <div className="mt-4 p-4 border rounded-lg">
-                    <h3 className="font-medium text-lg mb-2 secondary">Détail du tarif "MY TRUCK"</h3>
-                    {tarifDetails.montantHT === 'devis' ? (
-                        <div className="text-red-600 font-medium">
-                            Devis obligatoire pour cette livraison
-                            {tarifDetails.detail.equipiers === 'devis' && (
-                                <p className="text-sm mt-1">
-                                    Raison : Plus de 2 équipiers demandés
-                                </p>
-                            )}
-                            {tarifDetails.detail.distance === 'devis' && (
-                                <p className="text-sm mt-1">
-                                    Raison : Distance supérieure à 50km
-                                </p>
-                            )}
-                            <div className="mt-3 flex items-center">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowContactForm(true)}
-                                    className="text-blue-600 hover:text-blue-800 text-sm underline"
-                                >
-                                    Demandez votre devis ici
-                                </button>
-                                <span className="ml-2 text-gray-500 text-sm">
-                                    ou contactez-nous au 06 22 15 62 60.
-                                </span>
-                            </div>
+            {/* ========== BOUTON AFFICHAGE/MASQUAGE TARIF ========== */}
+            {tarifDetails && !calculatingTarif && (
+                <div className="mb-6">
+                    <button
+                        type="button"
+                        onClick={() => setShowTarifEstimation(!showTarifEstimation)}
+                        className="w-full flex items-center justify-between px-4 py-3 bg-green-100 hover:bg-green-200 border-2 border-green-300 rounded-lg transition-colors duration-200"
+                    >
+                        <div className="flex items-center">
+                            <span className="text-lg font-semibold text-green-800">
+                                {showTarifEstimation ? 'Masquer le tarif de livraison' : 'Voir le tarif de livraison'}
+                            </span>
                         </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <p>
-                                <span className="font-medium">Véhicule:</span> {tarifDetails.detail.vehicule}€
-                            </p>
-                            {typeof tarifDetails.detail.equipiers === 'number' && tarifDetails.detail.equipiers > 0 && (
-                                <p>
-                                    <span className="font-medium">Équipiers:</span> {tarifDetails.detail.equipiers}€
-                                </p>
+                        <svg
+                            className={`w-6 h-6 text-green-700 transform transition-transform duration-200 ${showTarifEstimation ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+
+                    {/* ========== AFFICHAGE DU TARIF ========== */}
+                    {showTarifEstimation && (
+                        <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 shadow-md">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center">
+                                    <span className="text-3xl mr-3">💰</span>
+                                    <div>
+                                        <h4 className="text-xl font-bold text-green-800">Tarif de livraison "MY TRUCK"</h4>
+                                        <p className="text-sm text-green-700">Tarif complet avec frais kilométriques</p>
+                                    </div>
+                                </div>
+                                {tarifDetails.montantHT === 'devis' ? (
+                                    <div className="text-3xl font-bold text-orange-600">DEVIS</div>
+                                ) : (
+                                    <div className="text-right">
+                                        <div className="text-4xl font-bold text-green-700">{tarifDetails.montantHT}€</div>
+                                        <div className="text-sm text-green-600 font-medium">HT</div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Détail du tarif */}
+                            {tarifDetails.montantHT === 'devis' ? (
+                                <div>
+                                    <div className="mt-4 p-4 bg-orange-100 border border-orange-300 rounded-md">
+                                        <p className="text-orange-800 font-semibold mb-2">Devis obligatoire pour cette livraison</p>
+                                        {tarifDetails.detail.equipiers === 'devis' && (
+                                            <p className="text-sm text-orange-700 mt-1">
+                                                • Raison : Plus de 2 équipiers demandés
+                                            </p>
+                                        )}
+                                        {tarifDetails.detail.distance === 'devis' && (
+                                            <p className="text-sm text-orange-700 mt-1">
+                                                • Raison : Distance supérieure à 50km
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-center p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowContactForm(true)}
+                                            className="text-blue-600 hover:text-blue-800 font-medium underline"
+                                        >
+                                            Demandez votre devis ici
+                                        </button>
+                                        <span className="ml-2 text-gray-600 text-sm">
+                                            ou contactez-nous au 06 22 15 62 60
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="mt-4 pt-4 border-t border-green-200">
+                                    <p className="text-sm font-medium text-green-800 mb-2">Détail du tarif :</p>
+                                    <div className="grid grid-cols-1 gap-3 text-sm">
+                                        <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                            <span className="text-gray-700">Véhicule {data.livraison?.vehicule} :</span>
+                                            <span className="font-semibold text-green-700">{tarifDetails.detail.vehicule}€</span>
+                                        </div>
+                                        {typeof tarifDetails.detail.equipiers === 'number' && (
+                                            <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                                <span className="text-gray-700">
+                                                    {data.livraison?.equipiers === 0 ? 'Chauffeur seul' :
+                                                        `Équipiers (+${data.livraison?.equipiers})`} :
+                                                </span>
+                                                <span className="font-semibold text-green-700">
+                                                    {tarifDetails.detail.equipiers}€
+                                                </span>
+                                            </div>
+                                        )}
+                                        {typeof tarifDetails.detail.distance === 'number' && tarifDetails.detail.distance > 0 && (
+                                            <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
+                                                <span className="text-gray-700">Frais kilométriques :</span>
+                                                <span className="font-semibold text-green-700">{tarifDetails.detail.distance}€</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="mt-4 pt-3 border-t border-green-300">
+                                        <div className="flex justify-between items-center bg-white bg-opacity-80 rounded-lg px-4 py-3">
+                                            <span className="text-lg font-bold text-green-800">Total HT :</span>
+                                            <span className="text-2xl font-bold text-green-700">{tarifDetails.montantHT}€</span>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
-                            {typeof tarifDetails.detail.distance === 'number' && tarifDetails.detail.distance > 0 && (
-                                <p>
-                                    <span className="font-medium">Frais kilométriques:</span> {tarifDetails.detail.distance}€
-                                </p>
-                            )}
-                            <p className="text-lg font-medium mt-2 border-t pt-2">
-                                Total HT: {tarifDetails.montantHT}€
-                            </p>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Calcul en cours */}
+            {calculatingTarif && (
+                <div className="mt-4 p-4 border-2 border-blue-300 bg-blue-50 rounded-lg flex items-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+                    <p className="text-blue-700 font-medium">Calcul du tarif en cours...</p>
                 </div>
             )}
 
