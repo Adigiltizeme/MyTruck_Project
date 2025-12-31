@@ -141,7 +141,13 @@ export default function MagasinManagement() {
     const loadMagasinStats = async (magasinId: string) => {
         try {
             const response = await apiService.get(`/magasins/${magasinId}/stats`);
-            setStats(prev => ({ ...prev, [magasinId]: response }));
+            console.log('📊 Stats reçues du backend:', response);
+
+            // Le backend retourne déjà le total HT dans financier.chiffreAffairesTotalHT
+            setStats(prev => ({
+                ...prev,
+                [magasinId]: typeof response === 'object' ? response : {}
+            }));
         } catch (error) {
             console.error('Erreur chargement statistiques:', error);
         }
@@ -652,13 +658,7 @@ export default function MagasinManagement() {
                                             <div className="bg-white p-4 rounded-lg shadow-sm">
                                                 <p className="text-sm font-medium text-gray-500">Commandes totales</p>
                                                 <p className="text-2xl font-bold text-blue-600">
-                                                    {stats[magasin.id]?.totaux?.commandes || 0}
-                                                </p>
-                                            </div>
-                                            <div className="bg-white p-4 rounded-lg shadow-sm">
-                                                <p className="text-sm font-medium text-gray-500">Utilisateurs</p>
-                                                <p className="text-2xl font-bold text-green-600">
-                                                    {stats[magasin.id]?.totaux?.users || 0}
+                                                    {stats[magasin.id]?.totaux?.commandesOrigine || 0}
                                                 </p>
                                             </div>
                                             <div className="bg-white p-4 rounded-lg shadow-sm">
@@ -671,6 +671,15 @@ export default function MagasinManagement() {
                                                 <p className="text-sm font-medium text-gray-500">Devis</p>
                                                 <p className="text-2xl font-bold text-orange-600">
                                                     {stats[magasin.id]?.totaux?.devis || 0}
+                                                </p>
+                                            </div>
+                                            {/* 💰 Total HT */}
+                                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg shadow-sm border-2 border-green-300">
+                                                <p className="text-sm font-medium text-green-700">💰 Total HT</p>
+                                                <p className="text-2xl font-bold text-green-700">
+                                                    {stats[magasin.id]?.financier?.chiffreAffairesTotalHT !== undefined && stats[magasin.id]?.financier?.chiffreAffairesTotalHT !== null
+                                                        ? `${Number(stats[magasin.id].financier.chiffreAffairesTotalHT).toFixed(2)}€`
+                                                        : '0.00€'}
                                                 </p>
                                             </div>
                                         </div>

@@ -818,13 +818,40 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-gray-800">
                     {/* Afficher le nombre de résultats filtrés */}
                     <div className="mb-2 text-sm text-gray-500 dark:bg-gray-800 p-4">
-                        {filteredByRoleData.length !== data.length && (
+                        <div className="flex items-center justify-between">
                             <div>
-                                Affichage de {filteredByRoleData.length} commandes
-                                {user?.role === 'magasin' && ` pour ${user.storeName || 'ce magasin'}`}
-                                {user?.role === 'chauffeur' && ` assignées à ${user.driverName || 'ce chauffeur'}`}
+                                {filteredByRoleData.length !== data.length && (
+                                    <div>
+                                        Affichage de {filteredByRoleData.length} commandes
+                                        {user?.role === 'magasin' && ` pour ${user.storeName || 'ce magasin'}`}
+                                        {user?.role === 'chauffeur' && ` assignées à ${user.driverName || 'ce chauffeur'}`}
+                                    </div>
+                                )}
                             </div>
-                        )}
+                            {/* 💰 Total HT pour admin */}
+                            {isAdminRole(user?.role) && (
+                                <div className="flex items-center space-x-4">
+                                    <div className="bg-green-50 dark:bg-green-900 px-4 py-2 rounded-lg border-2 border-green-300 dark:border-green-600">
+                                        <span className="text-xs font-medium text-green-600 dark:text-green-300 mr-2">Total HT affiché :</span>
+                                        <span className="text-lg font-bold text-green-700 dark:text-green-200">
+                                            {filteredByTemporalData
+                                                .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
+                                                .reduce((sum, cmd) => sum + (cmd.financier?.tarifHT || 0), 0)
+                                                .toFixed(2)}€
+                                        </span>
+                                    </div>
+                                    <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2 rounded-lg border-2 border-blue-300 dark:border-blue-600">
+                                        <span className="text-xs font-medium text-blue-600 dark:text-blue-300 mr-2">Total général :</span>
+                                        <span className="text-lg font-bold text-blue-700 dark:text-blue-200">
+                                            {data
+                                                .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
+                                                .reduce((sum, cmd) => sum + (cmd.financier?.tarifHT || 0), 0)
+                                                .toFixed(2)}€
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     {/* ✅ BARRE D'ACTIONS Suppression multiple */}
                     {selectedRows.size > 0 && (

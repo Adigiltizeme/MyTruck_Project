@@ -215,7 +215,9 @@ export class SimpleBackendService {
                 })) || [],
 
                 financier: {
-                    tarifHT: parseFloat(backendData.tarifHT) || 0
+                    tarifHT: parseFloat(backendData.tarifHT) || 0,
+                    factures: backendData.factures || [],
+                    devis: backendData.devis || []
                 },
 
                 documents: backendData.documents || [],

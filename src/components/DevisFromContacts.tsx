@@ -515,7 +515,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                   {/* Bouton Aperçu */}
                   <button
                     onClick={() => handlePreviewDevis(contact)}
-                    className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                    className="p-2 text-blue-700 rounded-lg hover:bg-blue-200"
                     title="Aperçu"
                   >
                     <Eye className="w-4 h-4" />
@@ -524,7 +524,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                   {/* Bouton Télécharger */}
                   <button
                     onClick={() => handleDownloadDevis(contact)}
-                    className="p-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                    className="p-2 text-gray-700 rounded-lg hover:bg-gray-300"
                     title="Télécharger"
                   >
                     <Download className="w-4 h-4" />
@@ -535,7 +535,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                     <>
                       <button
                         onClick={() => handleValidateClick(contact)}
-                        className="p-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200"
+                        className="p-2 text-green-700 rounded-lg hover:bg-green-200"
                         title="Valider"
                       >
                         <CheckCircle className="w-4 h-4" />
@@ -543,7 +543,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
 
                       <button
                         onClick={() => handleRejectClick(contact)}
-                        className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                        className="p-2 text-red-700 rounded-lg hover:bg-red-200"
                         title="Refuser"
                       >
                         <XCircle className="w-4 h-4" />
@@ -555,7 +555,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                   {isAdminRole(user?.role) && contact.statut === 'DEVIS_VALIDE' && (
                     <button
                       onClick={() => handleCreateCommande(contact)}
-                      className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200"
+                      className="p-2 text-purple-700 rounded-lg hover:bg-purple-200"
                       title="Créer une commande avec les données de ce devis"
                     >
                       <PlusCircle className="w-4 h-4" />
@@ -566,7 +566,7 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                   {isAdminRole(user?.role) && (
                     <button
                       onClick={() => handleDelete(contact.id)}
-                      className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200"
+                      className="p-2 text-red-700 rounded-lg hover:bg-red-200"
                       title="Supprimer ce devis"
                     >
                       <Trash2 className="w-4 h-4" />

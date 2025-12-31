@@ -921,8 +921,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         )}
                     </div>
 
-                    {/* Montage nécessaire */}
-                    <div>
+                    {/* Montage nécessaire A CACHER POUR LE MOMENT */}
+                    {/* <div>
                         <label className="flex items-center text-sm mb-1">
                             <input
                                 type="checkbox"
@@ -935,7 +935,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         <p className="text-xs text-gray-500 ml-6">
                             Assemblage de meubles, installation d'arbres, plantes, d'équipements, etc.
                         </p>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Résumé automatique des conditions détectées */}

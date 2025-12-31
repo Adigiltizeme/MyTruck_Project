@@ -66,8 +66,11 @@ const DocumentsPage: React.FC = () => {
                     commande.financier.devis.forEach(devis => {
                         allDevis.push({
                             ...devis,
-                            id: commande.id,
-                            numeroDevis: commande.numeroCommande,
+                            // ✅ Conserver les vraies données devis mais ajouter client/magasin de la commande
+                            dateDevis: devis.dateDevis,
+                            dateEcheance: devis.dateDevis, // Utiliser dateDevis comme dateEcheance si non fourni
+                            montantHT: commande.financier.tarifHT,
+                            montantTTC: commande.financier.tarifHT * 1.2, // TVA 20%
                             client: commande.client || {
                                 nom: '',
                                 prenom: '',
@@ -92,8 +95,10 @@ const DocumentsPage: React.FC = () => {
                     commande.financier.factures.forEach(facture => {
                         allFactures.push({
                             ...facture,
-                            id: commande.id,
-                            numeroFacture: commande.numeroCommande,
+                            // ✅ Conserver les vraies données facture mais ajouter client/magasin de la commande
+                            dateFacture: facture.dateFacture,
+                            dateEcheance: facture.dateFacture, // Utiliser dateFacture comme dateEcheance si non fourni
+                            montantHT: commande.financier.tarifHT,
                             client: commande.client || {
                                 nom: '',
                                 prenom: '',
@@ -370,7 +375,7 @@ const DocumentsPage: React.FC = () => {
                 <div className="mb-4">
                     <h2 className="text-xl font-semibold text-gray-900">Documents de commandes</h2>
                     <p className="text-sm text-gray-600 mt-1">
-                        Devis et factures générés depuis les commandes existantes
+                        Factures générées depuis les commandes existantes
                     </p>
                 </div>
 
@@ -442,10 +447,10 @@ const DocumentsPage: React.FC = () => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                 <button
                                                     onClick={() => handleDownloadDocument(doc)}
-                                                    className="text-blue-600 hover:text-blue-900 flex items-center"
+                                                    className="p-2 text-gray-700 rounded-lg hover:bg-gray-300"
                                                     title="Télécharger"
                                                 >
-                                                    <Download className="w-5 h-5" />
+                                                    <Download className="w-4 h-4" />
                                                 </button>
                                             </td>
                                         </tr>
