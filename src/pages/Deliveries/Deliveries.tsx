@@ -834,10 +834,13 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                     <div className="bg-green-50 dark:bg-green-900 px-4 py-2 rounded-lg border-2 border-green-300 dark:border-green-600">
                                         <span className="text-xs font-medium text-green-600 dark:text-green-300 mr-2">Total HT affiché :</span>
                                         <span className="text-lg font-bold text-green-700 dark:text-green-200">
-                                            {filteredByTemporalData
+                                            {(paginatedItems as CommandeMetier[])
                                                 .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
                                                 .reduce((sum, cmd) => sum + (cmd.financier?.tarifHT || 0), 0)
                                                 .toFixed(2)}€
+                                        </span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                            ({(paginatedItems as CommandeMetier[]).length} cmd)
                                         </span>
                                     </div>
                                     <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2 rounded-lg border-2 border-blue-300 dark:border-blue-600">
@@ -847,6 +850,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                 .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
                                                 .reduce((sum, cmd) => sum + (cmd.financier?.tarifHT || 0), 0)
                                                 .toFixed(2)}€
+                                        </span>
+                                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                            ({data.length} cmd)
                                         </span>
                                     </div>
                                 </div>
