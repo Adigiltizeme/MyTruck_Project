@@ -17,6 +17,7 @@ import { useApi } from '../../services/api.service';
 import { MagasinInfo, PersonnelInfo } from '../../types/business.types';
 import { normalizeMagasin } from '../../utils/data-normalization';
 import DependenciesModal from '../../components/DependenciesModal';
+import { createPhoneLink, createNavigationLink, isValidPhone, isValidAddress } from '../../utils/contact-links';
 
 interface MagasinFormData {
     nom: string;
@@ -591,14 +592,36 @@ export default function MagasinManagement() {
                                                 <div className="mt-2 space-y-1">
                                                     <div className="flex items-center text-sm text-gray-600">
                                                         <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                                                        <span className="truncate">{magasin.address || 'Adresse non définie'}</span>
+                                                        {isValidAddress(magasin.address) ? (
+                                                            <a
+                                                                href={createNavigationLink(magasin.address)}
+                                                                className="truncate text-green-600 hover:text-green-800 hover:underline font-medium"
+                                                                title="Ouvrir dans GPS"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >
+                                                                {magasin.address}
+                                                            </a>
+                                                        ) : (
+                                                            <span className="truncate">{magasin.address || 'Adresse non définie'}</span>
+                                                        )}
                                                     </div>
 
                                                     <div className="flex items-center space-x-6 text-sm text-gray-500">
                                                         {magasin.phone && (
                                                             <div className="flex items-center">
                                                                 <PhoneIcon className="h-4 w-4 mr-1" />
-                                                                {magasin.phone}
+                                                                {isValidPhone(magasin.phone) ? (
+                                                                    <a
+                                                                        href={createPhoneLink(magasin.phone)}
+                                                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                                        title="Appeler ce numéro"
+                                                                    >
+                                                                        {magasin.phone}
+                                                                    </a>
+                                                                ) : (
+                                                                    magasin.phone
+                                                                )}
                                                             </div>
                                                         )}
                                                         {magasin.email && (

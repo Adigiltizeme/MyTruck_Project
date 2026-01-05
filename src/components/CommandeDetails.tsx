@@ -20,6 +20,7 @@ import { BackendDataService } from '../services/backend-data.service';
 import { isAdminRole } from '../utils/role-helpers';
 import RapportManager from './RapportManager';
 import PhotosCommentaires from './PhotosCommentaires';
+import { createPhoneLink, createNavigationLink, isValidPhone, isValidAddress } from '../utils/contact-links';
 
 interface CommandeDetailsProps {
     commande: CommandeMetier;
@@ -495,8 +496,40 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                     // ✅ CESSION : Afficher info magasin destination
                                     <>
                                         <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasinDestination?.name || 'Non spécifié'}</span></p>
-                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.magasinDestination?.phone || 'Non spécifié'}</span></p>
-                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.magasinDestination?.address || 'Non spécifiée'}</span></p>
+
+                                        {/* Téléphone magasin destination cliquable */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span>
+                                            {isValidPhone(commande.magasinDestination?.phone) ? (
+                                                <a
+                                                    href={createPhoneLink(commande.magasinDestination?.phone)}
+                                                    className="inline-block text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                    title="Appeler ce numéro"
+                                                >
+                                                    📞 {commande.magasinDestination?.phone}
+                                                </a>
+                                            ) : (
+                                                <span className="inline-block">{commande.magasinDestination?.phone || 'Non spécifié'}</span>
+                                            )}
+                                        </p>
+
+                                        {/* Adresse magasin destination cliquable */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span>
+                                            {isValidAddress(commande.magasinDestination?.address) ? (
+                                                <a
+                                                    href={createNavigationLink(commande.magasinDestination?.address)}
+                                                    className="inline-block text-green-600 hover:text-green-800 hover:underline font-medium"
+                                                    title="Ouvrir dans GPS"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    📍 {commande.magasinDestination?.address}
+                                                </a>
+                                            ) : (
+                                                <span className="inline-block">{commande.magasinDestination?.address || 'Non spécifiée'}</span>
+                                            )}
+                                        </p>
                                         {commande.cession?.motif && (
                                             <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Motif:</span> <span className="inline-block">{commande.cession.motif}</span></p>
                                         )}
@@ -508,13 +541,58 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                     // ✅ COMMANDE : Afficher info client
                                     <>
                                         <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'Non spécifié'}</span></p>
-                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span> <span className="inline-block">{commande.client?.telephone?.principal || 'Non spécifié'}</span></p>
 
+                                        {/* Téléphone principal cliquable */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 inline-block min-w-[100px]">Téléphone:</span>
+                                            {isValidPhone(commande.client?.telephone?.principal) ? (
+                                                <a
+                                                    href={createPhoneLink(commande.client?.telephone?.principal)}
+                                                    className="inline-block text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                    title="Appeler ce numéro"
+                                                >
+                                                    📞 {commande.client?.telephone?.principal}
+                                                </a>
+                                            ) : (
+                                                <span className="inline-block">{commande.client?.telephone?.principal || 'Non spécifié'}</span>
+                                            )}
+                                        </p>
+
+                                        {/* Téléphone secondaire cliquable */}
                                         {commande.client?.telephone?.secondaire && (
-                                            <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Tél. secondaire:</span> <span className="inline-block">{commande.client?.telephone?.secondaire}</span></p>
+                                            <p className="break-words">
+                                                <span className="text-gray-500 inline-block min-w-[100px]">Tél. secondaire:</span>
+                                                {isValidPhone(commande.client?.telephone?.secondaire) ? (
+                                                    <a
+                                                        href={createPhoneLink(commande.client?.telephone?.secondaire)}
+                                                        className="inline-block text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                        title="Appeler ce numéro"
+                                                    >
+                                                        📞 {commande.client?.telephone?.secondaire}
+                                                    </a>
+                                                ) : (
+                                                    <span className="inline-block">{commande.client?.telephone?.secondaire}</span>
+                                                )}
+                                            </p>
                                         )}
 
-                                        <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span> <span className="inline-block">{commande.client?.adresse?.ligne1 || 'Non spécifiée'}</span></p>
+                                        {/* Adresse cliquable pour navigation GPS */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 inline-block min-w-[100px]">Adresse:</span>
+                                            {isValidAddress(commande.client?.adresse?.ligne1) ? (
+                                                <a
+                                                    href={createNavigationLink(commande.client?.adresse?.ligne1)}
+                                                    className="inline-block text-green-600 hover:text-green-800 hover:underline font-medium"
+                                                    title="Ouvrir dans GPS"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    📍 {commande.client?.adresse?.ligne1}
+                                                </a>
+                                            ) : (
+                                                <span className="inline-block">{commande.client?.adresse?.ligne1 || 'Non spécifiée'}</span>
+                                            )}
+                                        </p>
 
                                         {commande.client?.adresse?.type && (
                                             <p className="break-words"><span className="text-gray-500 inline-block min-w-[100px]">Type d'adresse:</span> <span className="inline-block">{commande.client?.adresse?.type}</span></p>

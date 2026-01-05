@@ -14,6 +14,7 @@ import {
 import { useApi } from '../../services/api.service';
 import { PersonnelInfo, ChauffeurStatus, MagasinInfo } from '../../types/business.types';
 import DependenciesModal from '../../components/DependenciesModal';
+import { createPhoneLink, isValidPhone } from '../../utils/contact-links';
 
 interface ChauffeurFormData {
     nom: string;
@@ -513,7 +514,17 @@ export default function ChauffeurManagement() {
                                                 {chauffeur.telephone && (
                                                     <div className="flex items-center">
                                                         <PhoneIcon className="h-4 w-4 mr-1" />
-                                                        {chauffeur.telephone}
+                                                        {isValidPhone(chauffeur.telephone) ? (
+                                                            <a
+                                                                href={createPhoneLink(chauffeur.telephone)}
+                                                                className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                                title="Appeler ce numéro"
+                                                            >
+                                                                {chauffeur.telephone}
+                                                            </a>
+                                                        ) : (
+                                                            chauffeur.telephone
+                                                        )}
                                                     </div>
                                                 )}
                                                 {chauffeur.email && (
