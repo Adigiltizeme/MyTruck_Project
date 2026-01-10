@@ -267,6 +267,7 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
                         type="file"
                         multiple
                         accept="image/jpeg,image/png"
+                        capture="environment"
                         onChange={handleUpload}
                         className="hidden"
                         disabled={uploading || remainingPhotos <= 0}
