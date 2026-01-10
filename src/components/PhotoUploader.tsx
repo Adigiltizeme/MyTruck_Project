@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { XCircle, Upload, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { XCircle, Upload, AlertCircle, Camera, Image } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PhotoMetadata } from '../types/draft.types';
 import { CloudinaryService } from '../services/cloudinary.service';
@@ -19,6 +19,8 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
     const [photos, setPhotos] = useState(existingPhotos);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
 
     const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
@@ -253,26 +255,63 @@ const PhotoUploader: React.FC<PhotoUploaderProps> = ({
     return (
         <div className="space-y-4">
             {/* Zone de dépôt/sélection */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-red-500 transition-colors">
-                <label className="flex flex-col items-center cursor-pointer">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 transition-colors">
+                <div className="flex flex-col items-center">
                     <Upload className="w-8 h-8 text-gray-400" />
                     <span className="mt-2 text-sm text-gray-500">
-                        {uploading ? 'Chargement...' : 'Cliquez ou déposez vos photos ici'}
+                        {uploading ? 'Chargement...' : 'Ajoutez vos photos'}
                     </span>
                     <span className="mt-1 text-xs text-gray-400">
                         {`${currentPhotoCount}/5 photos max - ${remainingPhotos} restante(s) - JPG/PNG jusqu'à 10MB`}
-                        {/* {`${maxPhotos} photos restantes - JPG/PNG jusqu'à 10MB`} */}
                     </span>
+
+                    {/* Boutons d'action */}
+                    <div className="flex gap-3 mt-4">
+                        {/* Bouton Prendre une photo */}
+                        <button
+                            type="button"
+                            onClick={() => cameraInputRef.current?.click()}
+                            disabled={uploading || remainingPhotos <= 0}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Camera className="w-4 h-4" />
+                            <span className="text-sm">Prendre une photo</span>
+                        </button>
+
+                        {/* Bouton Choisir des fichiers */}
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading || remainingPhotos <= 0}
+                            className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <Image className="w-4 h-4" />
+                            <span className="text-sm">Galerie</span>
+                        </button>
+                    </div>
+
+                    {/* Input caché pour la caméra */}
                     <input
+                        ref={cameraInputRef}
                         type="file"
-                        multiple
                         accept="image/jpeg,image/png"
                         capture="environment"
                         onChange={handleUpload}
                         className="hidden"
                         disabled={uploading || remainingPhotos <= 0}
                     />
-                </label>
+
+                    {/* Input caché pour les fichiers */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept="image/jpeg,image/png"
+                        onChange={handleUpload}
+                        className="hidden"
+                        disabled={uploading || remainingPhotos <= 0}
+                    />
+                </div>
             </div>
 
             {/* Message d'erreur */}
