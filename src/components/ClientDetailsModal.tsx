@@ -11,7 +11,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useApi } from '../services/api.service';
 import { ClientGDPR } from '../types/business.types';
-import { createPhoneLink, isValidPhone } from '../utils/contact-links';
+import { isValidPhone } from '../utils/contact-links';
+import PhoneLink from './PhoneLink';
 
 interface ClientDetailsModalProps {
     client: ClientGDPR;
@@ -165,25 +166,18 @@ export default function ClientDetailsModal({ client, canViewFullDetails, onClose
                                         return (
                                             <div className="space-y-1">
                                                 {isValidPhone(principal) ? (
-                                                    <a
-                                                        href={createPhoneLink(principal)}
-                                                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium block"
-                                                        title="Appeler ce numéro"
-                                                    >
-                                                        📞 {principal}
-                                                    </a>
+                                                    <div className="block">
+                                                        <PhoneLink phone={principal!} />
+                                                    </div>
                                                 ) : (
                                                     <p className="text-sm text-gray-900">{principal || 'Non renseigné'}</p>
                                                 )}
                                                 {secondaire && (
                                                     isValidPhone(secondaire) ? (
-                                                        <a
-                                                            href={createPhoneLink(secondaire)}
-                                                            className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium block"
-                                                            title="Appeler ce numéro"
-                                                        >
-                                                            📞 {secondaire} <span className="text-xs text-gray-500">(secondaire)</span>
-                                                        </a>
+                                                        <div className="block">
+                                                            <PhoneLink phone={secondaire!} showIcon={false} />
+                                                            <span className="text-xs text-gray-500 ml-2">(secondaire)</span>
+                                                        </div>
                                                     ) : (
                                                         <p className="text-sm text-gray-900">{secondaire} <span className="text-xs text-gray-500">(secondaire)</span></p>
                                                     )
