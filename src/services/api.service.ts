@@ -325,9 +325,10 @@ export class ApiService {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<T> {
+  async delete<T>(endpoint: string, body?: any): Promise<T> {
     const response = await this.request<T>(endpoint, {
-      method: 'DELETE'
+      method: 'DELETE',
+      body: body ? JSON.stringify(body) : undefined
     });
     return response;
   }

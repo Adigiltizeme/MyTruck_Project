@@ -299,6 +299,58 @@ export class DataServiceAdapter {
         }
     }
 
+    public async addPhotosLivraison(
+        commandeId: string,
+        photosData: {
+            photos: Array<{ url: string; filename?: string }>;
+        }
+    ): Promise<any> {
+        try {
+            console.log('📸 addPhotosLivraison:', { commandeId, photosCount: photosData.photos.length });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                // ✅ ENDPOINT DÉDIÉ pour ajouter photos sans créer de rapport
+                const result = await this.apiService.post(`/commandes/${commandeId}/photos-livraison`, photosData);
+
+                console.log('✅ Photos de preuve de livraison ajoutées');
+
+                // ✅ REFRESH CONTEXTE (pattern éprouvé)
+                await this.invalidateCache();
+
+                return result;
+            } else {
+                throw new Error('Ajout photos preuve livraison impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur addPhotosLivraison:', error);
+            throw error;
+        }
+    }
+
+    public async deletePhoto(commandeId: string, photoUrl: string): Promise<any> {
+        try {
+            console.log('🗑️ deletePhoto:', { commandeId, photoUrl });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.delete(`/commandes/${commandeId}/photos`, {
+                    photoUrl
+                });
+
+                console.log('✅ Photo supprimée');
+
+                // ✅ REFRESH CONTEXTE (pattern éprouvé)
+                await this.invalidateCache();
+
+                return result;
+            } else {
+                throw new Error('Suppression photo impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur deletePhoto:', error);
+            throw error;
+        }
+    }
+
     public async updateRapport(
         commandeId: string,
         rapportType: 'ENLEVEMENT' | 'LIVRAISON',

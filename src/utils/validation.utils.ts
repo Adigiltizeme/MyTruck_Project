@@ -19,7 +19,7 @@ export const isValidForModification = (commande: CommandeMetier): boolean => {
         return false;
     }
     // ✅ RÈGLE MÉTIER : Peut être modifiée si en attente/confirmée par magasin ou annulée
-    return statutCommande === 'Confirmée' &&
+    return (statutCommande === 'En attente' || statutCommande === 'Confirmée') &&
         statutLivraison === 'EN ATTENTE' ||
         commande.statuts.commande === 'Annulée';
 };

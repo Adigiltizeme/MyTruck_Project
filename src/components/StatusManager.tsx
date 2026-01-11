@@ -24,11 +24,30 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
     const { dataService } = useOffline();
     const [loading, setLoading] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
-    const [selectedStatutCommande, setSelectedStatutCommande] = useState(commande.statuts?.commande || '');
+    // ✅ NORMALISATION : Si données corrompues en BDD (statutCommande='ANNULEE'), corriger
+    const [selectedStatutCommande, setSelectedStatutCommande] = useState(() => {
+        const statut = commande.statuts?.commande || '';
+        // statutCommande doit être capitalisé, PAS en majuscules (forcer le type pour vérifier)
+        const statutAny = statut as any;
+        if (statutAny === 'ANNULEE' || statutAny === 'EN ATTENTE' || statutAny === 'CONFIRMEE' || statutAny === 'MODIFIEE') {
+            console.warn(`⚠️ Donnée corrompue détectée: statutCommande='${statut}' → normalisation nécessaire`);
+            // Convertir selon les valeurs correctes
+            if (statutAny === 'ANNULEE') return 'Annulée';
+            if (statutAny === 'EN ATTENTE') return 'En attente';
+            if (statutAny === 'CONFIRMEE') return 'Confirmée';
+            if (statutAny === 'MODIFIEE') return 'Modifiée';
+        }
+        return statut;
+    });
     const [selectedStatutLivraison, setSelectedStatutLivraison] = useState(commande.statuts?.livraison || '');
 
     // ✅ RÈGLES MÉTIER : Définir les permissions
     const canModifyCommandeStatus = () => {
+        // ✅ ADMIN/DIRECTION : Peuvent TOUJOURS modifier (même commandes annulées)
+        if (isAdminRole(user?.role)) {
+            return true;
+        }
+
         // Règle 2 : Magasin peut modifier tant que livraison pas CONFIRMEE
         if (user?.role === 'magasin') {
             return commande.statuts?.livraison !== 'ENLEVEE' &&
@@ -36,16 +55,22 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                 commande.statuts?.livraison !== 'LIVREE' &&
                 commande.statuts?.livraison !== 'ANNULEE';
         }
-        // Admin/Direction peuvent toujours modifier
-        return isAdminRole(user?.role);
+
+        return false;
     };
 
     const canModifyLivraisonStatus = () => {
-        // Règle 4 : Chauffeurs et Direction peuvent gérer livraisons
+        // ✅ ADMIN/DIRECTION : Peuvent TOUJOURS modifier (même commandes annulées)
         if (isAdminRole(user?.role)) {
-            return true; // Admin/Direction ont accès complet
+            return true;
         }
-        return user?.role === 'chauffeur';
+
+        // Règle 4 : Chauffeurs peuvent gérer livraisons (sauf si annulées)
+        if (user?.role === 'chauffeur') {
+            return commande.statuts?.livraison !== 'ANNULEE';
+        }
+
+        return false;
     };
 
     // ✅ RÈGLE 1 RÉTABLIE : Auto-confirmation (compatible avec dates indépendantes)
@@ -296,7 +321,16 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
             {isAdminRole(user?.role) && (
                 <button
                     onClick={() => {
-                        setSelectedStatutCommande(commande.statuts?.commande || '');
+                        // ✅ NORMALISATION : corriger données corrompues avant affichage modal
+                        const statut = commande.statuts?.commande || '';
+                        const statutAny = statut as any;
+                        let normalized = statut;
+                        if (statutAny === 'ANNULEE') normalized = 'Annulée';
+                        else if (statutAny === 'EN ATTENTE') normalized = 'En attente';
+                        else if (statutAny === 'CONFIRMEE') normalized = 'Confirmée';
+                        else if (statutAny === 'MODIFIEE') normalized = 'Modifiée';
+
+                        setSelectedStatutCommande(normalized);
                         setSelectedStatutLivraison(commande.statuts?.livraison || '');
                         setShowStatusModal(true);
                     }}
@@ -314,11 +348,14 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
                     || commande.statuts?.livraison === 'LIVREE') && (
                         <p>⚠️ Modification limitée : livraison {commande.statuts?.livraison}</p>
                     )}
-                {user?.role === 'chauffeur' && (
+                {user?.role === 'chauffeur' && commande.statuts?.livraison !== 'ANNULEE' && (
                     <p>🚛 Vous pouvez gérer les statuts de livraison</p>
                 )}
+                {user?.role === 'chauffeur' && commande.statuts?.livraison === 'ANNULEE' && (
+                    <p>⚠️ Commande annulée - modification limitée</p>
+                )}
                 {isAdminRole(user?.role) && (
-                    <p>🔑 Accès complet à tous les statuts</p>
+                    <p>🔑 Accès complet à tous les statuts (même commandes annulées)</p>
                 )}
             </div>
 
