@@ -239,7 +239,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
   return (
     <div className="flex h-full flex-col bg-white shadow-lg dark:bg-gray-800">
       {/* Logo header */}
-      <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100">
+      <div className="flex h-16 items-center justify-between px-4 border-b border-gray-100 dark:border-gray-600">
         <div className="w-28 py-2">
           <button
             onClick={() => { navigate('/home') }}
@@ -254,7 +254,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       </div>
 
       {/* User info */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-600">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
             <span className="text-sm font-medium text-gray-600">
@@ -286,7 +286,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       </nav>
 
       {/* Déconnexion */}
-      <div className="px-3 py-4 border-t border-gray-100">
+      <div className="px-3 py-4 border-t border-gray-100 dark:border-gray-600">
         <button
           onClick={handleLogout}
           className="flex items-center px-4 py-3 text-[15px] font-medium rounded-lg transition-colors my-1 w-full text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"

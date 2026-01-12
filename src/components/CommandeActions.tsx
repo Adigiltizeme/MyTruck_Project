@@ -16,6 +16,7 @@ import { StatusManager } from './StatusManager';
 import { LiveTrackingMap } from './LiveTrackingMap';
 import { useDriverTracking } from '../hooks/useDriverTracking';
 import { DriverTrackingToggle } from './DriverTrackingToggle';
+import { useFormValidation } from '../hooks/useFormValidation';
 
 interface CommandeActionsProps {
     commande: CommandeMetier;
@@ -158,8 +159,15 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
     const handleSubmitModification = async () => {
         try {
             setLoading(true);
-            console.log('📝 ===== SOUMISSION MODIFICATION =====');
-            console.log('📝 Données editData:', editData);
+
+            // ✅ VALIDATION COMPLÈTE avant soumission (mêmes règles que création)
+            const validation = formValidation.validateForm();
+            if (!validation.isValid) {
+                console.error('❌ Validation échouée:', validation.errors);
+                alert('Veuillez corriger les erreurs avant de soumettre la modification.');
+                setLoading(false);
+                return;
+            }
 
             // ✅ STRUCTURE FLAT comme pour la création (qui fonctionne)
             const modifiedData: any = {
@@ -233,6 +241,9 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
 
     // Détecter si c'est une cession en vérifiant le type
     const isCession = commande.type === 'INTER_MAGASIN';
+
+    // ✅ Hook de validation avec toutes les règles métier (équipiers, devis, etc.)
+    const formValidation = useFormValidation(editData, isCession, user?.role);
 
     const steps = isCession
         ? [

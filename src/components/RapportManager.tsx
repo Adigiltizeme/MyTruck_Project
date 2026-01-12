@@ -474,7 +474,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
 
             {/* ✅ Message si aucun rapport */}
             {rapports && rapports.enlevement.length === 0 && rapports.livraison.length === 0 && (
-                <p className="text-gray-500 text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400 text-center py-8">
                     Aucun rapport créé pour cette commande
                 </p>
             )}
