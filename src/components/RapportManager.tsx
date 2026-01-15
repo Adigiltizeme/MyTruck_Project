@@ -480,30 +480,30 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
             )}
 
             {/* ✅ NOUVELLE SECTION : Preuve de livraison (après statut LIVREE) */}
-            {commande.statuts?.livraison === 'LIVREE' &&
-                (user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
-                    <div className="mt-6 border-t pt-6">
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <h4 className="font-medium text-green-800 flex items-center mb-3">
-                                ✅ Livraison réussie - Photos de preuve
-                            </h4>
+            {commande.statuts?.livraison === 'LIVREE' && (
+                <div className="mt-6 border-t pt-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <h4 className="font-medium text-green-800 flex items-center mb-3">
+                            ✅ Livraison réussie - Photos de preuve
+                        </h4>
 
-                            {/* Affichage des photos existantes */}
-                            {rapports?.photos?.livraison && rapports.photos.livraison.length > 0 && (
-                                <div className="mb-4">
-                                    <p className="text-sm text-green-700 mb-2">
-                                        📸 {rapports.photos.livraison.length} photo(s) de preuve de livraison
-                                    </p>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {rapports.photos.livraison.map((photo: any, index: number) => (
-                                            <div key={photo.id || index} className="relative group">
-                                                <img
-                                                    src={photo.url}
-                                                    alt={`Preuve de livraison ${index + 1}`}
-                                                    className="w-full h-32 object-cover rounded border border-green-300 cursor-pointer hover:opacity-90"
-                                                    onClick={() => showImageInSameWindow(photo.url)}
-                                                />
-                                                {/* Boutons actions */}
+                        {/* Affichage des photos existantes */}
+                        {rapports?.photos?.livraison && rapports.photos.livraison.length > 0 && (
+                            <div className="mb-4">
+                                <p className="text-sm text-green-700 mb-2">
+                                    📸 {rapports.photos.livraison.length} photo(s) de preuve de livraison
+                                </p>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    {rapports.photos.livraison.map((photo: any, index: number) => (
+                                        <div key={photo.id || index} className="relative group">
+                                            <img
+                                                src={photo.url}
+                                                alt={`Preuve de livraison ${index + 1}`}
+                                                className="w-full h-32 object-cover rounded border border-green-300 cursor-pointer hover:opacity-90"
+                                                onClick={() => showImageInSameWindow(photo.url)}
+                                            />
+                                            {/* Boutons actions - Seulement pour chauffeur et admin */}
+                                            {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
                                                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => showImageInSameWindow(photo.url)}
@@ -520,47 +520,64 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                                                         <Trash2 className="w-3 h-3" />
                                                     </button>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Bouton pour afficher le PhotoUploader */}
-                            {!showAddPhotos ? (
-                                <button
-                                    onClick={() => setShowAddPhotos(true)}
-                                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                                >
-                                    📸 Ajouter des photos
-                                </button>
-                            ) : (
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center">
-                                        <p className="text-sm text-green-700">
-                                            Ajoutez des photos (signature client, colis déposé, etc.) - Envoi immédiat
-                                        </p>
-                                        <button
-                                            onClick={() => setShowAddPhotos(false)}
-                                            className="text-sm text-gray-600 hover:text-gray-800"
-                                        >
-                                            ✕ Fermer
-                                        </button>
-                                    </div>
-                                    <PhotoUploader
-                                        onUpload={handlePreuveLivraisonUpload}
-                                        existingPhotos={[]}
-                                    />
-                                    {loadingPreuve && (
-                                        <div className="mt-2 text-sm text-blue-600">
-                                            ⏳ Envoi en cours...
+                                            )}
+                                            {/* Bouton Voir uniquement pour magasin */}
+                                            {user?.role === 'magasin' && (
+                                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => showImageInSameWindow(photo.url)}
+                                                        className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                                        title="Voir en grand"
+                                                    >
+                                                        <Eye className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {/* Bouton pour ajouter des photos - Seulement chauffeur et admin */}
+                        {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
+                            <>
+                                {!showAddPhotos ? (
+                                    <button
+                                        onClick={() => setShowAddPhotos(true)}
+                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+                                    >
+                                        📸 Ajouter des photos
+                                    </button>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <p className="text-sm text-green-700">
+                                                Ajoutez des photos (signature client, colis déposé, etc.) - Envoi immédiat
+                                            </p>
+                                            <button
+                                                onClick={() => setShowAddPhotos(false)}
+                                                className="text-sm text-gray-600 hover:text-gray-800"
+                                            >
+                                                ✕ Fermer
+                                            </button>
+                                        </div>
+                                        <PhotoUploader
+                                            onUpload={handlePreuveLivraisonUpload}
+                                            existingPhotos={[]}
+                                        />
+                                        {loadingPreuve && (
+                                            <div className="mt-2 text-sm text-blue-600">
+                                                ⏳ Envoi en cours...
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
-                )}
+                </div>
+            )}
         </div>
     );
 };
