@@ -40,6 +40,7 @@ import ClientManagement from './pages/magasin/ClientManagement';
 import MagasinContactMessages from './components/MagasinContactMessages';
 import RealTimeMessaging from './components/RealTimeMessaging';
 import { LiveTracking } from './pages/admin/LiveTracking';
+import AvisClient from './pages/AvisClient';
 
 const App = () => {
 
@@ -211,6 +212,9 @@ const App = () => {
       <div className="min-h-screen bg-gray-50">
         {/* <MigrationControl /> */}
         <Routes>
+          {/* Route publique pour les avis clients */}
+          <Route path="/avis/:commandeId" element={<AvisClient />} />
+
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
             {/* <Route path="/login" element={<TestAuth />} /> */}
