@@ -30,6 +30,8 @@ export interface SlotAvailability {
         maxCapacity: number;
     };
     isAvailable: boolean;
+    isBlocked: boolean;
+    blockReason?: string;
     reason?: string;
     bookingsCount: number;
     maxCapacity: number;

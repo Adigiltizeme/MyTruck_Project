@@ -3,7 +3,11 @@ import { Calendar, Clock, Lock, Unlock, Settings } from 'lucide-react';
 import { SlotsService } from '../../services/slots.service';
 import { SlotAvailability, SlotRestriction, TimeSlot } from '../../types/slots.types';
 
-export const SlotsManagement: React.FC = () => {
+interface SlotsManagementProps {
+    readOnly?: boolean;
+}
+
+export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = false }) => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [availability, setAvailability] = useState<SlotAvailability[]>([]);
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
@@ -97,18 +101,26 @@ export const SlotsManagement: React.FC = () => {
                 <div className="flex items-center">
                     <Clock className="w-8 h-8 text-blue-600 mr-3" />
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Gestion des Créneaux</h1>
-                        <p className="text-gray-600">Bloquer/débloquer les créneaux de livraison</p>
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            {readOnly ? 'Créneaux Disponibles' : 'Gestion des Créneaux'}
+                        </h1>
+                        <p className="text-gray-600">
+                            {readOnly
+                                ? 'Consultez les créneaux de livraison disponibles'
+                                : 'Bloquer/débloquer les créneaux de livraison'}
+                        </p>
                     </div>
                 </div>
 
-                <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                >
-                    <Settings className="w-4 h-4 mr-2" />
-                    Paramètres
-                </button>
+                {!readOnly && (
+                    <button
+                        onClick={() => setShowSettings(!showSettings)}
+                        className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                    >
+                        <Settings className="w-4 h-4 mr-2" />
+                        Paramètres
+                    </button>
+                )}
             </div>
 
             {/* Sélection de date */}
@@ -173,32 +185,34 @@ export const SlotsManagement: React.FC = () => {
                                         )}
                                     </div>
 
-                                    <div className="flex space-x-2">
-                                        {blocked ? (
-                                            <button
-                                                onClick={() => handleUnblockSlot(slot.slot.id)}
-                                                className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                                            >
-                                                Débloquer
-                                            </button>
-                                        ) : slot.isAvailable ? (
-                                            <button
-                                                onClick={() => {
-                                                    const reason = prompt('Raison du blocage (optionnel):');
-                                                    if (reason !== null) {
-                                                        handleBlockSlot(slot.slot.id, reason || undefined);
-                                                    }
-                                                }}
-                                                className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                                            >
-                                                Bloquer
-                                            </button>
-                                        ) : (
-                                            <div className="flex-1 px-3 py-1 bg-gray-400 text-white text-sm rounded text-center">
-                                                Indisponible
-                                            </div>
-                                        )}
-                                    </div>
+                                    {!readOnly && (
+                                        <div className="flex space-x-2">
+                                            {blocked ? (
+                                                <button
+                                                    onClick={() => handleUnblockSlot(slot.slot.id)}
+                                                    className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                                >
+                                                    Débloquer
+                                                </button>
+                                            ) : slot.isAvailable ? (
+                                                <button
+                                                    onClick={() => {
+                                                        const reason = prompt('Raison du blocage (optionnel):');
+                                                        if (reason !== null) {
+                                                            handleBlockSlot(slot.slot.id, reason || undefined);
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                                >
+                                                    Bloquer
+                                                </button>
+                                            ) : (
+                                                <div className="flex-1 px-3 py-1 bg-gray-400 text-white text-sm rounded text-center">
+                                                    Indisponible
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
@@ -207,7 +221,7 @@ export const SlotsManagement: React.FC = () => {
             </div>
 
             {/* Panel de paramètres */}
-            {showSettings && (
+            {!readOnly && showSettings && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
                         <div className="p-6">

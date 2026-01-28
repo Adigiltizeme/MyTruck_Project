@@ -37,6 +37,7 @@ import MagasinManagement from './pages/admin/MagasinManagement';
 import AdminManagement from './pages/admin/AdminManagement';
 import ContactsManagement from './pages/admin/ContactsManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
+import CreneauxDisponibles from './pages/magasin/CreneauxDisponibles';
 import MagasinContactMessages from './components/MagasinContactMessages';
 import RealTimeMessaging from './components/RealTimeMessaging';
 import { LiveTracking } from './pages/admin/LiveTracking';
@@ -356,6 +357,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin', 'direction', 'magasin']}>
                   <ClientManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/creneaux-disponibles"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'direction', 'magasin']}>
+                  <CreneauxDisponibles />
                 </ProtectedRoute>
               }
             />

@@ -24,6 +24,7 @@ import { useNotifications } from '../../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { isAdminRole, isMagasinRole } from '../../utils/role-helpers';
+import { useUnreadCounts } from '../../hooks/useUnreadCounts';
 
 interface ContactDetailModalProps {
   contact: Contact | null;
@@ -409,6 +410,7 @@ export default function ContactsManagement() {
   const contactService = new ContactService();
   const { addNotification } = useNotifications();
   const { user } = useAuth();
+  const { refreshCounts } = useUnreadCounts();
 
   useEffect(() => {
     loadContacts();
@@ -485,6 +487,8 @@ export default function ContactsManagement() {
       if (response.success) {
         await loadContacts();
         await loadStats();
+        // ✅ Actualiser les badges de notification
+        refreshCounts();
       }
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
@@ -500,6 +504,8 @@ export default function ContactsManagement() {
       if (response.success) {
         await loadContacts();
         await loadStats();
+        // ✅ Actualiser les badges de notification
+        refreshCounts();
         addNotification({
           message: `Contact "${contactToDelete?.nomMagasin || 'supprimé'}" supprimé avec succès`,
           type: 'success'
