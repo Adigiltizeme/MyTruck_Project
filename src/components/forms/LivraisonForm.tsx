@@ -493,6 +493,15 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     const { user } = useAuth();
     const navigate = useNavigate();
 
+    // ✅ Refs pour fonctions stables (éviter boucles infinies dans useCallback)
+    const onChangeRef = useRef(onChange);
+    const getLatestStoreAddressRef = useRef<() => Promise<string>>();
+
+    // Mettre à jour les refs à chaque rendu (évite re-création de updateTarif)
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
+
     // IMPORTANT: Stocker l'adresse du magasin dans un état local pour éviter qu'elle ne soit écrasée
     const [storeAddress, setStoreAddress] = useState<string>('');
 
@@ -805,15 +814,101 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         }
     }, [data.article?.dimensions, data.livraison?.details]);
 
-    // Gérer le calcul du tarif SÉPARÉMENT, sans tenter de récupérer l'adresse ici
+    // ✅ DÉPLACÉ ICI: Déclarer updateTarif AVANT les useEffect qui l'utilisent
+    // Calculer le tarif quand les données pertinentes changent
+    // ✅ FIX: useCallback pour éviter stale closure et capturer les valeurs à jour
+    const updateTarif = useCallback(async () => {
+        // ✅ Pour une cession, vérifier l'adresse du magasin de destination
+        const hasDestinationAddress = isCession
+            ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
+            : data.client?.adresse?.ligne1;
+
+        if (!hasDestinationAddress || !data.livraison?.vehicule) {
+            return;
+        }
+
+        try {
+            setCalculatingTarif(true);
+            const tarificationService = new TarificationService();
+
+            // ✅ Utiliser directement storeAddress (déjà mis à jour par useEffect ligne 747)
+            const addressToUse = storeAddress;
+
+            // ✅ Pour une cession, utiliser l'adresse du magasin de destination
+            const adresseLivraison = isCession
+                ? (data.magasinDestination?.address || data.client?.adresse?.ligne1 || '')
+                : data.client.adresse.ligne1;
+
+            // Log de vérification
+            console.log('💰 Calcul du tarif avec les paramètres:', {
+                mode: isCession ? '🔄 CESSION' : '📦 COMMANDE',
+                vehicule: data.livraison.vehicule,
+                adresseMagasin: addressToUse,
+                adresseLivraison: adresseLivraison,
+                equipiers: data.livraison.equipiers || 0 // ✅ Valeur à jour capturée
+            });
+
+            const tarif = await tarificationService.calculerTarif({
+                vehicule: data.livraison.vehicule as TypeVehicule,
+                adresseMagasin: addressToUse,
+                adresseLivraison: adresseLivraison,
+                equipiers: data.livraison.equipiers || 0, // ✅ Valeur à jour utilisée
+                userRole // 🆕 Rôle utilisateur pour bypass devis obligatoire
+            });
+
+            setTarifDetails(tarif);
+
+            // Mise à jour du formulaire avec le même format d'événement
+            const tarifEvent = {
+                target: {
+                    name: 'financier.tarifHT',
+                    value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
+                }
+            };
+            onChangeRef.current(tarifEvent); // ✅ Utiliser ref pour éviter boucle
+
+            const devisEvent = {
+                target: {
+                    name: 'financier.devisObligatoire',
+                    value: tarif.montantHT === 'devis'
+                }
+            };
+            onChangeRef.current(devisEvent); // ✅ Utiliser ref pour éviter boucle
+        } catch (error) {
+            console.error('Erreur calcul tarif:', error);
+        } finally {
+            setCalculatingTarif(false);
+        }
+    }, [
+        data.livraison?.vehicule,
+        data.livraison?.equipiers, // ✅ CRITIQUE: Dépendance ajoutée
+        data.client?.adresse?.ligne1,
+        data.magasinDestination?.address,
+        storeAddress,
+        isCession,
+        userRole
+        // ⚠️ onChange et getLatestStoreAddress RETIRÉS pour éviter boucle infinie
+        // Ces fonctions sont stables et ne doivent pas déclencher de recalcul
+    ]);
+
+    // ✅ useEffect pour gérer le calcul du tarif automatique
     useEffect(() => {
         // ✅ Pour une cession, vérifier l'adresse du magasin de destination
         const hasDestinationAddress = isCession
             ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
             : data.client?.adresse?.ligne1;
 
+        console.log('🔍 [LIVRAISON] Conditions calcul tarif:', {
+            hasDestinationAddress,
+            vehicule: data.livraison?.vehicule,
+            equipiers: data.livraison?.equipiers,
+            storeAddress,
+            willCalculate: !!(hasDestinationAddress && data.livraison?.vehicule)
+        });
+
         // Ne pas calculer s'il manque des informations essentielles
         if (!hasDestinationAddress || !data.livraison?.vehicule) {
+            console.log('⚠️ [LIVRAISON] Calcul tarif annulé: conditions non remplies');
             return;
         }
 
@@ -822,12 +917,16 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         }, 500);
 
         return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+        // ⚠️ updateTarif RETIRÉ des dépendances pour éviter boucle infinie
+        // La fonction utilise des refs qui sont toujours à jour
         data.livraison?.vehicule,
         data.livraison?.equipiers,
         data.client?.adresse?.ligne1,
         data.magasinDestination?.address,
         data.magasin?.address,
+        storeAddress, // ✅ AJOUTÉ: Recalculer quand storeAddress se charge
         isCession
     ]);
 
@@ -846,6 +945,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         }
     }, [data.livraison?.vehicule]); // Uniquement à l'initialisation
 
+    // Effet pour gérer le changement de magasin
     useEffect(() => {
         const handleStoreChange = (event: Event) => {
             const customEvent = event as CustomEvent;
@@ -869,73 +969,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         return () => {
             window.removeEventListener('storechange', handleStoreChange);
         };
-    }, []);
-
-    // Calculer le tarif quand les données pertinentes changent
-    // Fonction séparée, qui ne tente PAS de récupérer l'adresse
-    const updateTarif = async () => {
-        // ✅ Pour une cession, vérifier l'adresse du magasin de destination
-        const hasDestinationAddress = isCession
-            ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
-            : data.client?.adresse?.ligne1;
-
-        if (!hasDestinationAddress || !data.livraison?.vehicule) {
-            return;
-        }
-
-        try {
-            setCalculatingTarif(true);
-            const tarificationService = new TarificationService();
-
-            // Utiliser l'adresse stockée localement OU récupérer la plus récente
-            const addressToUse = storeAddress || await getLatestStoreAddress();
-
-            // ✅ Pour une cession, utiliser l'adresse du magasin de destination
-            const adresseLivraison = isCession
-                ? (data.magasinDestination?.address || data.client?.adresse?.ligne1 || '')
-                : data.client.adresse.ligne1;
-
-            // Log de vérification
-            console.log('Calcul du tarif avec les paramètres:', {
-                mode: isCession ? '🔄 CESSION' : '📦 COMMANDE',
-                vehicule: data.livraison.vehicule,
-                adresseMagasin: addressToUse,
-                adresseLivraison: adresseLivraison,
-                equipiers: data.livraison.equipiers || 0
-            });
-
-            const tarif = await tarificationService.calculerTarif({
-                vehicule: data.livraison.vehicule as TypeVehicule,
-                adresseMagasin: addressToUse,
-                adresseLivraison: adresseLivraison,
-                equipiers: data.livraison.equipiers || 0,
-                userRole // 🆕 Rôle utilisateur pour bypass devis obligatoire
-            });
-
-            setTarifDetails(tarif);
-
-            // Mise à jour du formulaire avec le même format d'événement
-            const tarifEvent = {
-                target: {
-                    name: 'financier.tarifHT',
-                    value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
-                }
-            };
-            onChange(tarifEvent);
-
-            const devisEvent = {
-                target: {
-                    name: 'financier.devisObligatoire',
-                    value: tarif.montantHT === 'devis'
-                }
-            };
-            onChange(devisEvent);
-        } catch (error) {
-            console.error('Erreur calcul tarif:', error);
-        } finally {
-            setCalculatingTarif(false);
-        }
-    };
+    }, [onChange, updateTarif]);
 
     const minDate = new Date().toISOString().split('T')[0];
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1469,7 +1503,15 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     <select
                         name="livraison.equipiers"
                         value={data.livraison?.equipiers || 0}
-                        onChange={onChange}
+                        onChange={(e) => {
+                            // ✅ Convertir string → number pour cohérence avec ArticlesForm
+                            onChange({
+                                target: {
+                                    name: 'livraison.equipiers',
+                                    value: parseInt(e.target.value, 10)
+                                }
+                            } as any);
+                        }}
                         className={`mt-1 block w-full rounded-md border px-3 py-2 ${hasDimensionsData && isCrewSizeRestricted(data.livraison?.equipiers || 0)
                             ? 'border-red-500 bg-red-50'
                             : errors.livraison?.equipiers

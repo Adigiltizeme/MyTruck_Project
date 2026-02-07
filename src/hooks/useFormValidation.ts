@@ -156,8 +156,9 @@ export const useFormValidation = (
                         } else {
                             console.log(`✅ Admin bypass: Devis obligatoire ignoré (≥3 équipiers requis)`);
                         }
-                    } else if (!validation.isValid) {
-                        // ✅ CAS NORMAL: Équipiers insuffisants (mais <3)
+                    } else if (!validation.isValid && validation.requiredCrewSize > 0) {
+                        // ✅ FIX: Bloquer uniquement si des équipiers SONT RÉELLEMENT REQUIS (requiredCrewSize > 0)
+                        // Si requiredCrewSize === 0, alors 0 équipier sélectionné est valide
                         if (!canBypassQuoteLimit(userRole)) {
                             errors.livraison = {
                                 ...errors.livraison,

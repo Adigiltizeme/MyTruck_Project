@@ -451,6 +451,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     const getCrewForSelector = useCallback((): number => {
         const crew = data.livraison?.equipiers;
+        console.log('🔍 [ARTICLES] getCrewForSelector:', { crew, type: typeof crew });
         return typeof crew === 'number' ? crew : 0;
     }, [data.livraison?.equipiers]);
 
@@ -647,6 +648,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
     // Calculer l'estimation de tarif quand le véhicule et les équipiers changent
     useEffect(() => {
+        console.log('🔄 [ARTICLES-FORM] useEffect estimation déclenché:', {
+            vehicule: data.livraison?.vehicule,
+            equipiers: data.livraison?.equipiers,
+            hasUserInteracted
+        });
+
         if (data.livraison?.vehicule && data.livraison?.equipiers !== undefined && hasUserInteracted) {
             try {
                 const estimation = tarificationService.calculerEstimationSansKm({
@@ -655,7 +662,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     userRole // 🆕 Passer userRole pour bypass admin
                 });
                 setEstimationTarif(estimation);
-                console.log('💰 Estimation calculée:', estimation);
+                console.log('💰 [ARTICLES-FORM] Estimation calculée:', {
+                    vehicule: data.livraison.vehicule,
+                    equipiers: data.livraison.equipiers,
+                    montantHT: estimation.montantHT,
+                    detail: estimation.detail
+                });
             } catch (error) {
                 console.error('Erreur calcul estimation:', error);
                 setEstimationTarif(null);
