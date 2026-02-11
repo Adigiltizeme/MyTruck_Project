@@ -101,7 +101,7 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Cessions Inter-magasins',
       icon: ArrowsRightLeftIcon,
       href: '/cessions',
-      roles: ['magasin', 'admin'],
+      roles: ['magasin', 'admin', 'direction', 'chauffeur'],
     },
     {
       name: 'Gestion Créneaux',
