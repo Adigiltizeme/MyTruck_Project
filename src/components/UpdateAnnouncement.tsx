@@ -1,0 +1,164 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Announcement } from '../types/announcement.types';
+import { getActiveAnnouncements } from '../config/announcements.config';
+import { useAuth } from '../contexts/AuthContext';
+
+const STORAGE_KEY = 'myTruck_dismissedAnnouncements';
+
+/**
+ * Composant d'annonce de mise à jour
+ * - Affiche les annonces actives pour le rôle de l'utilisateur
+ * - Persiste l'état "fermé" dans localStorage
+ * - Réutilisable pour toutes les futures annonces
+ */
+export const UpdateAnnouncement: React.FC = () => {
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [visibleAnnouncement, setVisibleAnnouncement] = useState<Announcement | null>(null);
+
+    useEffect(() => {
+        if (!user?.role) return;
+
+        // Récupérer les annonces actives pour ce rôle
+        const activeAnnouncements = getActiveAnnouncements(user.role);
+        if (activeAnnouncements.length === 0) return;
+
+        // Récupérer les annonces déjà fermées
+        const dismissedData = localStorage.getItem(STORAGE_KEY);
+        const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+
+        // Trouver la première annonce non fermée
+        const nextAnnouncement = activeAnnouncements.find(a => !dismissed[a.id]);
+
+        if (nextAnnouncement) {
+            setVisibleAnnouncement(nextAnnouncement);
+        }
+    }, [user?.role]);
+
+    const handleDismiss = () => {
+        if (!visibleAnnouncement) return;
+
+        // Sauvegarder l'état "fermé" dans localStorage
+        const dismissedData = localStorage.getItem(STORAGE_KEY);
+        const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+        dismissed[visibleAnnouncement.id] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed));
+
+        // Cacher l'annonce
+        setVisibleAnnouncement(null);
+    };
+
+    const handleCTA = () => {
+        if (visibleAnnouncement?.ctaLink) {
+            navigate(visibleAnnouncement.ctaLink);
+            handleDismiss();
+        }
+    };
+
+    // Couleurs selon le type d'annonce
+    const getTypeStyles = (type: Announcement['type']) => {
+        switch (type) {
+            case 'new-feature':
+                return {
+                    bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+                    border: 'border-blue-300',
+                    icon: '🚀'
+                };
+            case 'improvement':
+                return {
+                    bg: 'bg-gradient-to-r from-green-500 to-emerald-600',
+                    border: 'border-green-300',
+                    icon: '✨'
+                };
+            case 'maintenance':
+                return {
+                    bg: 'bg-gradient-to-r from-orange-500 to-amber-600',
+                    border: 'border-orange-300',
+                    icon: '🔧'
+                };
+            case 'info':
+                return {
+                    bg: 'bg-gradient-to-r from-gray-500 to-slate-600',
+                    border: 'border-gray-300',
+                    icon: 'ℹ️'
+                };
+            default:
+                return {
+                    bg: 'bg-gradient-to-r from-blue-500 to-indigo-600',
+                    border: 'border-blue-300',
+                    icon: '📢'
+                };
+        }
+    };
+
+    if (!visibleAnnouncement) return null;
+
+    const styles = getTypeStyles(visibleAnnouncement.type);
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0, y: -50 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -50 }}
+                transition={{ duration: 0.5 }}
+                className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-2xl px-4"
+            >
+                <div className={`${styles.bg} rounded-xl shadow-2xl border-2 ${styles.border} text-white overflow-hidden`}>
+                    {/* Header avec icône et bouton fermer */}
+                    <div className="flex items-start justify-between p-4 pb-2">
+                        <div className="flex items-center gap-3">
+                            <span className="text-4xl">{visibleAnnouncement.icon || styles.icon}</span>
+                            <h3 className="text-xl font-bold">{visibleAnnouncement.title}</h3>
+                        </div>
+                        <button
+                            onClick={handleDismiss}
+                            className="p-1 hover:bg-white/20 rounded-full transition-colors"
+                            aria-label="Fermer l'annonce"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    {/* Message */}
+                    <div className="px-4 pb-4">
+                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mb-3">
+                            <p className="whitespace-pre-line text-sm leading-relaxed">
+                                {visibleAnnouncement.message}
+                            </p>
+                        </div>
+
+                        {/* Boutons d'action */}
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                onClick={handleDismiss}
+                                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-colors"
+                            >
+                                J'ai compris
+                            </button>
+                            {visibleAnnouncement.ctaText && (
+                                <button
+                                    onClick={handleCTA}
+                                    className="px-4 py-2 bg-white text-blue-600 hover:bg-gray-100 rounded-lg font-bold transition-colors shadow-lg"
+                                >
+                                    {visibleAnnouncement.ctaText} →
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Badge de priorité */}
+                    {visibleAnnouncement.priority === 1 && (
+                        <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
+                            IMPORTANT
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
