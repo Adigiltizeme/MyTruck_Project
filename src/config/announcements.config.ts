@@ -1,4 +1,4 @@
-import { Announcement } from '../types/announcement.types';
+import { Announcement, UserRole } from '../types/announcement.types';
 
 /**
  * Configuration centralisée des annonces de mise à jour
@@ -60,7 +60,7 @@ export const getActiveAnnouncements = (userRole: string): Announcement[] => {
 
             // Vérifier si le rôle est ciblé
             const isTargeted = announcement.targetRoles.includes('all') ||
-                             announcement.targetRoles.includes(userRole as any);
+                             announcement.targetRoles.includes(userRole as UserRole);
 
             return isActive && isTargeted;
         })

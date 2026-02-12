@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Announcement } from '../types/announcement.types';
-import { getActiveAnnouncements } from '../config/announcements.config';
+import { announcementService, Announcement } from '../services/announcement.service';
 import { useAuth } from '../contexts/AuthContext';
 
 const STORAGE_KEY = 'myTruck_dismissedAnnouncements';
+
+// Map backend types to frontend types for styling
+type AnnouncementTypeUI = 'new-feature' | 'improvement' | 'maintenance' | 'info';
+const mapBackendTypeToUI = (type: Announcement['type']): AnnouncementTypeUI => {
+    switch (type) {
+        case 'NEW_FEATURE': return 'new-feature';
+        case 'IMPROVEMENT': return 'improvement';
+        case 'MAINTENANCE': return 'maintenance';
+        case 'INFO': return 'info';
+        default: return 'info';
+    }
+};
 
 /**
  * Composant d'annonce de mise à jour
@@ -21,20 +32,28 @@ export const UpdateAnnouncement: React.FC = () => {
     useEffect(() => {
         if (!user?.role) return;
 
-        // Récupérer les annonces actives pour ce rôle
-        const activeAnnouncements = getActiveAnnouncements(user.role);
-        if (activeAnnouncements.length === 0) return;
+        const loadAnnouncements = async () => {
+            try {
+                // Récupérer les annonces actives depuis l'API
+                const activeAnnouncements = await announcementService.getActiveAnnouncements();
+                if (activeAnnouncements.length === 0) return;
 
-        // Récupérer les annonces déjà fermées
-        const dismissedData = localStorage.getItem(STORAGE_KEY);
-        const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+                // Récupérer les annonces déjà fermées
+                const dismissedData = localStorage.getItem(STORAGE_KEY);
+                const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
 
-        // Trouver la première annonce non fermée
-        const nextAnnouncement = activeAnnouncements.find(a => !dismissed[a.id]);
+                // Trouver la première annonce non fermée
+                const nextAnnouncement = activeAnnouncements.find(a => !dismissed[a.id]);
 
-        if (nextAnnouncement) {
-            setVisibleAnnouncement(nextAnnouncement);
-        }
+                if (nextAnnouncement) {
+                    setVisibleAnnouncement(nextAnnouncement);
+                }
+            } catch (error) {
+                console.error('Erreur lors du chargement des annonces:', error);
+            }
+        };
+
+        loadAnnouncements();
     }, [user?.role]);
 
     const handleDismiss = () => {
@@ -58,7 +77,7 @@ export const UpdateAnnouncement: React.FC = () => {
     };
 
     // Couleurs selon le type d'annonce
-    const getTypeStyles = (type: Announcement['type']) => {
+    const getTypeStyles = (type: AnnouncementTypeUI) => {
         switch (type) {
             case 'new-feature':
                 return {
@@ -95,7 +114,8 @@ export const UpdateAnnouncement: React.FC = () => {
 
     if (!visibleAnnouncement) return null;
 
-    const styles = getTypeStyles(visibleAnnouncement.type);
+    const uiType = mapBackendTypeToUI(visibleAnnouncement.type);
+    const styles = getTypeStyles(uiType);
 
     return (
         <AnimatePresence>

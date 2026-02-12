@@ -12,7 +12,8 @@ import {
   ClockIcon,
   BuildingStorefrontIcon,
   ChatBubbleLeftRightIcon,
-  MapIcon
+  MapIcon,
+  MegaphoneIcon
 } from '@heroicons/react/24/outline';
 import { Clock, LogOutIcon, MessageCircleIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -143,6 +144,12 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Gestion Contacts',
       icon: ChatBubbleLeftRightIcon,
       href: '/contacts',
+      roles: ['admin', 'direction'],
+    },
+    {
+      name: 'Gestion Annonces',
+      icon: MegaphoneIcon,
+      href: '/announcements',
       roles: ['admin', 'direction'],
     },
     {

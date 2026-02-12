@@ -36,6 +36,7 @@ import ChauffeurManagement from './pages/admin/ChauffeurManagement';
 import MagasinManagement from './pages/admin/MagasinManagement';
 import AdminManagement from './pages/admin/AdminManagement';
 import ContactsManagement from './pages/admin/ContactsManagement';
+import AnnouncementManagement from './pages/admin/AnnouncementManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
 import CreneauxDisponibles from './pages/magasin/CreneauxDisponibles';
 import MagasinContactMessages from './components/MagasinContactMessages';
@@ -298,6 +299,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <ContactsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/announcements"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
+                  <AnnouncementManagement />
                 </ProtectedRoute>
               }
             />
