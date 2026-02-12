@@ -34,22 +34,33 @@ export const UpdateAnnouncement: React.FC = () => {
 
         const loadAnnouncements = async () => {
             try {
+                console.log('🔍 UpdateAnnouncement: Chargement des annonces pour le rôle:', user?.role);
+
                 // Récupérer les annonces actives depuis l'API
                 const activeAnnouncements = await announcementService.getActiveAnnouncements();
-                if (activeAnnouncements.length === 0) return;
+                console.log('📢 Annonces actives reçues:', activeAnnouncements.length, activeAnnouncements);
+
+                if (activeAnnouncements.length === 0) {
+                    console.log('⚠️ Aucune annonce active trouvée');
+                    return;
+                }
 
                 // Récupérer les annonces déjà fermées
                 const dismissedData = localStorage.getItem(STORAGE_KEY);
                 const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+                console.log('🔒 Annonces fermées:', dismissed);
 
                 // Trouver la première annonce non fermée
                 const nextAnnouncement = activeAnnouncements.find(a => !dismissed[a.id]);
+                console.log('🎯 Annonce à afficher:', nextAnnouncement);
 
                 if (nextAnnouncement) {
                     setVisibleAnnouncement(nextAnnouncement);
+                } else {
+                    console.log('⚠️ Toutes les annonces ont été fermées');
                 }
             } catch (error) {
-                console.error('Erreur lors du chargement des annonces:', error);
+                console.error('❌ Erreur lors du chargement des annonces:', error);
             }
         };
 
