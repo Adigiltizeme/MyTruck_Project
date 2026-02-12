@@ -498,7 +498,7 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
             )}
 
             {/* Section Suivi GPS Temps Réel (Carte pour Magasins) */}
-            {import.meta.env.DEV && commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
+            {commande?.statuts?.livraison === 'EN COURS DE LIVRAISON' && (
                 <div className="p-4 border rounded-lg bg-gradient-to-r from-green-50 to-emerald-50">
                     <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                         <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
