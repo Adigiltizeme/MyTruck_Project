@@ -1,4 +1,7 @@
-import io, { Socket } from 'socket.io-client';
+import io from 'socket.io-client';
+
+// Type Socket depuis socket.io-client
+type Socket = ReturnType<typeof io>;
 
 /**
  * Service GPS Singleton Global
@@ -24,6 +27,7 @@ class GPSTrackingService {
     private isActive: boolean = false;
     private config: GPSTrackingConfig | null = null;
     private isConnected: boolean = false;
+    private permissionDenied: boolean = false;
 
     private constructor() {
         // Singleton - constructeur privé
@@ -57,12 +61,13 @@ class GPSTrackingService {
 
         this.config = config;
         this.isActive = true;
+        this.permissionDenied = false;
 
         // Initialiser WebSocket si nécessaire
         this.initializeWebSocket();
 
-        // Démarrer le GPS tracking
-        this.startGPSWatch();
+        // Vérifier la permission de géolocalisation d'abord
+        this.checkGeolocationPermission();
     }
 
     /**
@@ -103,6 +108,13 @@ class GPSTrackingService {
      */
     getConfig(): GPSTrackingConfig | null {
         return this.config;
+    }
+
+    /**
+     * Vérifier si la permission a été refusée
+     */
+    isPermissionDenied(): boolean {
+        return this.permissionDenied;
     }
 
     /**
@@ -159,6 +171,48 @@ class GPSTrackingService {
     }
 
     /**
+     * Vérifier la permission de géolocalisation
+     *
+     * ✅ STRATÉGIE: Toujours démarrer watchPosition() pour déclencher la demande de permission
+     * Le navigateur gère automatiquement l'état (granted/prompt/denied)
+     * On gère uniquement le refus dans le callback d'erreur de watchPosition()
+     */
+    private async checkGeolocationPermission(): Promise<void> {
+        if (!navigator.geolocation) {
+            console.error('[GPSTrackingService] ❌ Geolocation not supported');
+            this.permissionDenied = true;
+            return;
+        }
+
+        // ✅ Toujours démarrer le GPS - le navigateur demandera la permission si nécessaire
+        console.log('[GPSTrackingService] 📍 Starting GPS watch (permission will be requested if needed)...');
+        this.startGPSWatch();
+
+        // Optionnel: Écouter les changements de permission si l'API est disponible
+        if (navigator.permissions) {
+            try {
+                const result = await navigator.permissions.query({ name: 'geolocation' });
+                console.log('[GPSTrackingService] 🔐 Initial permission state:', result.state);
+
+                result.addEventListener('change', () => {
+                    console.log('[GPSTrackingService] 🔄 Permission state changed to:', result.state);
+
+                    if (result.state === 'granted' && this.isActive && !this.watchId) {
+                        // Permission accordée après refus - relancer
+                        this.startGPSWatch();
+                    } else if (result.state === 'denied' && this.isActive) {
+                        // Permission révoquée - arrêter
+                        this.permissionDenied = true;
+                        this.stop();
+                    }
+                });
+            } catch (error) {
+                console.warn('[GPSTrackingService] ⚠️ Permissions API error:', error);
+            }
+        }
+    }
+
+    /**
      * Démarrer le GPS watch
      */
     private startGPSWatch(): void {
@@ -177,10 +231,23 @@ class GPSTrackingService {
         this.watchId = navigator.geolocation.watchPosition(
             (position) => {
                 const { latitude, longitude } = position.coords;
+                this.permissionDenied = false; // Permission accordée
                 this.sendLocation(latitude, longitude);
             },
             (error) => {
                 console.error('[GPSTrackingService] ❌ GPS error:', error.message, error);
+
+                // Gérer différents types d'erreurs
+                if (error.code === error.PERMISSION_DENIED) {
+                    this.permissionDenied = true;
+                    console.error('[GPSTrackingService] 🚫 Permission de géolocalisation refusée');
+                    console.log('💡 Pour activer le GPS: Cliquez sur 🔒 dans la barre d\'adresse → Autoriser la position → Rafraîchir');
+                    this.stop(); // Arrêter le tracking
+                } else if (error.code === error.POSITION_UNAVAILABLE) {
+                    console.error('[GPSTrackingService] 📍 Position unavailable');
+                } else if (error.code === error.TIMEOUT) {
+                    console.error('[GPSTrackingService] ⏱️ Geolocation timeout');
+                }
             },
             {
                 enableHighAccuracy: true,
@@ -214,6 +281,12 @@ class GPSTrackingService {
             commandeId: this.config.commandeId,
             statutLivraison: this.config.statutLivraison,
         };
+
+        console.log(`[GPSTrackingService] 📤 Emitting 'location-update' event:`, {
+            socketId: this.socket?.id,
+            connected: this.socket?.connected,
+            data: locationData
+        });
 
         this.socket.emit('location-update', locationData);
         console.log(`[GPSTrackingService] 📍 Location sent: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
