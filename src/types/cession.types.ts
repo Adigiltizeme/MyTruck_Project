@@ -69,11 +69,22 @@ export interface Cession {
 }
 
 /**
+ * Interface pour un magasin externe (saisi manuellement)
+ */
+export interface ExternalMagasinData {
+    nom: string;
+    adresse: string;
+    telephone?: string;
+    email?: string;
+}
+
+/**
  * Interface pour le formulaire de création de cession
  */
 export interface CessionFormData {
     magasin_origine_id: string;
-    magasin_destination_id: string;
+    magasin_destination_id?: string; // Optionnel (mode liste)
+    magasin_externe?: ExternalMagasinData; // Optionnel (mode manuel)
     adresse_livraison?: string;
     date_livraison_souhaitee: string;
     articles: Array<{

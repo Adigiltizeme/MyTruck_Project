@@ -102,34 +102,48 @@ export class CessionService {
       );
 
       // Préparer le DTO pour le backend
-      const dto = {
+      const dto: any = {
         magasinOrigineId: cessionData.magasin_origine_id,
-        magasinDestinationId: cessionData.magasin_destination_id,
         dateLivraisonSouhaitee: cessionData.date_livraison_souhaitee,
-        articles: articlesWithPhotos.map(article => ({
-          nom: article.nom,
-          reference: article.reference || article.nom,
-          type: article.type || 'Autre',
-          quantite: article.quantite,
-          description: article.description || '',
-          photo: typeof article.photo === 'string' ? article.photo : undefined,
-          dimensions: (article.hauteur || article.largeur || article.longueur || article.poids) ? {
-            hauteur: article.hauteur,
-            largeur: article.largeur,
-            profondeur: article.longueur,
-            poids: article.poids
-          } : undefined,
-          poids: article.poids,
-          autresArticles: article.autresArticles || 0
-        })),
-        motif: cessionData.motif || '',
-        priorite: cessionData.priorite || 'Normale',
-        remarques: cessionData.remarques || '',
-        categorieVehicule: cessionData.vehicule || '',
-        optionEquipier: cessionData.equipiers || 0,
-        creneauLivraison: cessionData.creneau || '',
-        tarifHT: cessionData.tarifHT || 0
       };
+
+      // Ajouter soit l'ID du magasin de destination (mode liste), soit les infos magasin externe (mode manuel)
+      if (cessionData.magasin_destination_id) {
+        dto.magasinDestinationId = cessionData.magasin_destination_id;
+      } else if (cessionData.magasin_externe) {
+        dto.magasinExterne = {
+          nom: cessionData.magasin_externe.nom,
+          adresse: cessionData.magasin_externe.adresse,
+          telephone: cessionData.magasin_externe.telephone || '',
+          email: cessionData.magasin_externe.email || ''
+        };
+      }
+
+      // Compléter le DTO avec les articles et autres infos
+      dto.articles = articlesWithPhotos.map(article => ({
+        nom: article.nom,
+        reference: article.reference || article.nom,
+        type: article.type || 'Autre',
+        quantite: article.quantite,
+        description: article.description || '',
+        photo: typeof article.photo === 'string' ? article.photo : undefined,
+        dimensions: (article.hauteur || article.largeur || article.longueur || article.poids) ? {
+          hauteur: article.hauteur,
+          largeur: article.largeur,
+          profondeur: article.longueur,
+          poids: article.poids
+        } : undefined,
+        poids: article.poids,
+        autresArticles: article.autresArticles || 0
+      }));
+
+      dto.motif = cessionData.motif || '';
+      dto.priorite = cessionData.priorite || 'Normale';
+      dto.remarques = cessionData.remarques || '';
+      dto.categorieVehicule = cessionData.vehicule || '';
+      dto.optionEquipier = cessionData.equipiers || 0;
+      dto.creneauLivraison = cessionData.creneau || '';
+      dto.tarifHT = cessionData.tarifHT || 0;
 
       const response = await apiService.post('/cessions', dto) as any;
       console.log('✅ Réponse backend cession COMPLÈTE:', response);

@@ -25,11 +25,35 @@ export const useFormValidation = (
 
             case 2: // Informations client OU Magasin de destination (pour cession)
                 if (isCession) {
-                    // Validation pour cession: seul le magasin de destination est requis
-                    if (!formData.magasinDestination?.id) {
+                    // Validation pour cession: magasin de destination requis
+                    // Deux modes possibles:
+                    // - Mode "Liste" : magasinDestination.id doit être renseigné
+                    // - Mode "Manuel" : name et address doivent être renseignés (id peut être vide)
+
+                    const hasListSelection = !!formData.magasinDestination?.id;
+                    const hasManualInput =
+                        !!formData.magasinDestination?.name?.trim() &&
+                        !!formData.magasinDestination?.address?.trim();
+
+                    if (!hasListSelection && !hasManualInput) {
+                        // Aucun des deux modes n'est rempli
                         errors.magasinDestination = {
-                            id: 'Le magasin de destination est requis'
+                            id: 'Sélectionnez un magasin de la liste ou saisissez les informations manuellement'
                         };
+                    } else if (!hasListSelection) {
+                        // Mode manuel : vérifier que name et address sont renseignés
+                        if (!formData.magasinDestination?.name?.trim()) {
+                            errors.magasinDestination = {
+                                ...errors.magasinDestination,
+                                name: 'Le nom du magasin est requis en mode manuel'
+                            };
+                        }
+                        if (!formData.magasinDestination?.address?.trim()) {
+                            errors.magasinDestination = {
+                                ...errors.magasinDestination,
+                                address: 'L\'adresse du magasin est requise en mode manuel'
+                            };
+                        }
                     }
                 } else {
                     // Validation pour commande normale: informations client requises
