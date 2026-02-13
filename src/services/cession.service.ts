@@ -109,14 +109,18 @@ export class CessionService {
 
       // Ajouter soit l'ID du magasin de destination (mode liste), soit les infos magasin externe (mode manuel)
       if (cessionData.magasin_destination_id) {
+        console.log('📋 Mode LISTE - magasinDestinationId:', cessionData.magasin_destination_id);
         dto.magasinDestinationId = cessionData.magasin_destination_id;
       } else if (cessionData.magasin_externe) {
+        console.log('✍️ Mode MANUEL - magasinExterne:', cessionData.magasin_externe);
         dto.magasinExterne = {
           nom: cessionData.magasin_externe.nom,
           adresse: cessionData.magasin_externe.adresse,
           telephone: cessionData.magasin_externe.telephone || '',
           email: cessionData.magasin_externe.email || ''
         };
+      } else {
+        console.error('❌ ERREUR: Aucun magasin de destination fourni (ni ID ni magasin externe)');
       }
 
       // Compléter le DTO avec les articles et autres infos
@@ -144,6 +148,8 @@ export class CessionService {
       dto.optionEquipier = cessionData.equipiers || 0;
       dto.creneauLivraison = cessionData.creneau || '';
       dto.tarifHT = cessionData.tarifHT || 0;
+
+      console.log('📦 DTO complet à envoyer au backend:', JSON.stringify(dto, null, 2));
 
       const response = await apiService.post('/cessions', dto) as any;
       console.log('✅ Réponse backend cession COMPLÈTE:', response);
