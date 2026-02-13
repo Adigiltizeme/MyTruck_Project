@@ -485,27 +485,85 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
         setLoading(true);
         isCreatingCommandeRef.current = true;
-        console.log('=== DÉBUT CRÉATION COMMANDE ===');
+        console.log('=== DÉBUT CRÉATION COMMANDE/CESSION ===');
+        console.log('📦 Type:', type, '| Type commande:', commande.type);
 
         try {
-            // S'assurer que le magasin est correctement spécifié pour les utilisateurs magasin
-            let commandeToCreate = { ...commande };
+            // ✅ CESSIONS : Utiliser le service dédié
+            if (type === 'INTER_MAGASIN' || commande.type === 'INTER_MAGASIN') {
+                console.log('🔄 Création CESSION inter-magasins');
 
-            if (user?.role === 'magasin' && user.storeId && (!commande.magasin?.id || commande.magasin.id === '')) {
-                console.log('Ajout des informations du magasin à la commande');
-                commandeToCreate.magasin = {
-                    ...(commandeToCreate.magasin || {}),
-                    id: user.storeId,
-                    name: user.storeName || '',
-                    address: user.storeAddress || '',
-                    phone: commande.magasin?.phone || '',
-                    status: commande.magasin?.status || ''
+                // Transformer CommandeMetier → CessionFormData
+                // Extraire articles depuis dimensions
+                const articlesArray = commande.articles?.dimensions?.map((dim: any) => ({
+                    nom: dim.nom || 'Article',
+                    reference: dim.reference || dim.nom || '',
+                    type: dim.type || 'Autre',
+                    quantite: dim.quantite || 1,
+                    hauteur: dim.hauteur,
+                    largeur: dim.largeur,
+                    longueur: dim.profondeur || dim.longueur,
+                    poids: dim.poids,
+                    autresArticles: commande.articles?.autresArticles || 0
+                })) || [];
+
+                const cessionData: any = {
+                    magasin_origine_id: commande.magasin?.id || user?.storeId || '',
+                    date_livraison_souhaitee: commande.dates?.livraison || new Date().toISOString().split('T')[0],
+                    articles: articlesArray,
+                    motif: commande.cession?.motif || '',
+                    priorite: commande.cession?.priorite || 'Normale',
+                    remarques: commande.livraison?.remarques || '',
+                    creneau: commande.livraison?.creneau || '',
+                    vehicule: commande.livraison?.vehicule || '',
+                    equipiers: commande.livraison?.equipiers || 0,
+                    tarifHT: commande.financier?.tarifHT || 0
                 };
-            }
 
-            // Appel unique à dataService.createCommande
-            console.log('Appel à createCommande (UNIQUE)');
-            await dataService.createCommande(commandeToCreate);
+                // ✅ Magasin destination : mode liste OU mode manuel
+                if (commande.magasinDestination?.id) {
+                    cessionData.magasin_destination_id = commande.magasinDestination.id;
+                    console.log('📋 Mode LISTE - ID:', commande.magasinDestination.id);
+                } else if (commande.magasinDestination?.name && commande.magasinDestination?.address) {
+                    cessionData.magasin_externe = {
+                        nom: commande.magasinDestination.name,
+                        adresse: commande.magasinDestination.address,
+                        telephone: commande.magasinDestination.phone || '',
+                        email: commande.magasinDestination.email || ''
+                    };
+                    console.log('✍️ Mode MANUEL - Magasin:', cessionData.magasin_externe);
+                }
+
+                console.log('📦 CessionFormData préparée:', cessionData);
+
+                // Appeler le service de cession
+                const { cessionService } = await import('../../services/cession.service');
+                await cessionService.createCession(cessionData, user?.id || '');
+
+                console.log('✅ Cession créée avec succès');
+            } else {
+                // ✅ COMMANDES NORMALES : Utiliser le service standard
+                console.log('📦 Création COMMANDE CLIENT standard');
+
+                // S'assurer que le magasin est correctement spécifié pour les utilisateurs magasin
+                let commandeToCreate = { ...commande };
+
+                if (user?.role === 'magasin' && user.storeId && (!commande.magasin?.id || commande.magasin.id === '')) {
+                    console.log('Ajout des informations du magasin à la commande');
+                    commandeToCreate.magasin = {
+                        ...(commandeToCreate.magasin || {}),
+                        id: user.storeId,
+                        name: user.storeName || '',
+                        address: user.storeAddress || '',
+                        phone: commande.magasin?.phone || '',
+                        status: commande.magasin?.status || ''
+                    };
+                }
+
+                // Appel unique à dataService.createCommande
+                console.log('Appel à createCommande (UNIQUE)');
+                await dataService.createCommande(commandeToCreate);
+            }
 
             // Nettoyer après création réussie
             console.log('Commande créée, nettoyage...');
