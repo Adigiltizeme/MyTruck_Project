@@ -484,3 +484,6 @@ export class CessionService {
     }
   }
 }
+
+// ✅ Export de l'instance singleton
+export const cessionService = new CessionService('');

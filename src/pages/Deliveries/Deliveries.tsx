@@ -19,6 +19,7 @@ import { simpleBackendService } from '../../services/simple-backend.service';
 import { useOffline } from '../../contexts/OfflineContext';
 import { useCommandeExpiration } from '../../hooks/useCommandeExpiration';
 import { isAdminRole } from '../../utils/role-helpers';
+import { cessionService } from '../../services/cession.service';
 
 // Extend the Window interface to include debugDeliveries for TypeScript
 declare global {
@@ -197,8 +198,25 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
     const isCreatingCommandeRef = useRef(false);
 
+    // ✅ Clés de recherche complètes pour tous les types (livraisons + cessions)
     const searchKeys: Array<keyof CommandeMetier | string> = [
+        // Commun à tous
         'numeroCommande',
+        'dates.livraison',
+        'statuts.livraison',
+        'statuts.commande',
+        'livraison.creneau',
+        'livraison.vehicule',
+        'livraison.remarques',
+        'chauffeurs',
+        'financier.tarifHT',
+        'articles.dimensions',
+
+        // Magasin (présent pour tous)
+        'magasin.name',
+        'magasin.address',
+
+        // Client (pour livraisons classiques)
         'client.nom',
         'client.prenom',
         'client.nomComplet',
@@ -206,16 +224,15 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         'client.adresse.type',
         'client.telephone.principal',
         'client.telephone.secondaire',
-        'magasin.name',
-        'dates.livraison',
-        'statuts.livraison',
-        'statuts.commande',
-        'livraison.creneau',
-        'livraison.vehicule',
         'livraison.reserve',
-        'chauffeurs',
-        'financier.tarifHT',
-        'articles.dimensions',
+
+        // Cessions inter-magasins
+        'magasinDestination.name',
+        'magasinDestination.address',
+        'magasinDestination.phone',
+        'magasinDestination.email',
+        'cession.motif',
+        'cession.priorite',
     ];
 
     const { search, setSearch, filteredItems: searchedItems } = useSearch({
@@ -537,7 +554,6 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 console.log('📦 CessionFormData préparée:', cessionData);
 
                 // Appeler le service de cession
-                const { cessionService } = await import('../../services/cession.service');
                 await cessionService.createCession(cessionData, user?.id || '');
 
                 console.log('✅ Cession créée avec succès');
