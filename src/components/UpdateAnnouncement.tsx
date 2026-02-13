@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { announcementService, Announcement } from '../services/announcement.service';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificationService } from '../services/notificationService';
 
 const STORAGE_KEY = 'myTruck_dismissedAnnouncements';
 
@@ -67,8 +68,75 @@ export const UpdateAnnouncement: React.FC = () => {
         loadAnnouncements();
     }, [user?.role]);
 
-    const handleDismiss = () => {
+    // Écouter les clics sur les notifications pour rouvrir l'annonce
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash;
+
+            if (hash.startsWith('#reopen-announcement-')) {
+                const announcementId = hash.replace('#reopen-announcement-', '');
+
+                console.log('🔓 Demande de réouverture de l\'annonce:', announcementId);
+
+                // Retirer l'annonce des fermées
+                const dismissedData = localStorage.getItem(STORAGE_KEY);
+                const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+                delete dismissed[announcementId];
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed));
+
+                // Nettoyer le hash
+                window.location.hash = '';
+
+                // Recharger les annonces pour afficher celle qui vient d'être rouverte
+                window.location.reload();
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        // Vérifier au chargement initial
+        handleHashChange();
+
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+        };
+    }, []);
+
+    const createNotificationFromAnnouncement = useCallback((announcement: Announcement) => {
+        // Vérifier si une notification pour cette annonce existe déjà
+        const existingNotifications = localStorage.getItem('notifications');
+        if (existingNotifications) {
+            try {
+                const notifications = JSON.parse(existingNotifications);
+                const hasExisting = notifications.some((n: { link?: string }) =>
+                    n.link === '#reopen-announcement-' + announcement.id
+                );
+
+                if (hasExisting) {
+                    console.log('📬 Notification déjà existante pour:', announcement.title);
+                    return; // Ne pas créer de doublon
+                }
+            } catch (e) {
+                console.error('Erreur vérification notifications:', e);
+            }
+        }
+
+        // Créer une notification persistante pour permettre de retrouver l'annonce
+        const notificationMessage = `${announcement.icon || '📢'} ${announcement.title}`;
+
+        NotificationService.info(
+            notificationMessage,
+            '#reopen-announcement-' + announcement.id, // Lien spécial pour rouvrir
+            'Voir l\'annonce'
+        );
+
+        console.log('📬 Notification créée pour l\'annonce:', announcement.title);
+    }, []);
+
+    const handleDismiss = useCallback(() => {
         if (!visibleAnnouncement) return;
+
+        // Créer une notification avant de fermer
+        createNotificationFromAnnouncement(visibleAnnouncement);
 
         // Sauvegarder l'état "fermé" dans localStorage
         const dismissedData = localStorage.getItem(STORAGE_KEY);
@@ -78,14 +146,24 @@ export const UpdateAnnouncement: React.FC = () => {
 
         // Cacher l'annonce
         setVisibleAnnouncement(null);
-    };
+    }, [visibleAnnouncement, createNotificationFromAnnouncement]);
 
-    const handleCTA = () => {
-        if (visibleAnnouncement?.ctaLink) {
-            navigate(visibleAnnouncement.ctaLink);
-            handleDismiss();
-        }
-    };
+    const handleCTA = useCallback(() => {
+        if (!visibleAnnouncement?.ctaLink) return;
+
+        // Créer une notification avant de naviguer
+        createNotificationFromAnnouncement(visibleAnnouncement);
+
+        // Naviguer vers le lien
+        navigate(visibleAnnouncement.ctaLink);
+
+        // Fermer l'annonce (sans créer une 2ème notification)
+        const dismissedData = localStorage.getItem(STORAGE_KEY);
+        const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+        dismissed[visibleAnnouncement.id] = true;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed));
+        setVisibleAnnouncement(null);
+    }, [visibleAnnouncement, navigate, createNotificationFromAnnouncement]);
 
     // Couleurs selon le type d'annonce
     const getTypeStyles = (type: AnnouncementTypeUI) => {
