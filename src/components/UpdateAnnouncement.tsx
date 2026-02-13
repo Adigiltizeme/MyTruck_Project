@@ -35,30 +35,22 @@ export const UpdateAnnouncement: React.FC = () => {
 
         const loadAnnouncements = async () => {
             try {
-                console.log('🔍 UpdateAnnouncement: Chargement des annonces pour le rôle:', user?.role);
-
                 // Récupérer les annonces actives depuis l'API
                 const activeAnnouncements = await announcementService.getActiveAnnouncements();
-                console.log('📢 Annonces actives reçues:', activeAnnouncements.length, activeAnnouncements);
 
                 if (activeAnnouncements.length === 0) {
-                    console.log('⚠️ Aucune annonce active trouvée');
                     return;
                 }
 
                 // Récupérer les annonces déjà fermées
                 const dismissedData = localStorage.getItem(STORAGE_KEY);
                 const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
-                console.log('🔒 Annonces fermées:', dismissed);
 
                 // Trouver la première annonce non fermée
                 const nextAnnouncement = activeAnnouncements.find(a => !dismissed[a.id]);
-                console.log('🎯 Annonce à afficher:', nextAnnouncement);
 
                 if (nextAnnouncement) {
                     setVisibleAnnouncement(nextAnnouncement);
-                } else {
-                    console.log('⚠️ Toutes les annonces ont été fermées');
                 }
             } catch (error) {
                 console.error('❌ Erreur lors du chargement des annonces:', error);
@@ -75,8 +67,6 @@ export const UpdateAnnouncement: React.FC = () => {
 
             if (hash.startsWith('#reopen-announcement-')) {
                 const announcementId = hash.replace('#reopen-announcement-', '');
-
-                console.log('🔓 Demande de réouverture de l\'annonce:', announcementId);
 
                 // Retirer l'annonce des fermées
                 const dismissedData = localStorage.getItem(STORAGE_KEY);
@@ -112,7 +102,6 @@ export const UpdateAnnouncement: React.FC = () => {
                 );
 
                 if (hasExisting) {
-                    console.log('📬 Notification déjà existante pour:', announcement.title);
                     return; // Ne pas créer de doublon
                 }
             } catch (e) {
@@ -128,8 +117,6 @@ export const UpdateAnnouncement: React.FC = () => {
             '#reopen-announcement-' + announcement.id, // Lien spécial pour rouvrir
             'Voir l\'annonce'
         );
-
-        console.log('📬 Notification créée pour l\'annonce:', announcement.title);
     }, []);
 
     const handleDismiss = useCallback(() => {
