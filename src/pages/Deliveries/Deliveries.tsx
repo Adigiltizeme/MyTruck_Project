@@ -572,7 +572,8 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         name: user.storeName || '',
                         address: user.storeAddress || '',
                         phone: commande.magasin?.phone || '',
-                        status: commande.magasin?.status || ''
+                        status: commande.magasin?.status || '',
+                        enseigne: commande.magasin?.enseigne || user.storeName || ''
                     };
                 }
 

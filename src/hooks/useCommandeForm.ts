@@ -242,7 +242,8 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                             name: user.storeName || '',
                             address: user.storeAddress || '',
                             phone: user.storePhone || '',
-                            status: user.storeStatus || 'Actif'
+                            status: user.storeStatus || 'Actif',
+                            enseigne: user.storeEnseigne || 'Truffaut'
                         };
                     }
 
@@ -280,7 +281,8 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                             name: user.storeName || '',
                             address: user.storeAddress || '',
                             phone: user.storePhone || '', // Add phone property
-                            status: user.storeStatus || 'active' // Add status property with a default value
+                            status: user.storeStatus || 'active', // Add status property with a default value
+                            enseigne: user.storeEnseigne || 'Truffaut' // Add enseigne property with a default value
                         }
                     }
                 }

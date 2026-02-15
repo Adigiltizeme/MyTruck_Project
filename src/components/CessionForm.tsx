@@ -50,7 +50,8 @@ const CessionForm: React.FC<CessionFormProps> = ({
                 email: '',
                 manager: '',
                 status: '',
-                photo: ''
+                photo: '',
+                enseigne: 'Truffaut'
             },
             articles: {
                 nombre: 0,
@@ -78,6 +79,7 @@ const CessionForm: React.FC<CessionFormProps> = ({
                 name: '',
                 address: '',
                 phone: '',
+                enseigne: 'Truffaut',
                 email: '',
                 manager: '',
                 status: '',

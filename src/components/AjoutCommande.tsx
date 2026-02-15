@@ -86,6 +86,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 id: user?.storeId || '',
                 name: user?.storeName || '',
                 address: user?.storeAddress || '',
+                enseigne: 'Truffaut',
                 phone: '',
                 email: '',
                 manager: '',
@@ -156,7 +157,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     const [creneaux, setCreneaux] = useState(CRENEAUX_LIVRAISON);
     const [vehicules, setVehicules] = useState<{ [key: string]: string }>(VEHICULES);
     const [selectedMagasinId, setSelectedMagasinId] = useState<string>('');
-    const [magasins, setMagasins] = useState<Array<{ id: string; nom: string; adresse: string }>>([]);
+    const [magasins, setMagasins] = useState<Array<{ id: string; nom: string; adresse: string; enseigne: string }>>([]);
     const [loadingMagasins, setLoadingMagasins] = useState(false);
 
     const { loading } = useDraftStorage();
@@ -335,7 +336,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
 
             try {
                 setLoadingMagasins(true);
-                const response = await apiService.get('/magasins') as { data: Array<{ id: string; nom: string; adresse: string }> };
+                const response = await apiService.get('/magasins') as { data: Array<{ id: string; nom: string; adresse: string; enseigne: string }> };
                 setMagasins(response.data || []);
             } catch (error) {
                 console.error('Erreur chargement magasins:', error);
@@ -453,7 +454,13 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
             magasin: selectedMagasin ? {
                 id: selectedMagasin.id,
                 name: selectedMagasin.nom,
-                address: selectedMagasin.adresse
+                address: selectedMagasin.adresse,
+                enseigne: selectedMagasin.enseigne || 'Truffaut',
+                phone: '',
+                email: '',
+                manager: '',
+                status: '',
+                photo: ''
             } : undefined
         };
 
@@ -498,6 +505,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                             id: selectedMagasin.id,
                             name: selectedMagasin.nom,
                             address: selectedMagasin.adresse,
+                            enseigne: selectedMagasin.enseigne || 'Truffaut',
                             phone: '',
                             email: '',
                             manager: '',
@@ -517,6 +525,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 id: user.storeId || '',
                 name: user.storeName || '',
                 address: user.storeAddress || '',
+                enseigne: 'Truffaut',
                 phone: '',
                 email: '',
                 manager: '',

@@ -12,11 +12,13 @@ export const normalizeMagasin = (magasin: MagasinInfo): {
     manager: string;
     status: string;
     categories: string[];
+    enseigne: string;
 } => {
     return {
         id: magasin.id,
         name: magasin.nom || magasin.name || '',
         address: magasin.adresse || magasin.address || '',
+        enseigne: magasin.enseigne || 'Truffaut',
         phone: magasin.telephone || magasin.phone || '',
         email: magasin.email || '',
         manager: magasin.manager || '',

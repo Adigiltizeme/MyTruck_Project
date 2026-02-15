@@ -13,6 +13,7 @@ interface AuthUser {
     storeAddress?: string;
     storePhone?: string;
     storeStatus?: string;
+    storeEnseigne?: string;
     driverId?: string;
     driverName?: string;
     token: string;
@@ -45,7 +46,9 @@ interface AuthContextType {
         storeId?: string;
         storeName?: string;
         storeAddress?: string;
-        driverId?: string
+        storeEnseigne?: string;
+        driverId?: string;
+        driverName?: string;
     }) => Promise<void>;
 }
 

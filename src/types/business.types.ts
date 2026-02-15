@@ -53,6 +53,7 @@ export interface MagasinInfo {
     id: string;
     name: string;
     address: string;
+    enseigne: string; // Nom de l'enseigne (Truffaut, Jardiland, etc.)
     phone: string;
     email?: string;
     photo?: string;

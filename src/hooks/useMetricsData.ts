@@ -92,7 +92,8 @@ export const useMetricsData = (filters: FilterOptions) => {
                         email: '',
                         status: 'maintenance',
                         photo: '',
-                        manager: ''
+                        manager: '',
+                        enseigne: 'Truffaut'
                     }],
                     chauffeurs: []
                 });

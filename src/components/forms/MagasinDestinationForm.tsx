@@ -12,6 +12,7 @@ interface BackendMagasin {
     id: string;
     nom: string;
     adresse: string;
+    enseigne: string;
     telephone?: string;
     email?: string;
     manager?: string;
@@ -37,35 +38,42 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
     const [magasins, setMagasins] = useState<MagasinInfo[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedMagasin, setSelectedMagasin] = useState<MagasinInfo | null>(null);
+    const [magasinOrigine, setMagasinOrigine] = useState<MagasinInfo | null>(null);
 
     // Mode de saisie : 'liste' (sélection magasin Truffaut) ou 'manuel' (saisie libre)
-    const [inputMode, setInputMode] = useState<'liste' | 'manuel'>('liste');
+    // Par défaut 'manuel' si pas Truffaut, sinon 'liste'
+    const [inputMode, setInputMode] = useState<'liste' | 'manuel'>('manuel');
 
     // État pour l'auto-complétion d'adresse en mode manuel
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
 
     const apiService = useApi();
 
+    // ✅ Vérifier l'enseigne du magasin d'origine pour affichage dynamique
+    const enseigneOrigine = magasinOrigine?.enseigne || null;
+    // Vérifier s'il existe d'autres magasins de la même enseigne (pour afficher le toggle)
+    const hasSameEnseigneMagasins = magasins.length > 0;
+
     // Données du magasin de destination
     const magasinDestData: Partial<MagasinInfo> = data.magasinDestination || {};
 
     // Fonction pour transformer les données backend en format MagasinInfo (même que MagasinManagement)
     const transformBackendMagasin = (backendData: BackendMagasin): MagasinInfo => {
-        const normalized = normalizeMagasin({
+        return {
             id: backendData.id,
             name: backendData.nom,
             address: backendData.adresse,
+            enseigne: backendData.enseigne || 'Truffaut',
             phone: backendData.telephone ?? '',
             email: backendData.email,
             manager: backendData.manager,
             status: backendData.status || 'inactif',
-            photo: ''
-        });
-
-        return normalized;
+            photo: '',
+            categories: backendData.categories || []
+        };
     };
 
-    // Charger la liste des magasins (même méthode que MagasinManagement)
+    // Charger la liste des magasins et identifier le magasin d'origine
     useEffect(() => {
         const loadMagasins = async () => {
             try {
@@ -79,12 +87,42 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                 const transformedMagasins = rawData.data.map(transformBackendMagasin);
                 console.log('✅ Magasins transformés:', transformedMagasins.length, transformedMagasins);
 
-                // Filtrer pour exclure le magasin d'origine
+                // ✅ Identifier le magasin d'origine
+                if (magasinOrigineId) {
+                    const origine = transformedMagasins.find(m => m.id === magasinOrigineId);
+                    setMagasinOrigine(origine || null);
+
+                    // ✅ Définir le mode par défaut selon l'enseigne
+                    if (origine?.enseigne) {
+                        // Vérifier s'il existe d'autres magasins de la même enseigne
+                        const autresMagasinsMemeEnseigne = transformedMagasins.filter(
+                            m => m.enseigne === origine.enseigne && m.id !== magasinOrigineId
+                        );
+
+                        if (autresMagasinsMemeEnseigne.length > 0) {
+                            console.log(`✅ Magasin origine : ${origine.enseigne} → Mode liste disponible (${autresMagasinsMemeEnseigne.length} magasins)`);
+                            setInputMode('liste');
+                        } else {
+                            console.log(`⚠️ Aucun autre magasin ${origine.enseigne} → Mode manuel uniquement`);
+                            setInputMode('manuel');
+                        }
+                    } else {
+                        console.log('⚠️ Enseigne non définie → Mode manuel uniquement');
+                        setInputMode('manuel');
+                    }
+                }
+
+                // Filtrer pour exclure le magasin d'origine ET garder seulement même enseigne
                 let filteredMagasins = transformedMagasins;
                 if (magasinOrigineId) {
+                    const origine = transformedMagasins.find(m => m.id === magasinOrigineId);
                     console.log('🔍 Filtrage magasin origine:', magasinOrigineId);
-                    filteredMagasins = transformedMagasins.filter(m => m.id !== magasinOrigineId);
-                    console.log('✅ Magasins filtrés:', filteredMagasins.length);
+
+                    // Filtrer : même enseigne ET différent du magasin d'origine
+                    filteredMagasins = transformedMagasins.filter(
+                        m => m.id !== magasinOrigineId && m.enseigne === origine?.enseigne
+                    );
+                    console.log(`✅ Magasins filtrés (${origine?.enseigne}):`, filteredMagasins.length);
                 }
 
                 setMagasins(filteredMagasins);
@@ -196,8 +234,8 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                     Magasin de destination
                 </h2>
 
-                {/* Toggle mode de saisie */}
-                {!isEditing && (
+                {/* Toggle mode de saisie - Affiché UNIQUEMENT si magasins de même enseigne disponibles */}
+                {!isEditing && hasSameEnseigneMagasins && (
                     <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                         <button
                             type="button"
@@ -208,7 +246,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                                     : 'text-gray-600 hover:text-gray-900'
                             }`}
                         >
-                            📋 Liste Truffaut
+                            📋 Liste {enseigneOrigine || 'magasins'}
                         </button>
                         <button
                             type="button"
@@ -223,13 +261,21 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                         </button>
                     </div>
                 )}
+
+                {/* Message informatif si AUCUN magasin de même enseigne */}
+                {!isEditing && !hasSameEnseigneMagasins && magasinOrigine && (
+                    <div className="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+                        💡 Saisie manuelle uniquement
+                        {enseigneOrigine && ` (aucun autre magasin ${enseigneOrigine} disponible)`}
+                    </div>
+                )}
             </div>
 
-            {/* Mode Liste : Sélection depuis la liste Truffaut */}
+            {/* Mode Liste : Sélection depuis la liste des magasins de la même enseigne */}
             {inputMode === 'liste' && (
                 <div className="space-y-2">
                     <label htmlFor="magasinDestination.id" className="block text-sm font-medium text-gray-700">
-                        Magasin Truffaut de destination <span className="text-red-500">*</span>
+                        Magasin {enseigneOrigine} de destination <span className="text-red-500">*</span>
                     </label>
 
                     {loading ? (

@@ -24,6 +24,7 @@ import AddressLink from '../../components/AddressLink';
 interface MagasinFormData {
     nom: string;
     adresse: string;
+    enseigne: string;
     telephone?: string;
     email?: string;
     manager?: string;
@@ -40,6 +41,7 @@ interface BackendMagasin {
     id: string;
     nom: string;
     adresse: string;
+    enseigne: string;
     telephone?: string;
     email?: string;
     manager?: string;
@@ -62,6 +64,7 @@ export default function MagasinManagement() {
     const [formData, setFormData] = useState<MagasinFormData>({
         nom: '',
         adresse: '',
+        enseigne: 'Truffaut',
         telephone: '',
         email: '',
         manager: '',
@@ -97,6 +100,7 @@ export default function MagasinManagement() {
             id: backendData.id,
             name: backendData.nom,
             address: backendData.adresse,
+            enseigne: backendData.enseigne || 'Truffaut',
             phone: backendData.telephone ?? '',
             email: backendData.email,
             manager: backendData.manager,
@@ -208,6 +212,7 @@ export default function MagasinManagement() {
                 await apiService.patch(`/magasins/${editingMagasin.id}`, {
                     nom: formData.nom,
                     adresse: formData.adresse,
+                    enseigne: formData.enseigne,
                     telephone: formData.telephone,
                     email: formData.email,
                     manager: formData.manager,
@@ -229,6 +234,7 @@ export default function MagasinManagement() {
                 const response = await apiService.post<{ id: string } | { data: { id: string } }>('/magasins', {
                     nom: formData.nom,
                     adresse: formData.adresse,
+                    enseigne: formData.enseigne,
                     telephone: formData.telephone,
                     email: formData.email,
                     manager: formData.manager,
@@ -322,6 +328,7 @@ export default function MagasinManagement() {
             setFormData({
                 nom: magasin.name,
                 adresse: magasin.address,
+                enseigne: magasin.enseigne || 'Truffaut',
                 telephone: magasin.phone || '',
                 email: magasin.email || '',
                 manager: magasin.manager || '',
@@ -337,6 +344,7 @@ export default function MagasinManagement() {
             setFormData({
                 nom: '',
                 adresse: '',
+                enseigne: 'Truffaut',
                 telephone: '',
                 email: '',
                 manager: '',
@@ -735,6 +743,42 @@ export default function MagasinManagement() {
                                                 placeholder="ex: Truffaut Boulogne"
                                                 className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
                                             />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Enseigne *
+                                            </label>
+                                            <select
+                                                required
+                                                value={formData.enseigne}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, enseigne: e.target.value }))}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
+                                            >
+                                                <option value="Truffaut">🌿 Truffaut</option>
+                                                <option value="Jardiland">🏡 Jardiland</option>
+                                                <option value="Botanic">🌻 Botanic</option>
+                                                <option value="Gamm Vert">🌾 Gamm Vert</option>
+                                                <option value="Autre">🏪 Autre enseigne</option>
+                                            </select>
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Permet de filtrer les magasins lors des cessions inter-magasins
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Statut
+                                            </label>
+                                            <select
+                                                value={formData.status}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary focus:border-primary"
+                                            >
+                                                <option value="actif">🟢 Actif</option>
+                                                <option value="inactif">🔴 Inactif</option>
+                                                <option value="maintenance">🟡 Maintenance</option>
+                                            </select>
                                         </div>
 
                                         <div className="md:col-span-2">
