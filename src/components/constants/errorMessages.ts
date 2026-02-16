@@ -11,7 +11,8 @@ export const ERROR_MESSAGES = {
         required: 'L\'adresse est requise',
         etage: 'L\'étage est requis',
         interphone: 'L\'interphone/code est requis'
-    }
+    },
+    frenchHoliday: 'Majoration les dimanches et jours fériés',
 };
 
 export const errorMessageStyles = {

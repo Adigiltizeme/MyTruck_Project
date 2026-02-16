@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { MapboxService } from './mapbox.service';
 import { canBypassQuoteLimit } from '../utils/role-helpers';
+import { requiresSurchargeMajoration } from '../utils/french-holidays';
 
 export type TypeVehicule = '1M3' | '6M3' | '10M3' | '20M3';
 
@@ -19,6 +20,7 @@ export interface TarifResponse {
         vehicule: number;
         distance: number | 'devis';
         equipiers: number | 'devis';
+        majorationDimancheFerie?: number; // ✅ Majoration 8€ pour dimanche/jour férié
     };
 }
 
@@ -242,12 +244,14 @@ export class TarificationService {
         adresseLivraison: string;
         equipiers: number;
         userRole?: string; // 🆕 Rôle utilisateur pour bypass devis obligatoire
+        dateLivraison?: string; // 🆕 Date de livraison pour majoration dimanche/férié
     }): Promise<{
         montantHT: number | 'devis';
         detail: {
             vehicule: number;
             distance: number | 'devis';
             equipiers: number | 'devis';
+            majorationDimancheFerie?: number;
         }
     }> {
         try {
@@ -326,17 +330,27 @@ export class TarificationService {
                 };
             }
 
-            // 4. Calcul total
-            const montantHT = tarifVehicule + (tarifEquipiers as number) + fraisKm;
+            // 4. Calcul majoration dimanche/jour férié
+            let majorationDimancheFerie: number | undefined = undefined;
+            if (params.dateLivraison) {
+                const dateLivraison = new Date(params.dateLivraison);
+                if (requiresSurchargeMajoration(dateLivraison)) {
+                    majorationDimancheFerie = 8;
+                }
+            }
 
-            console.log(`Tarif calculé: ${montantHT}€ (véhicule: ${tarifVehicule}€, équipiers: ${tarifEquipiers}€, distance: ${fraisKm}€)`);
+            // 5. Calcul total
+            const montantHT = tarifVehicule + (tarifEquipiers as number) + fraisKm + (majorationDimancheFerie || 0);
+
+            console.log(`Tarif calculé: ${montantHT}€ (véhicule: ${tarifVehicule}€, équipiers: ${tarifEquipiers}€, distance: ${fraisKm}€, majoration: ${majorationDimancheFerie || 0}€)`);
 
             return {
                 montantHT,
                 detail: {
                     vehicule: tarifVehicule,
                     distance: fraisKm,
-                    equipiers: tarifEquipiers as number
+                    equipiers: tarifEquipiers as number,
+                    ...(majorationDimancheFerie !== undefined && { majorationDimancheFerie })
                 }
             };
         } catch (error) {

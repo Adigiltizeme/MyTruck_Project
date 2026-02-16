@@ -1,434 +1,3 @@
-// import { useCallback, useEffect, useRef, useState } from "react";
-// import { LivraisonFormProps } from "../../types/form.types";
-// import { ERROR_MESSAGES } from "../constants/errorMessages";
-// import { CRENEAUX_LIVRAISON, VEHICULES } from "../constants/options";
-// import { TarificationService, TypeVehicule } from "../../services/tarification.service";
-// import { useAuth } from "../../contexts/AuthContext";
-// import { useNavigate } from "react-router-dom";
-
-// export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onChange }) => {
-
-//     const [calculatingTarif, setCalculatingTarif] = useState(false);
-//     const [selectedVehicle, setSelectedVehicle] = useState(data.livraison?.vehicule || '');
-//     const [tarifDetails, setTarifDetails] = useState<{
-//         montantHT: number | 'devis';
-//         detail: {
-//             vehicule: number;
-//             distance: number | 'devis';
-//             equipiers: number | 'devis';
-//         }
-//     } | null>(null);
-
-//     // Référence pour suivre si nous avons déjà tenté de récupérer l'adresse
-//     const adressMagasinRecuperee = useRef(false);
-
-//     const { user } = useAuth();
-
-//     const navigate = useNavigate();
-
-//     // IMPORTANT: Stocker l'adresse du magasin dans un état local pour éviter qu'elle ne soit écrasée
-//     const [storeAddress, setStoreAddress] = useState<string>('');
-
-//     // Synchroniser l'état local avec les données entrantes
-//     useEffect(() => {
-//         if (data.magasin?.address && data.magasin.address !== storeAddress) {
-//             console.log(`Mise à jour de l'adresse du magasin dans l'état local: ${data.magasin.address}`);
-//             setStoreAddress(data.magasin.address);
-//         }
-//     }, [data.magasin?.address]);
-
-//     // Réinitialiser le flag quand la commande change
-//     useEffect(() => {
-//         adressMagasinRecuperee.current = false;
-//     }, [data.id]); // Se réinitialise quand on change de commande
-
-//     // Effet DÉDIÉ uniquement à la récupération de l'adresse manquante du magasin
-//     useEffect(() => {
-//         // Si l'adresse du magasin est déjà présente ou si on a déjà tenté de la récupérer, ne rien faire
-//         if (data.magasin?.address || adressMagasinRecuperee.current) {
-//             return;
-//         }
-
-//         // Marquer qu'on a essayé de récupérer l'adresse
-//         adressMagasinRecuperee.current = true;
-
-//         if (user?.role === 'magasin' && user.storeAddress) {
-//             console.log('Récupération UNIQUE de l\'adresse du magasin:', user.storeAddress);
-
-//             // Mettre à jour sans déclencher d'effets en cascade
-//             onChange({
-//                 target: {
-//                     name: 'magasin.address',
-//                     value: user.storeAddress
-//                 }
-//             });
-//         }
-//     }, []); // Dépendances vides pour n'exécuter qu'une seule fois au montage
-
-//     // Fonction pour récupérer l'adresse du magasin de toutes les sources possibles
-//     const getLatestStoreAddress = useCallback(() => {
-//         // Priorité 1: Les données du formulaire
-//         if (data.magasin?.address) {
-//             return data.magasin.address;
-//         }
-
-//         // Priorité 2: Le contexte utilisateur
-//         if (user?.role === 'magasin' && user.storeAddress) {
-//             return user.storeAddress;
-//         }
-
-//         // Priorité 3: Le localStorage
-//         try {
-//             const storedInfo = localStorage.getItem('currentStoreInfo');
-//             if (storedInfo) {
-//                 const info = JSON.parse(storedInfo);
-//                 return info.address;
-//             }
-//         } catch (e) {
-//             console.error('Erreur lors de la lecture de localStorage', e);
-//         }
-
-//         // Valeur par défaut
-//         return '';
-//     }, [data.magasin?.address]);
-
-//     // Pour mettre à jour l'état local quand les données changent
-//     useEffect(() => {
-//         const latestAddress = getLatestStoreAddress();
-//         if (latestAddress && latestAddress !== storeAddress) {
-//             console.log(`Mise à jour de l'adresse du magasin: ${latestAddress}`);
-//             setStoreAddress(latestAddress);
-//         }
-//     }, [data.magasin?.address, getLatestStoreAddress]);
-
-//     // Gérer le calcul du tarif SÉPARÉMENT, sans tenter de récupérer l'adresse ici
-//     useEffect(() => {
-//         // Ne pas calculer s'il manque des informations essentielles
-//         if (!data.client?.adresse?.ligne1 || !data.livraison?.vehicule) {
-//             return;
-//         }
-
-//         const timeoutId = setTimeout(() => {
-//             updateTarif();
-//         }, 500);
-
-//         return () => clearTimeout(timeoutId);
-//     }, [
-//         data.livraison?.vehicule,
-//         data.livraison?.equipiers,
-//         data.client?.adresse?.ligne1,
-//         data.magasin?.address
-//     ]);
-
-//     // Effet pour initialiser le véhicule sélectionné
-//     useEffect(() => {
-//         if (data.livraison?.vehicule) {
-//             // Trouver le format long correspondant au format court stocké en BDD
-//             const longFormat = data.livraison && Object.entries(VEHICULES).find(
-//                 ([_, shortFormat]) => shortFormat === data.livraison?.vehicule
-//             )?.[0];
-
-//             if (longFormat) {
-//                 setSelectedVehicle(longFormat);
-//             }
-//         }
-//     }, []); // Uniquement à l'initialisation
-
-//     useEffect(() => {
-//         const handleStoreChange = (event: Event) => {
-//             const customEvent = event as CustomEvent;
-//             const storeInfo = customEvent.detail;
-
-//             console.log('Événement de changement de magasin détecté:', storeInfo);
-
-//             // Force la mise à jour de l'adresse dans le formulaire
-//             onChange({
-//                 target: {
-//                     name: 'magasin.address',
-//                     value: storeInfo.address
-//                 }
-//             });
-
-//             // Forcer un recalcul du tarif après la mise à jour
-//             setTimeout(() => updateTarif(), 100);
-//         };
-
-//         window.addEventListener('storechange', handleStoreChange);
-//         return () => {
-//             window.removeEventListener('storechange', handleStoreChange);
-//         };
-//     }, []);
-
-//     // Calculer le tarif quand les données pertinentes changent
-//     // Fonction séparée, qui ne tente PAS de récupérer l'adresse
-//     const updateTarif = async () => {
-//         if (!data.client?.adresse?.ligne1 || !data.livraison?.vehicule) {
-//             return;
-//         }
-
-//         try {
-//             setCalculatingTarif(true);
-//             const tarificationService = new TarificationService();
-
-//             // Utiliser l'adresse stockée localement OU récupérer la plus récente
-//             const addressToUse = storeAddress || getLatestStoreAddress();
-
-//             // Log de vérification
-//             // CRITIQUE: Utiliser l'adresse stockée dans l'état local, pas data.magasin.address
-//             console.log('Calcul du tarif avec les paramètres:', {
-//                 vehicule: data.livraison.vehicule,
-//                 adresseMagasin: addressToUse,
-//                 adresseLivraison: adresseLivraison,
-//                 equipiers: data.livraison.equipiers || 0
-//             });
-
-//             const tarif = await tarificationService.calculerTarif({
-//                 vehicule: data.livraison.vehicule as TypeVehicule,
-//                 adresseMagasin: addressToUse,
-//                 adresseLivraison: adresseLivraison,
-//                 equipiers: data.livraison.equipiers || 0
-//             });
-
-//             setTarifDetails(tarif);
-
-//             // Mise à jour du formulaire avec le même format d'événement
-//             const tarifEvent = {
-//                 target: {
-//                     name: 'financier.tarifHT',
-//                     value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
-//                 }
-//             };
-//             onChange(tarifEvent);
-
-//             const devisEvent = {
-//                 target: {
-//                     name: 'financier.devisRequis',
-//                     value: tarif.montantHT === 'devis'
-//                 }
-//             };
-//             onChange(devisEvent);
-//         } catch (error) {
-//             console.error('Erreur calcul tarif:', error);
-//         } finally {
-//             setCalculatingTarif(false);
-//         }
-//     };
-
-//     const minDate = new Date().toISOString().split('T')[0];
-//     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//         const selectedDate = new Date(e.target.value);
-//         const today = new Date();
-//         today.setHours(0, 0, 0, 0);
-
-//         if (selectedDate < today) {
-//             e.preventDefault();
-//             return;
-//         }
-
-//         onChange(e);
-//     };
-
-//     const isCreneauPasse = useCallback((creneau: string) => {
-//         if (data.dates?.livraison === minDate) {
-//             const [heureFin] = creneau.split('-')[1].split('h');
-//             const heureActuelle = new Date().getHours();
-//             return parseInt(heureFin) <= heureActuelle;
-//         }
-//         return false;
-//     }, [data.dates?.livraison]);
-
-//     const creneauxDisponibles = CRENEAUX_LIVRAISON.filter(creneau => !isCreneauPasse(creneau));
-
-//     const handleVehicleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-//         const longFormat = e.target.value;
-//         setSelectedVehicle(longFormat);
-
-//         // Convertir en format court pour la BDD
-//         const shortFormat = VEHICULES[longFormat];
-//         onChange({
-//             target: {
-//                 name: 'livraison.vehicule',
-//                 value: shortFormat
-//             }
-//         });
-//     };
-
-//     return (
-//         <div className="space-y-4 mb-6">
-//             <h3 className="text-lg font-medium">Informations de livraison</h3>
-//             <div className="grid grid-cols-2 gap-4">
-//                 <div className="space-y-1">
-//                     <label className="block text-sm font-bold text-gray-700">
-//                         Date de livraison <span className="text-red-500">*</span>
-//                     </label>
-//                     <input
-//                         type="date"
-//                         name="dates.livraison"
-//                         value={data.dates?.livraison?.split('T')[0] || ''}
-//                         onChange={handleDateChange}
-//                         min={minDate}
-//                         className="mt-1 block w-full rounded-md border border-gray-300"
-//                         required
-//                     />
-//                 </div>
-//                 <div className="space-y-1">
-//                     <label className="block text-sm font-bold text-gray-700">
-//                         Créneau de livraison <span className="text-red-500">*</span>
-//                     </label>
-//                     <select
-//                         name="livraison.creneau"
-//                         value={data.livraison?.creneau || ''}
-//                         onChange={onChange}
-//                         className="mt-1 block w-full rounded-md border border-gray-300"
-//                         required
-//                     >
-//                         <option value="">Sélectionner un créneau</option>
-//                         {creneauxDisponibles.map(creneau => (
-//                             <option key={creneau} value={creneau}>{creneau}</option>
-//                         ))}
-//                     </select>
-//                 </div>
-//                 <div className="space-y-1">
-//                     <label className="block text-sm font-bold text-gray-700">
-//                         Type de véhicule <span className="text-red-500">*</span>
-//                     </label>
-//                     <select
-//                         name="livraison.vehicule"
-//                         value={selectedVehicle}
-//                         onChange={handleVehicleChange}
-//                         className={`mt-1 block w-full rounded-md border ${errors.livraison?.vehicule ? 'border-red-500' : 'border-gray-300'
-//                             }`}
-//                         required
-//                     >
-//                         <option value="">Sélectionner un véhicule</option>
-//                         {Object.entries(VEHICULES).map(([longFormat, _]) => (
-//                             <option key={longFormat} value={longFormat}>
-//                                 {longFormat}
-//                             </option>
-//                         ))}
-//                     </select>
-//                     {errors.livraison?.vehicule && (
-//                         <p className="text-red-500 text-sm mt-1">
-//                             {errors.livraison.vehicule}
-//                         </p>
-//                     )}
-//                 </div>
-//                 <div className="space-y-1">
-//                     <label className="block text-sm font-bold text-gray-700">
-//                         Option équipier de manutention
-//                     </label>
-//                     <span className="ml-1 text-sm text-gray-500" title={ERROR_MESSAGES.equipiers.contact}>
-//                         {ERROR_MESSAGES.equipiers.info}
-//                     </span>
-//                     <div className="relative">
-//                         <input
-//                             type="number"
-//                             name="livraison.equipiers"
-//                             min="0"
-//                             max="3"
-//                             value={data.livraison?.equipiers || 0}
-//                             onChange={onChange}
-//                             className={`mt-1 block w-full rounded-md border ${errors.livraison?.equipiers ? 'border-red-500' : 'border-gray-300'}`}
-//                         />
-//                         {/* {errors.livraison?.equipiers && (
-//                             <div className="mt-1 flex items-center">
-//                                 <span className="text-red-500 text-sm">{ERROR_MESSAGES.equipiers?.max}</span>
-//                                 <button
-//                                     type="button"
-//                                     onClick={() => window.location.href = 'mailto:commercial@mytruck.fr'}
-//                                     className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
-//                                 >
-//                                     Contacter le service commercial
-//                                 </button>
-//                             </div>
-//                         )} */}
-//                     </div>
-//                 </div>
-//                 <div className="space-y-1">
-//                     <label className="block text-sm font-bold text-gray-700">
-//                         Autres remarques
-//                     </label>
-//                     <p className="text-sm text-gray-500">Précisions nécessaires au bon fonctionnement de la livraison</p>
-//                     <textarea
-//                         name="livraison.remarques"
-//                         value={data.livraison?.remarques || ''}
-//                         onChange={(e) => onChange(e as any)}
-//                         className={`mt-1 block w-full rounded-md border 'border-gray-300'
-//                         }`}
-//                         rows={4}
-//                     />
-//                 </div>
-
-//             </div>
-
-//             {calculatingTarif ? (
-//                 <div className="mt-4 p-4 border rounded-lg">
-//                     <p className="text-gray-600">Calcul du tarif en cours...</p>
-//                 </div>
-//             ) : tarifDetails && (
-//                 <div className="mt-4 p-4 border rounded-lg">
-//                     <h3 className="font-medium text-lg mb-2 secondary">Détail du tarif</h3>
-//                     {tarifDetails.montantHT === 'devis' ? (
-//                         <div className="text-red-600 font-medium">
-//                             Devis obligatoire pour cette livraison
-//                             {tarifDetails.detail.equipiers === 'devis' && (
-//                                 <p className="text-sm mt-1">
-//                                     Raison : Plus de 2 équipiers demandés
-//                                 </p>
-//                             )}
-//                             {tarifDetails.detail.distance === 'devis' && (
-//                                 <p className="text-sm mt-1">
-//                                     Raison : Distance supérieure à 50km
-//                                 </p>
-//                             )}
-//                             {errors.livraison?.equipiers && (
-//                                 <div className="mt-1 flex items-center">
-//                                     <span className="text-red-500 text-sm">{ERROR_MESSAGES.equipiers?.max}</span>
-//                                     <button
-//                                         type="button"
-//                                         onClick={() => window.location.href = 'mailto:commercial@mytruck.fr'}
-//                                         // onClick={() => navigate('/devis')}
-//                                         className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
-//                                     >
-//                                         Contacter le service commercial
-//                                     </button>
-//                                 </div>
-//                             )}
-//                         </div>
-//                     ) : (
-//                         <div className="space-y-2">
-//                             <p>
-//                                 <span className="font-medium">Véhicule:</span> {tarifDetails.detail.vehicule}€
-//                             </p>
-//                             {typeof tarifDetails.detail.equipiers === 'number' && tarifDetails.detail.equipiers > 0 && (
-//                                 <p>
-//                                     <span className="font-medium">Équipiers:</span> {tarifDetails.detail.equipiers}€
-//                                 </p>
-//                             )}
-//                             {typeof tarifDetails.detail.distance === 'number' && tarifDetails.detail.distance > 0 && (
-//                                 <p>
-//                                     <span className="font-medium">Frais kilométriques:</span> {tarifDetails.detail.distance}€
-//                                 </p>
-//                             )}
-//                             <p className="text-lg font-medium mt-2 border-t pt-2">
-//                                 Total HT: {tarifDetails.montantHT}€
-//                             </p>
-//                         </div>
-//                     )}
-//                 </div>
-//             )}
-
-//             <div className="mt-6 py-4 bg-white flex-col">
-//                 <p className="text-red-500 font-bold text-center px-4">
-//                     TOUTE ABSENCE LORS DE LA LIVRAISON VOUS ENGAGE
-//                 </p>
-//                 <p className="text-red-500 font-bold text-center px-4">
-//                     A REGLER LE RETOUR AINSI QUE LA NOUVELLE LIVRAISON
-//                 </p>
-//             </div>
-//         </div>
-//     );
-// };
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LivraisonFormProps } from "../../types/form.types";
@@ -454,6 +23,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             vehicule: number;
             distance: number | 'devis';
             equipiers: number | 'devis';
+            majorationDimancheFerie?: number;
         }
     } | null>(null);
     const [vehicleRestrictions, setVehicleRestrictions] = useState<string[]>([]);
@@ -853,7 +423,8 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 adresseMagasin: addressToUse,
                 adresseLivraison: adresseLivraison,
                 equipiers: data.livraison.equipiers || 0, // ✅ Valeur à jour utilisée
-                userRole // 🆕 Rôle utilisateur pour bypass devis obligatoire
+                userRole, // 🆕 Rôle utilisateur pour bypass devis obligatoire
+                dateLivraison: data.dates?.livraison // 🆕 Date de livraison pour majoration dimanche/férié
             });
 
             setTarifDetails(tarif);
@@ -898,23 +469,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             ? (data.magasinDestination?.address || data.client?.adresse?.ligne1)
             : data.client?.adresse?.ligne1;
 
-        console.log('🔍 [LIVRAISON] Conditions calcul tarif:', {
-            hasDestinationAddress,
-            vehicule: data.livraison?.vehicule,
-            equipiers: data.livraison?.equipiers,
-            storeAddress,
-            willCalculate: !!(hasDestinationAddress && data.livraison?.vehicule)
-        });
-
         // Ne pas calculer s'il manque des informations essentielles
         if (!hasDestinationAddress || !data.livraison?.vehicule) {
-            console.log('⚠️ [LIVRAISON] Calcul tarif annulé: conditions non remplies');
             return;
         }
 
         const timeoutId = setTimeout(() => {
             updateTarif();
-        }, 500);
+        }, 200); // ✅ Réduit de 500ms à 200ms pour recalcul plus rapide (majoration dimanche/férié)
 
         return () => clearTimeout(timeoutId);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -928,6 +490,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         data.magasin?.address,
         storeAddress, // ✅ AJOUTÉ: Recalculer quand storeAddress se charge
         isCession
+        // ❌ data.dates?.livraison RETIRÉ: Géré manuellement dans handleDateChange pour recalcul immédiat
     ]);
 
     // Effet pour initialiser le véhicule sélectionné
@@ -972,7 +535,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     }, [onChange, updateTarif]);
 
     const minDate = new Date().toISOString().split('T')[0];
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedDate = new Date(e.target.value);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -982,7 +545,48 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             return;
         }
 
+        const newDate = e.target.value;
         onChange(e);
+
+        // ✅ Recalculer le tarif immédiatement avec la NOUVELLE date
+        // Au lieu d'attendre que le state se mette à jour
+        if (data.livraison?.vehicule && (data.client?.adresse?.ligne1 || data.magasinDestination?.address)) {
+
+            setTimeout(async () => {
+                try {
+                    setCalculatingTarif(true);
+                    const tarificationService = new TarificationService();
+
+                    const addressToUse = storeAddress;
+                    const adresseLivraison = isCession
+                        ? (data.magasinDestination?.address || data.client?.adresse?.ligne1 || '')
+                        : data.client.adresse.ligne1;
+
+                    const tarif = await tarificationService.calculerTarif({
+                        vehicule: data.livraison.vehicule as TypeVehicule,
+                        adresseMagasin: addressToUse,
+                        adresseLivraison: adresseLivraison,
+                        equipiers: data.livraison.equipiers || 0,
+                        userRole,
+                        dateLivraison: newDate // ✅ Utiliser la NOUVELLE date directement
+                    });
+
+                    setTarifDetails(tarif);
+
+                    const tarifEvent = {
+                        target: {
+                            name: 'financier.tarifHT',
+                            value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
+                        }
+                    };
+                    onChangeRef.current(tarifEvent);
+                } catch (error) {
+                    console.error('Erreur recalcul tarif après changement date:', error);
+                } finally {
+                    setCalculatingTarif(false);
+                }
+            }, 100);
+        }
     };
 
     useEffect(() => {
@@ -1292,6 +896,9 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     <label className="block text-sm font-bold text-gray-700">
                         Date de livraison <span className="text-red-500">*</span>
                     </label>
+                    <span className="ml-1 text-sm text-gray-500">
+                        {ERROR_MESSAGES.frenchHoliday}
+                    </span>
                     <input
                         type="date"
                         name="dates.livraison"
@@ -1705,6 +1312,15 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                                             <div className="flex justify-between bg-white bg-opacity-60 rounded px-3 py-2">
                                                 <span className="text-gray-700">Frais kilométriques :</span>
                                                 <span className="font-semibold text-green-700">{tarifDetails.detail.distance}€</span>
+                                            </div>
+                                        )}
+                                        {tarifDetails.detail.majorationDimancheFerie && tarifDetails.detail.majorationDimancheFerie > 0 && (
+                                            <div className="flex justify-between bg-orange-50 border border-orange-200 rounded px-3 py-2">
+                                                <span className="text-orange-700 flex items-center gap-2">
+                                                    <span className="text-lg">📅</span>
+                                                    Majoration Dimanche/Férié :
+                                                </span>
+                                                <span className="font-semibold text-orange-700">+{tarifDetails.detail.majorationDimancheFerie}€</span>
                                             </div>
                                         )}
                                     </div>
