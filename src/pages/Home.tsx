@@ -3,6 +3,7 @@ import { motion, useInView, useAnimation } from 'framer-motion';
 import { AnimatedSection, AnimatedTitle, AnimatedCard, AnimatedText } from '../components/animations/AnimatedSection';
 import StakeholdersCarousel from '../components/StakeholdersCarousel';
 import ContactForm from '../components/ContactForm';
+import { href } from 'react-router-dom';
 
 const HomePage: React.FC = () => {
     const controls = useAnimation();
@@ -303,7 +304,7 @@ const HomePage: React.FC = () => {
                             Conçu pour l'excellence dans le transport d'articles volumineux.
                         </p>
                         <p className="mt-1 secondary">
-                            Développé par DIGILTIZEME
+                            Développé par <button onClick={() => window.open('https://digiltizeme-portfolio.vercel.app', '_blank')} className="hover:text-white transition-colors">DIGILTIZEME</button>
                         </p>
                     </div>
                 </div>
