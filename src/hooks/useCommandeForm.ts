@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { handleStorageError } from '../utils/error-handler';
 
 
-export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>, isCession: boolean = false) => {
+export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>, isCession: boolean = false, isRenewal: boolean = false) => {
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
     const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed, forceClearAllDrafts } = useDraftStorage();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,10 +92,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     // }, [hasDraft, draftData, draftProposed, clearDraft, user?.storeId]);
 
     // Simplifier la vérification pour faire confiance à draftStorage
-    // DÉSACTIVÉ pour les cessions (les cessions ne sauvegardent pas de brouillon)
+    // DÉSACTIVÉ pour les cessions et les renouvellements (ne sauvegardent pas de brouillon)
     useEffect(() => {
-        if (isCession) {
-            // Pas de brouillon pour les cessions
+        if (isCession || isRenewal) {
+            // Pas de brouillon pour les cessions ni les renouvellements
             setDraftProposed(true);
             return;
         }
@@ -208,10 +208,11 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
             }
             setDraftProposed(true);
         }
-    }, [hasDraft, draftData, draftProposed, clearDraft, isCession]);
+    }, [hasDraft, draftData, draftProposed, clearDraft, isCession, isRenewal]);
 
-    // Sauvegarde automatique du brouillon
+    // Sauvegarde automatique du brouillon (désactivée pour les renouvellements)
     useEffect(() => {
+        if (isRenewal) return; // Pas de sauvegarde brouillon pour les renouvellements
         if (state.isDirty) {
             const hasChanges = !deepEqual(state.data, initialFormState.data);
 

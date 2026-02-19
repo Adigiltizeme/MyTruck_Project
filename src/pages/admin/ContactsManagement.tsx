@@ -187,12 +187,14 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
 
       const prefilledFormData = {
         contactId: contact.id,
+        ...contactData,
+        // Priorité aux données directes du contact (plus fiables que le parsing du message)
         magasin: {
-          nom: contact.nomMagasin,
-          adresse: contact.adresse,
-          telephone: contact.telephone,
+          ...contactData.magasin,
+          nom: contact.nomMagasin || contactData.magasin?.nom,
+          adresse: contact.adresse || contactData.magasin?.adresse,
+          telephone: contact.telephone || contactData.magasin?.telephone,
         },
-        ...contactData
       };
 
       console.log('✅ ContactsManagement - Ouverture formulaire avec données:', prefilledFormData);

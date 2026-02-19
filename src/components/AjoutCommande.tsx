@@ -23,6 +23,7 @@ interface AjoutCommandeProps {
     initialData: CommandeMetier;
     disabledFields?: string[];
     isCession?: boolean; // Mode cession inter-magasins
+    isRenewal?: boolean; // Mode renouvellement (ne sauvegarde pas de brouillon)
 }
 
 const AjoutCommande: React.FC<AjoutCommandeProps> = ({
@@ -31,7 +32,8 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     commande,
     isEditing,
     initialData,
-    isCession = false
+    isCession = false,
+    isRenewal = false
 }) => {
     const { user } = useAuth();
     // Préparer les données initiales avec l'adresse du magasin si disponible
@@ -181,7 +183,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     } = useCommandeForm(async (data) => {
         await onSubmit(data);
         onCancel(); // Ferme le modal après soumission réussie
-    }, isCession);
+    }, isCession, isRenewal);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement> | { target: { name: string; value: any; } }) => {
         if ('target' in e && 'name' in e.target && 'value' in e.target) {
@@ -357,8 +359,8 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
             return;
         }
 
-        // ⚠️ ATTENDRE que les magasins soient chargés
-        if (magasins.length === 0) {
+        // ⚠️ ATTENDRE que les magasins soient chargés (admin seulement)
+        if (isAdminRole(user?.role) && magasins.length === 0) {
             console.log('⏳ En attente du chargement des magasins...');
             return;
         }
@@ -418,11 +420,11 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                     secondaire: ''
                 },
                 adresse: {
-                    type: 'Domicile',
+                    type: (commande as any).client?.adresse?.type || 'Domicile',
                     ligne1: (commande as any).client?.adresse?.ligne1 || '',
-                    batiment: '',
+                    batiment: (commande as any).client?.adresse?.batiment || '',
                     etage: (commande as any).client?.adresse?.etage !== undefined ? String((commande as any).client.adresse.etage) : '',
-                    ascenseur: (commande as any).client?.ascenseur || false,
+                    ascenseur: (commande as any).client?.adresse?.ascenseur || false,
                     interphone: (commande as any).client?.adresse?.interphone || ''
                 }
             },
@@ -431,24 +433,25 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 details: '',
                 photos: [],
                 dimensions: (commande as any).articles?.dimensions || [],
-                autresArticles: (commande as any).articles?.autresArticles || 0
+                autresArticles: (commande as any).articles?.autresArticles || 0,
+                canBeTilted: (commande as any).articles?.canBeTilted || false
             },
             livraison: {
                 creneau: (commande as any).livraison?.creneau || '',
                 vehicule: (commande as any).livraison?.vehicule || '',
                 equipiers: (commande as any).livraison?.equipiers || 0,
                 reserve: false,
-                remarques: '',
+                remarques: (commande as any).livraison?.remarques || '',
                 details: {
-                    hasElevator: (commande as any).client?.ascenseur || false,
-                    hasStairs: false,
-                    stairCount: 0,
-                    parkingDistance: 0,
-                    needsAssembly: (commande as any).livraison?.conditionsSpeciales?.montageInstallation || false,
-                    rueInaccessible: (commande as any).livraison?.conditionsSpeciales?.rueInaccessible || false,
-                    paletteComplete: (commande as any).livraison?.conditionsSpeciales?.paletteComplete || false,
-                    isDuplex: (commande as any).livraison?.conditionsSpeciales?.appartementDuplex || false,
-                    deliveryToUpperFloor: false
+                    hasElevator: (commande as any).livraison?.details?.hasElevator ?? (commande as any).client?.adresse?.ascenseur ?? false,
+                    hasStairs: (commande as any).livraison?.details?.hasStairs ?? false,
+                    stairCount: (commande as any).livraison?.details?.stairCount ?? 0,
+                    parkingDistance: (commande as any).livraison?.details?.parkingDistance ?? 0,
+                    needsAssembly: (commande as any).livraison?.details?.needsAssembly ?? (commande as any).livraison?.conditionsSpeciales?.montageInstallation ?? false,
+                    rueInaccessible: (commande as any).livraison?.details?.rueInaccessible ?? (commande as any).livraison?.conditionsSpeciales?.rueInaccessible ?? false,
+                    paletteComplete: (commande as any).livraison?.details?.paletteComplete ?? (commande as any).livraison?.conditionsSpeciales?.paletteComplete ?? false,
+                    isDuplex: (commande as any).livraison?.details?.isDuplex ?? (commande as any).livraison?.conditionsSpeciales?.appartementDuplex ?? false,
+                    deliveryToUpperFloor: (commande as any).livraison?.details?.deliveryToUpperFloor ?? false
                 }
             },
             magasin: selectedMagasin ? {
@@ -457,6 +460,17 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 address: selectedMagasin.adresse,
                 enseigne: selectedMagasin.enseigne || 'Truffaut',
                 phone: '',
+                email: '',
+                manager: '',
+                status: '',
+                photo: ''
+            } : (commande as any).magasin ? {
+                // Fallback : utiliser les données brutes du contact si magasin non trouvé dans la liste
+                id: (commande as any).magasin?.id || '',
+                name: (commande as any).magasin?.name || (commande as any).magasin?.nom || '',
+                address: (commande as any).magasin?.address || (commande as any).magasin?.adresse || '',
+                enseigne: (commande as any).magasin?.enseigne || 'Truffaut',
+                phone: (commande as any).magasin?.telephone || '',
                 email: '',
                 manager: '',
                 status: '',

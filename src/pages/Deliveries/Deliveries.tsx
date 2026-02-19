@@ -611,6 +611,50 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         }
     };
 
+    // ✅ Renouveler une commande existante : copie les données sans id/dates/statuts/chauffeurs
+    const handleRenewCommande = (commande: CommandeMetier) => {
+        const renewalData: Partial<CommandeMetier> = {
+            // ✅ Données copiées
+            type: commande.type,
+            client: commande.client,
+            articles: {
+                nombre: commande.articles?.nombre || 0,
+                details: commande.articles?.details,
+                categories: commande.articles?.categories,
+                dimensions: commande.articles?.dimensions,
+                canBeTilted: commande.articles?.canBeTilted,
+                autresArticles: commande.articles?.autresArticles,
+            },
+            livraison: {
+                vehicule: commande.livraison?.vehicule || '',
+                equipiers: commande.livraison?.equipiers || 0,
+                remarques: commande.livraison?.remarques || '',
+                details: commande.livraison?.details,
+                creneau: '',   // ✅ Réinitialisé : à choisir
+                reserve: false,
+                chauffeurs: [],
+            },
+            magasin: commande.magasin,
+            magasinDestination: commande.magasinDestination,
+            cession: commande.cession,
+            // ✅ Données réinitialisées
+            dates: {
+                commande: new Date().toISOString(),
+                livraison: '',  // ✅ Vide : date obligatoirement choisie par l'utilisateur
+                misAJour: { commande: new Date().toISOString(), livraison: '' }
+            },
+            statuts: {
+                commande: 'En attente',
+                livraison: 'EN ATTENTE'
+            },
+            financier: { tarifHT: 0 },
+            chauffeurs: [],
+        };
+
+        setPrefilledData(renewalData);
+        setShowNewCommandeModal(true);
+    };
+
     const sortableFields: SortableFields[] = [
         'dates',
         'creneau',
@@ -765,6 +809,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                             isEditing={false}
                             initialData={prefilledData || ({} as CommandeMetier)}
                             isCession={type === 'INTER_MAGASIN'}
+                            isRenewal={!!prefilledData}
                         />
                     </Modal>
                 </div>
@@ -991,14 +1036,25 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             )}
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={() => setExpandedRow(
-                                            expandedRow === commande.id ? null : (commande.id || null)
+                                    <div className="flex items-center gap-2">
+                                        {user?.role !== 'chauffeur' && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handleRenewCommande(commande); }}
+                                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-lg"
+                                                title="Renouveler cette commande"
+                                            >
+                                                🔄
+                                            </button>
                                         )}
-                                        className="text-gray-500 hover:text-gray-700 p-1"
-                                    >
-                                        {expandedRow === commande.id ? '▼' : '▶'}
-                                    </button>
+                                        <button
+                                            onClick={() => setExpandedRow(
+                                                expandedRow === commande.id ? null : (commande.id || null)
+                                            )}
+                                            className="text-gray-500 hover:text-gray-700 p-1"
+                                        >
+                                            {expandedRow === commande.id ? '▼' : '▶'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1073,6 +1129,11 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                     )}
                                     {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Magasin</th>
+                                    )}
+                                    {user?.role !== 'chauffeur' && (
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                                            Renouveler
+                                        </th>
                                     )}
                                     {isAdminRole(user?.role) && (
                                         <th className="w-16 px-4 py-2">
@@ -1159,6 +1220,17 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
                                                     {commande.magasin?.name || 'N/A'}
+                                                </td>
+                                            )}
+                                            {user?.role !== 'chauffeur' && (
+                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleRenewCommande(commande); }}
+                                                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-lg"
+                                                        title="Renouveler cette commande"
+                                                    >
+                                                        🔄
+                                                    </button>
                                                 </td>
                                             )}
                                             {isAdminRole(user?.role) && (
