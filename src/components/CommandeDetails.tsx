@@ -287,12 +287,12 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
 
     const tabs = [
         { id: 'informations', label: 'Informations', icon: '📋' },
+        { id: 'actions', label: 'Actions', icon: '⚡' },
         { id: 'conditions-speciales', label: 'Conditions spéciales', icon: '⚠️' },
         { id: 'photos-articles', label: 'Photos articles', icon: '📸' },
         { id: 'photos-commentaires', label: 'Photos commentaires', icon: '🖼️' },
         { id: 'chronologie', label: 'Chronologie', icon: '⏱️' },
         ...(user?.role !== 'chauffeur' ? [{ id: 'documents', label: 'Documents', icon: '📄' }] : []),
-        { id: 'actions', label: 'Actions', icon: '⚡' },
     ];
 
     // ✅ SAUVEGARDER l'onglet actif à chaque changement
@@ -478,28 +478,18 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                 return (
                     // Section Informations existante
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                        {/* Magasin */}
-                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
-                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">Magasin</h3>
-                            <div className="space-y-2">
-                                <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
-                                <p><span className="text-gray-500 dark:text-gray-400">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
-                                <p><span className="text-gray-500 dark:text-gray-400">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p>
-                            </div>
-                        </div>
-
-                        {/* Client OU Magasin destination (pour cessions) */}
+                        {/* Magasin d'origine (cédant) OU Magasin destinataire */}
                         <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
                             <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
-                                {isCession ? 'Magasin destination' : 'Client'}
+                                {isCession ? "Magasin d'origine (cédant)" : 'Magasin'}
                             </h3>
                             <div className="space-y-2">
                                 {isCession ? (
-                                    // ✅ CESSION : Afficher info magasin destination
+                                    // ✅ CESSION : Afficher magasinDestination comme origine/cédant
                                     <>
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasinDestination?.name || 'Non spécifié'}</span></p>
 
-                                        {/* Téléphone magasin destination cliquable */}
+                                        {/* Téléphone magasin cédant cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Téléphone:</span>
                                             {isValidPhone(commande.magasinDestination?.phone) ? (
@@ -512,7 +502,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
                                         </p>
 
-                                        {/* Adresse magasin destination cliquable */}
+                                        {/* Adresse magasin cédant cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Adresse:</span>
                                             {isValidAddress(commande.magasinDestination?.address) ? (
@@ -530,6 +520,54 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         {commande.cession?.priorite && (
                                             <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Priorité:</span> <span className="inline-block font-medium">{commande.cession.priorite}</span></p>
                                         )}
+                                    </>
+                                ) : (
+                                    // COMMANDE : Afficher magasin normal
+                                    <>
+                                        <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
+                                        <p><span className="text-gray-500 dark:text-gray-400">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
+                                        <p><span className="text-gray-500 dark:text-gray-400">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Client OU Magasin destinataire (pour cessions) */}
+                        <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
+                            <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                                {isCession ? 'Magasin destinataire (demandeur)' : 'Client'}
+                            </h3>
+                            <div className="space-y-2">
+                                {isCession ? (
+                                    // ✅ CESSION : Afficher magasin comme destinataire
+                                    <>
+                                        <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
+
+                                        {/* Téléphone magasin destinataire cliquable */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Téléphone:</span>
+                                            {isValidPhone(commande.magasin?.phone) ? (
+                                                <PhoneLink
+                                                    phone={commande.magasin?.phone!}
+                                                    className="inline-block"
+                                                />
+                                            ) : (
+                                                <span className="inline-block">{commande.magasin?.phone || 'Non spécifié'}</span>
+                                            )}
+                                        </p>
+
+                                        {/* Adresse magasin destinataire cliquable */}
+                                        <p className="break-words">
+                                            <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Adresse:</span>
+                                            {isValidAddress(commande.magasin?.address) ? (
+                                                <AddressLink
+                                                    address={commande.magasin?.address!}
+                                                    className="inline-block"
+                                                />
+                                            ) : (
+                                                <span className="inline-block">{commande.magasin?.address || 'Non spécifiée'}</span>
+                                            )}
+                                        </p>
                                     </>
                                 ) : (
                                     // ✅ COMMANDE : Afficher info client

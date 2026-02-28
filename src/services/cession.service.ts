@@ -426,7 +426,7 @@ export class CessionService {
   private mapCommandeStatusToCessionStatus(statutCommande: string, statutLivraison: string): CessionStatus {
     // Mapping basé sur le double système de statuts
     if (statutLivraison === 'LIVREE') return 'LIVREE';
-    if (statutLivraison === 'EN ROUTE') return 'EN_TRANSIT';
+    if (statutLivraison === 'EN COURS DE LIVRAISON') return 'EN_TRANSIT';
     if (statutLivraison === 'ANNULEE') return 'ANNULEE';
 
     if (statutCommande === 'Annulée') return 'ANNULEE';

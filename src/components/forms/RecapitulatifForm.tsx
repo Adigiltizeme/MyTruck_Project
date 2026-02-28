@@ -186,7 +186,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                 <div>
                     {isCession ? (
                         <>
-                            <h4 className="font-medium">Magasin de destination</h4>
+                            <h4 className="font-medium">Magasin d'origine (cédant)</h4>
                             <p className="font-semibold text-blue-800">{data.magasinDestination?.name}</p>
                             <p>{data.magasinDestination?.address}</p>
                             <p>Tél: {data.magasinDestination?.phone || 'Non renseigné'}</p>

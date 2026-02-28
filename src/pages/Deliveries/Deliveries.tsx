@@ -736,6 +736,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     <option value={10}>10 par page</option>
                     <option value={25}>25 par page</option>
                     <option value={50}>50 par page</option>
+                    <option value={100}>100 par page</option>
                 </select>
             </div>
 
@@ -1027,9 +1028,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                         <p className="text-sm text-gray-600 dark:text-gray-400">
                                             {type === 'INTER_MAGASIN' ? (
                                                 <span className="flex items-center gap-1">
-                                                    <span className="text-blue-600 font-medium text-xs">{commande.magasin?.name || 'N/A'}</span>
+                                                    <span className="text-blue-600 font-medium text-xs">{commande.magasinDestination?.name || 'N/A'}</span>
                                                     <span className="text-gray-400">→</span>
-                                                    <span className="text-green-600 font-medium text-xs">{commande.magasinDestination?.name || 'N/A'}</span>
+                                                    <span className="text-green-600 font-medium text-xs">{commande.magasin?.name || 'N/A'}</span>
                                                 </span>
                                             ) : (
                                                 commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'N/A'
@@ -1116,7 +1117,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                         )}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        {type === 'INTER_MAGASIN' ? 'Origine → Destination' : 'Client'}
+                                        {type === 'INTER_MAGASIN' ? 'Cédant → Demandeur' : 'Client'}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date livraison</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>
@@ -1175,9 +1176,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                                                 {type === 'INTER_MAGASIN' ? (
                                                     <div className="flex items-center gap-2">
-                                                        <span className="text-blue-600 font-medium">{commande.magasin?.name || 'N/A'}</span>
+                                                        <span className="text-blue-600 font-medium">{commande.magasinDestination?.name || 'N/A'}</span>
                                                         <span className="text-gray-400">→</span>
-                                                        <span className="text-green-600 font-medium">{commande.magasinDestination?.name || 'N/A'}</span>
+                                                        <span className="text-green-600 font-medium">{commande.magasin?.name || 'N/A'}</span>
                                                     </div>
                                                 ) : (
                                                     commande.client ? `${commande.client.nom?.toUpperCase() || ''} ${commande.client.prenom || ''}`.trim() : 'N/A'

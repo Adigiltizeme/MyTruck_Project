@@ -25,7 +25,7 @@ interface MagasinDestinationFormProps {
     errors: ValidationErrors;
     onChange: (e: { target: { name: string; value: any } }) => void;
     isEditing?: boolean;
-    magasinOrigineId?: string; // Pour exclure le magasin d'origine de la liste
+    magasinOrigineId?: string; // ID du magasin créateur (destinataire) - pour exclure de la liste
 }
 
 export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
@@ -231,7 +231,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
         >
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                    Magasin de destination
+                    Magasin d'origine (cédant)
                 </h2>
 
                 {/* Toggle mode de saisie - Affiché UNIQUEMENT si magasins de même enseigne disponibles */}
@@ -275,7 +275,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
             {inputMode === 'liste' && (
                 <div className="space-y-2">
                     <label htmlFor="magasinDestination.id" className="block text-sm font-medium text-gray-700">
-                        Magasin {enseigneOrigine} de destination <span className="text-red-500">*</span>
+                        Magasin {enseigneOrigine} cédant <span className="text-red-500">*</span>
                     </label>
 
                     {loading ? (
@@ -317,7 +317,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                     {/* Nom du magasin */}
                     <div className="space-y-2">
                         <label htmlFor="magasinDestination.name" className="block text-sm font-medium text-gray-700">
-                            Nom du magasin <span className="text-red-500">*</span>
+                            Nom du magasin cédant <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
@@ -338,7 +338,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                     {/* Adresse avec auto-complétion */}
                     <div className="space-y-2 relative">
                         <label htmlFor="magasinDestination.address" className="block text-sm font-medium text-gray-700">
-                            Adresse de livraison <span className="text-red-500">*</span>
+                            Adresse du magasin cédant <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
@@ -434,7 +434,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                         </div>
 
                         <div className="md:col-span-2">
-                            <p className="text-sm text-gray-600">Adresse de livraison</p>
+                            <p className="text-sm text-gray-600">Adresse</p>
                             <p className="font-medium text-gray-900">{selectedMagasin.address}</p>
                         </div>
 

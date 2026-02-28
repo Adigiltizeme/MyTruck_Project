@@ -681,9 +681,12 @@ export class ApiService {
         reserveTransport: commande.livraison?.reserve || false,
         remarques: commande.livraison?.remarques || '',
 
-        // ✅ Cessions : Magasin destination et métadonnées
+        // ✅ Cessions : Inversion logique origine/destination
+        // - magasinId = magasin choisi (cédant/origine)
+        // - magasinDestinationId = magasin créateur (destinataire)
         ...(isCession && {
-          magasinDestinationId: commande.magasinDestination.id,
+          magasinId: commande.magasinDestination.id,  // Magasin cédant
+          magasinDestinationId: commande.magasin?.id,  // Magasin destinataire
           motifCession: commande.cession?.motif || '',
           prioriteCession: commande.cession?.priorite || 'NORMALE'
         }),
@@ -763,11 +766,14 @@ export class ApiService {
         reserveTransport: commande.livraison?.reserve || false,
         prenomVendeur: commande.vendeur?.prenom || null,
         remarques: commande.livraison?.remarques || '',
-        magasinId: commande.magasin?.id,
+        ...(!isCession && { magasinId: commande.magasin?.id }),  // Livraisons normales uniquement
 
-        // ✅ Cessions : Magasin destination et métadonnées
+        // ✅ Cessions : Inversion logique origine/destination
+        // - magasinId = magasin choisi (cédant/origine)
+        // - magasinDestinationId = magasin créateur (destinataire)
         ...(isCession && {
-          magasinDestinationId: commande.magasinDestination.id,
+          magasinId: commande.magasinDestination.id,  // Magasin cédant
+          magasinDestinationId: commande.magasin?.id,  // Magasin destinataire
           motifCession: commande.cession?.motif || '',
           prioriteCession: commande.cession?.priorite || 'NORMALE'
         }),
