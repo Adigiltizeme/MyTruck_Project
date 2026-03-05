@@ -556,13 +556,16 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         };
     }, [onChange, updateTarif]);
 
-    const minDate = new Date().toISOString().split('T')[0];
+    // ✅ Admin peut sélectionner des dates passées, autres rôles non
+    const minDate = (userRole === 'admin' || userRole === 'direction') ? undefined : new Date().toISOString().split('T')[0];
+
     const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedDate = new Date(e.target.value);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        if (selectedDate < today) {
+        // ✅ Autoriser les dates passées UNIQUEMENT pour admin/direction
+        if (userRole !== 'admin' && userRole !== 'direction' && selectedDate < today) {
             e.preventDefault();
             return;
         }
