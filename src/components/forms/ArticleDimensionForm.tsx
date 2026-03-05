@@ -326,7 +326,12 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                     >
                         <div className="flex justify-between items-center mb-3">
                             <h4 className="font-medium text-lg">
-                                {index === 0 ? '📦 Article le plus grand' : '⚖️ Article le plus lourd (si différent)'}
+                                {index === 0
+                                    ? (showDimensionDetails && (article.nom || article.longueur || article.largeur || article.hauteur || article.poids)
+                                        ? '📦 Article le plus grand'
+                                        : '📦 Articles')
+                                    : '⚖️ Article le plus lourd (si différent)'
+                                }
                             </h4>
 
                             {!readOnly && index === 1 && (
@@ -356,7 +361,10 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                         {/* Quantité - TOUJOURS VISIBLE */}
                         <div className="mb-4">
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Quantité <span className="text-red-500">*</span>
+                                {showDimensionDetails && (article.nom || article.longueur || article.largeur || article.hauteur || article.poids)
+                                    ? (index === 0 ? 'Quantité de l\'article le plus grand' : 'Quantité de l\'article le plus lourd')
+                                    : 'Quantité'
+                                } <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="number"
@@ -391,7 +399,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                         {(index === 0 && (showDimensionDetails || readOnly)) && (
                             <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
                                 <div className="flex justify-between items-center mb-3">
-                                    <h5 className="font-medium">Dimensions détaillées</h5>
+                                    <h5 className="font-medium">Dimensions de l'article le plus grand</h5>
                                     {!readOnly && (
                                         <button
                                             type="button"
