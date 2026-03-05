@@ -698,9 +698,14 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                         {index === 0 && <span className="text-lg">📦</span>}
                                                         {index === 1 && <span className="text-lg">⚖️</span>}
                                                         <p className="font-medium">
-                                                            {index === 0 && <span className="text-blue-700 text-sm mr-2">[Article le plus grand]</span>}
-                                                            {index === 1 && <span className="text-orange-700 text-sm mr-2">[Article le plus lourd]</span>}
-                                                            {article.nom} (x{article.quantite})
+                                                            {/* Afficher les labels uniquement si des dimensions sont renseignées */}
+                                                            {index === 0 && (article.nom || article.longueur || article.largeur || article.hauteur || article.poids) && (
+                                                                <span className="text-blue-700 text-sm mr-2">[Article le plus grand]</span>
+                                                            )}
+                                                            {index === 1 && (article.nom || article.longueur || article.largeur || article.hauteur || article.poids) && (
+                                                                <span className="text-orange-700 text-sm mr-2">[Article le plus lourd]</span>
+                                                            )}
+                                                            {article.nom || `Article ${index + 1}`} (x{article.quantite})
                                                         </p>
                                                     </div>
                                                     <div className="grid grid-cols-2 text-sm text-gray-600 mt-1">
