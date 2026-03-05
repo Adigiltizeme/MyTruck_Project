@@ -719,16 +719,46 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                     </div>
                                                 </div>
                                             ))}
+                                            {/* ✅ Calcul et affichage du poids total incluant autres articles */}
+                                            {(() => {
+                                                const poidsFromDimensions = commande.articles.dimensions.reduce((sum, article) =>
+                                                    sum + ((article.poids || 0) * (article.quantite || 1)), 0
+                                                );
+                                                const autresArticlesCount = commande.articles?.autresArticles || 0;
+                                                const autresArticlesPoids = commande.articles?.autresArticlesPoids || 0;
+                                                const autresArticlesTotalWeight = autresArticlesCount * autresArticlesPoids;
+                                                const totalWeight = poidsFromDimensions + autresArticlesTotalWeight;
+
+                                                return totalWeight > 0 ? (
+                                                    <div className="mt-3 pt-3 border-t border-gray-300">
+                                                        <p className="font-medium text-gray-700 dark:text-gray-300">
+                                                            Poids total: {totalWeight.toFixed(2)} kg
+                                                            {autresArticlesTotalWeight > 0 && (
+                                                                <span className="text-xs text-blue-700 dark:text-blue-400 block sm:inline sm:ml-1">
+                                                                    (dont {autresArticlesTotalWeight.toFixed(2)} kg pour les autres articles)
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                ) : null;
+                                            })()}
                                         </div>
                                     </div>
                                 )}
                                 <div className="space-y-2">
                                     <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nombre total:</span> <span className="inline-block">{commande.articles?.nombre || '0'}</span></p>
                                     {(commande.articles?.autresArticles ?? 0) > 0 && (
-                                        <p className="text-sm text-blue-700 break-words">
-                                            Dont {commande.articles.autresArticles} autre{commande.articles.autresArticles > 1 ? 's' : ''} article{commande.articles.autresArticles > 1 ? 's' : ''}
-                                            <span className="text-xs text-gray-500 block sm:inline sm:ml-1">(ni les plus grands, ni les plus lourds)</span>
-                                        </p>
+                                        <>
+                                            <p className="text-sm text-blue-700 break-words">
+                                                Dont {commande.articles.autresArticles} autre{commande.articles.autresArticles > 1 ? 's' : ''} article{commande.articles.autresArticles > 1 ? 's' : ''}
+                                                <span className="text-xs text-gray-500 block sm:inline sm:ml-1">(ni les plus grands, ni les plus lourds)</span>
+                                            </p>
+                                            {(commande.articles?.autresArticlesPoids ?? 0) > 0 && (
+                                                <p className="text-sm text-blue-700 ml-2 break-words">
+                                                    → Poids unitaire: {commande.articles.autresArticlesPoids} kg/pièce
+                                                </p>
+                                            )}
+                                        </>
                                     )}
                                     <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Détails:</span> <span className="inline-block">{commande.articles?.details || 'Aucun détail'}</span></p>
                                 </div>
@@ -984,12 +1014,30 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         {(() => {
                                             const articles = commande.articles?.dimensions || [];
 
+                                            // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+                                            const quantityFromDimensions = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
+                                            const autresArticlesCount = commande.articles?.autresArticles || 0;
+                                            const totalItems = quantityFromDimensions + autresArticlesCount;
+
+                                            // ✅ Créer le tableau allArticles incluant les "autres articles"
+                                            const autresArticlesPoids = commande.articles?.autresArticlesPoids || 0;
+                                            const allArticles = [...articles];
+                                            if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+                                                allArticles.push({
+                                                    nom: 'Autres articles',
+                                                    quantite: autresArticlesCount,
+                                                    poids: autresArticlesPoids,
+                                                    longueur: 0,
+                                                    largeur: 0,
+                                                    hauteur: 0
+                                                } as any);
+                                            }
+
                                             // Calculs de base
-                                            const heaviestWeight = articles.length > 0 ? Math.max(...articles.map(a => a.poids || 0)) : 0;
-                                            const totalWeight = articles.reduce((sum, article) =>
+                                            const heaviestWeight = allArticles.length > 0 ? Math.max(...allArticles.map(a => a.poids || 0)) : 0;
+                                            const totalWeight = allArticles.reduce((sum, article) =>
                                                 sum + ((article.poids || 0) * (article.quantite || 1)), 0
                                             );
-                                            const totalItems = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
 
                                             // 🔥 CORRECTION MAJEURE : Utiliser la nouvelle logique hiérarchique officielle
                                             const hasElevator = commande.client?.adresse?.ascenseur;
@@ -1010,14 +1058,15 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                 estimatedHandlingTime: deliveryConditions.estimatedHandlingTime || 0,
                                                 hasLargeVoluminousItems: deliveryConditions.hasLargeVoluminousItems || false,
                                                 multipleLargeVoluminousItems: deliveryConditions.multipleLargeVoluminousItems || false,
-                                                complexAccess: deliveryConditions.complexAccess || false
+                                                complexAccess: deliveryConditions.complexAccess || false,
+                                                autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
                                             };
 
-                                            // ✅ UTILISER LA MÉTHODE OFFICIELLE
-                                            const requiredCrew = VehicleValidationService.getRequiredCrewSize(articles, validationConditions);
+                                            // ✅ UTILISER LA MÉTHODE OFFICIELLE avec allArticles
+                                            const requiredCrew = VehicleValidationService.getRequiredCrewSize(allArticles, validationConditions);
 
                                             // Obtenir les détails de validation pour l'affichage
-                                            const validationDetails = VehicleValidationService.getValidationDetails(articles, validationConditions);
+                                            const validationDetails = VehicleValidationService.getValidationDetails(allArticles, validationConditions);
 
                                             console.log('📊 [COMMANDE-DETAILS] Validation:', validationDetails);
 

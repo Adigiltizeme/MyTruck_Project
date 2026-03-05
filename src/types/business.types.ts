@@ -123,6 +123,7 @@ export interface ArticlesType {
     dimensions?: ArticleDimension[];
     nom?: ArticleDimension['nom'][];
     autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
+    autresArticlesPoids?: number; // Poids moyen unitaire des autres articles (kg)
     newPhotos: Array<{
         url: string;
         file: File
@@ -284,6 +285,7 @@ export interface CommandeMetier {
         validationResults?: DeliveryValidationResult;
         validatedArticles?: ValidatedArticle[];
         autresArticles?: number;
+        autresArticlesPoids?: number;
     };
     financier: {
         tarifHT: number;

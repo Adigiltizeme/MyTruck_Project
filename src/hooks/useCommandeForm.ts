@@ -224,7 +224,9 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                         articles: {
                             ...(state.data.articles || {}),
                             dimensions: state.data.articles?.dimensions || [],
-                            nombre: state.data.articles?.nombre || 0
+                            nombre: state.data.articles?.nombre || 0,
+                            autresArticles: state.data.articles?.autresArticles || 0,
+                            autresArticlesPoids: state.data.articles?.autresArticlesPoids || 0
                         },
                         livraison: {
                             ...(state.data.livraison || {}),

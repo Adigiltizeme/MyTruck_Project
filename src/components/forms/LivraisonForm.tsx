@@ -164,9 +164,28 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         setRecommendedVehicle(recommended);
 
         // 🔥 CORRECTION : Calculer les équipiers avec TOUTES les conditions de livraison
+        // ✅ INCLURE LES "AUTRES ARTICLES"
+        const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+        // ✅ Créer le tableau allArticles incluant les "autres articles"
+        const allArticles = [...articleDimensions];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            } as any);
+        }
+
         const deliveryConditions = {
             hasElevator: data.client?.adresse?.ascenseur || false,
-            totalItemCount: articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0),
+            totalItemCount,
             rueInaccessible: currentDeliveryInfo?.rueInaccessible || false,
             paletteComplete: currentDeliveryInfo?.paletteComplete || false,
             parkingDistance: currentDeliveryInfo?.parkingDistance || 0,
@@ -180,15 +199,18 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             estimatedHandlingTime: currentDeliveryInfo?.estimatedHandlingTime || 0,
             hasLargeVoluminousItems: currentDeliveryInfo?.hasLargeVoluminousItems || false,
             multipleLargeVoluminousItems: currentDeliveryInfo?.multipleLargeVoluminousItems || false,
-            complexAccess: currentDeliveryInfo?.complexAccess || false
+            complexAccess: currentDeliveryInfo?.complexAccess || false,
+            autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids
         };
 
-        const crew = VehicleValidationService.getRequiredCrewSize(articleDimensions, deliveryConditions);
+        const crew = VehicleValidationService.getRequiredCrewSize(allArticles, deliveryConditions);
         setRecommendedCrew(crew);
 
         // Vérifier si des équipiers supplémentaires sont nécessaires
-        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) >= 30);
-        const totalItemCount = articleDimensions.length;
+        // ✅ Inclure les "autres articles" dans la détection d'articles lourds
+        const autresArticlesPoidsUnitaire = data.articles?.autresArticlesPoids || 0;
+        const hasHeavyItems = articleDimensions.some(article => (article.poids || 0) >= 30) || autresArticlesPoidsUnitaire >= 30;
+        // ✅ totalItemCount déjà calculé ci-dessus (ligne 171)
         const floor = data.client?.adresse?.etage ? parseInt(data.client.adresse.etage) : 0;
 
         // Générer des avertissements
@@ -694,7 +716,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         console.log(' [LIVRAISON] VALIDATION ÉQUIPIERS - Nouvelle logique');
 
         // Préparer les conditions de livraison
-        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+        const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
 
         // Calculer l'étage effectif avec duplex/maison
         let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
@@ -704,6 +729,20 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         if (isDuplex && deliveryToUpperFloor) {
             effectiveFloor += 1;
             console.log(`🏠 Duplex/Maison détecté: ${effectiveFloor} étages effectifs`);
+        }
+
+        // ✅ Créer le tableau allArticles incluant les "autres articles"
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const allArticles = [...articleDimensions];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            } as any);
         }
 
         const deliveryConditions = {
@@ -718,13 +757,14 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
             // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
             isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
-            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+            autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
         };
 
-        // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION
+        // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION avec allArticles
         const validation = VehicleValidationService.validateCrewSize(
             crewSize,
-            articleDimensions,
+            allArticles,
             deliveryConditions
         );
 
@@ -767,7 +807,24 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
         console.log('🎯 [LIVRAISON-FORM] CALCUL ÉQUIPIERS RECOMMANDÉS - Nouvelle logique');
 
-        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+        const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+        // ✅ Créer le tableau allArticles incluant les "autres articles"
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const allArticles = [...articleDimensions];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            } as any);
+        }
 
         // Calculer l'étage effectif avec duplex/maison
         let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
@@ -787,12 +844,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
             // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
             isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
-            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+            autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
         };
 
-        // ✅ UTILISER LA NOUVELLE MÉTHODE
+        // ✅ UTILISER LA NOUVELLE MÉTHODE avec allArticles
         const requiredCrew = VehicleValidationService.getRequiredCrewSize(
-            articleDimensions,
+            allArticles,
             deliveryConditions
         );
 
@@ -816,7 +874,24 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         const articleDimensions = data.articles?.dimensions || [];
         if (articleDimensions.length === 0) return null;
 
-        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+        const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+        // ✅ Créer le tableau allArticles incluant les "autres articles"
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const allArticles = [...articleDimensions];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            } as any);
+        }
 
         let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
         if (deliveryInfo?.isDuplex && deliveryInfo?.deliveryToUpperFloor) {
@@ -836,9 +911,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
             isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
             deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+            autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
         };
 
-        return VehicleValidationService.getValidationDetails(articleDimensions, deliveryConditions);
+        return VehicleValidationService.getValidationDetails(allArticles, deliveryConditions);
     };
 
     const getCrewSizeStatus = (crewSize: number): 'recommended' | 'compatible' | 'restricted' => {

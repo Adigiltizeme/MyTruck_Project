@@ -284,13 +284,24 @@ export const useStepManagement = (
                                 formState.data.articles.dimensions.length > 0;
 
             if (hasDimensions) {
-                // Si l'utilisateur a commencé les dimensions, vérifier qu'elles sont complètes
-                const hasCompleteArticles = formState.data.articles?.dimensions?.some(article =>
+                // Vérifier si l'utilisateur a renseigné des dimensions détaillées (avec nom)
+                const hasDimensionDetails = formState.data.articles?.dimensions?.some(article =>
                     article.nom && article.nom.trim() !== ''
                 );
-                canProceed = !!hasCompleteArticles && Object.keys(errors).length === 0;
+
+                if (hasDimensionDetails) {
+                    // ✅ AVEC DIMENSIONS DÉTAILLÉES : Système automatique calcule véhicule/équipiers
+                    // → Vérifier seulement les erreurs de l'étape Articles (pas véhicule/équipiers)
+                    canProceed = !Boolean(errors.articles?.nombre) && hasBasicInfo;
+                } else {
+                    // ⚠️ SANS DIMENSIONS DÉTAILLÉES : Sélection manuelle requise
+                    // → Vérifier que véhicule et équipiers sont sélectionnés manuellement
+                    const hasVehicle = formState.data.livraison?.vehicule;
+                    const hasCrewSelected = typeof formState.data.livraison?.equipiers === 'number';
+                    canProceed = !!hasBasicInfo && !!hasVehicle && hasCrewSelected && !Boolean(errors.articles?.nombre);
+                }
             } else {
-                // Si pas de dimensions, juste vérifier le nombre d'articles
+                // Si pas de dimensions du tout, juste vérifier le nombre d'articles
                 canProceed = !!hasBasicInfo && !Boolean(errors.articles?.nombre);
             }
         } else {

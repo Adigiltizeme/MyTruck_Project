@@ -35,6 +35,8 @@ interface VehicleSelectorProps {
   };
   isEditing?: boolean;
   userRole?: string; // 🆕 Rôle de l'utilisateur pour bypass devis obligatoire
+  autresArticlesCount?: number; // ✅ Nombre d'autres articles
+  autresArticlesPoids?: number; // ✅ Poids unitaire des autres articles
 }
 
 const VehicleSelector: React.FC<VehicleSelectorProps> = ({
@@ -48,7 +50,9 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
   initialCanBeTilted = false,
   deliveryInfo = {},
   isEditing = false,
-  userRole // 🆕 Récupération du rôle utilisateur
+  userRole, // 🆕 Récupération du rôle utilisateur
+  autresArticlesCount = 0, // ✅ Autres articles
+  autresArticlesPoids = 0 // ✅ Poids unitaire autres articles
 }) => {
   const [selectedVehicleShort, setSelectedVehicleShort] = useState<VehicleType | null>(null); // Format court
   const [selectedVehicleLong, setSelectedVehicleLong] = useState<string>('');
@@ -139,7 +143,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       estimatedHandlingTime: 0, // À implémenter dans l'UI si nécessaire
       hasLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
       multipleLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
-      complexAccess: false // À implémenter dans l'UI si nécessaire
+      complexAccess: false, // À implémenter dans l'UI si nécessaire
+      autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
     };
 
     // ✅ UTILISER LA NOUVELLE MÉTHODE DE VALIDATION
@@ -185,7 +190,8 @@ const VehicleSelector: React.FC<VehicleSelectorProps> = ({
       estimatedHandlingTime: 0, // À implémenter dans l'UI si nécessaire
       hasLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
       multipleLargeVoluminousItems: false, // À implémenter dans l'UI si nécessaire
-      complexAccess: false // À implémenter dans l'UI si nécessaire
+      complexAccess: false, // À implémenter dans l'UI si nécessaire
+      autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
     };
 
     // ✅ UTILISER VehicleValidationService.getRequiredCrewSize() au lieu de la logique manuelle

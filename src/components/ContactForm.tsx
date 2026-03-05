@@ -28,6 +28,7 @@ interface ContactFormProps {
       categories?: string[];
       photos?: any[];
       autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
+      autresArticlesPoids?: number; // Poids unitaire des autres articles
     };
     livraison?: {
       creneau?: string;
@@ -129,6 +130,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
 
       if ((articles as any).autresArticles && (articles as any).autresArticles > 0) {
         message += `\nAutres articles (ni les plus grands, ni les plus lourds) : ${(articles as any).autresArticles}\n`;
+        if ((articles as any).autresArticlesPoids && (articles as any).autresArticlesPoids > 0) {
+          message += `  → Poids unitaire: ${(articles as any).autresArticlesPoids} kg/pièce\n`;
+        }
       }
 
       if (articles.details) {

@@ -128,7 +128,24 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
         const articles = data.articles?.dimensions || [];
         if (articles.length === 0) return null;
 
-        const totalItemCount = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+        const quantityFromDimensions = articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+        // ✅ Créer le tableau allArticles incluant les "autres articles"
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const allArticles = [...articles];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            } as any);
+        }
 
         // 🆕 UTILISER VehicleValidationService.getRequiredCrewSize() avec TOUTES les conditions
         const validationConditions = {
@@ -147,11 +164,12 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
             estimatedHandlingTime: deliveryConditions?.estimatedHandlingTime || 0,
             hasLargeVoluminousItems: deliveryConditions?.hasLargeVoluminousItems || false,
             multipleLargeVoluminousItems: deliveryConditions?.multipleLargeVoluminousItems || false,
-            complexAccess: deliveryConditions?.complexAccess || false
+            complexAccess: deliveryConditions?.complexAccess || false,
+            autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids // ✅ Poids des "autres articles"
         };
 
-        // ✅ UTILISER LA MÉTHODE OFFICIELLE au lieu de la logique manuelle
-        const requiredCrew = VehicleValidationService.getRequiredCrewSize(articles, validationConditions);
+        // ✅ UTILISER LA MÉTHODE OFFICIELLE avec allArticles
+        const requiredCrew = VehicleValidationService.getRequiredCrewSize(allArticles, validationConditions);
 
         console.log('📊 [RECAPITULATIF] Équipiers calculés:', requiredCrew);
 
@@ -227,10 +245,17 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     <h4 className="font-medium">Articles</h4>
                     <p>Quantité totale: {data.articles?.nombre}</p>
                     {data.articles?.autresArticles > 0 && (
-                        <p className="text-sm text-blue-700">
-                            Dont {data.articles.autresArticles} autre{data.articles.autresArticles > 1 ? 's' : ''} article{data.articles.autresArticles > 1 ? 's' : ''}
-                            <span className="text-xs text-gray-500 ml-1">(ni les plus grands, ni les plus lourds)</span>
-                        </p>
+                        <>
+                            <p className="text-sm text-blue-700">
+                                Dont {data.articles.autresArticles} autre{data.articles.autresArticles > 1 ? 's' : ''} article{data.articles.autresArticles > 1 ? 's' : ''}
+                                <span className="text-xs text-gray-500 ml-1">(ni les plus grands, ni les plus lourds)</span>
+                            </p>
+                            {(data.articles?.autresArticlesPoids ?? 0) > 0 && (
+                                <p className="text-sm text-blue-700 ml-2">
+                                    → Poids unitaire: {data.articles.autresArticlesPoids} kg/pièce
+                                </p>
+                            )}
+                        </>
                     )}
                     {data.articles?.details && (
                         <p>Détails: {data.articles.details}</p>
@@ -253,6 +278,27 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                                     {article.poids && ` P:${article.poids}kg`}
                                 </li>
                             ))}
+                            {/* ✅ Afficher poids total incluant autres articles */}
+                            {(() => {
+                                const poidsFromDimensions = data.articles.dimensions.reduce((sum, article) =>
+                                    sum + ((article.poids || 0) * (article.quantite || 1)), 0
+                                );
+                                const autresArticlesCount = data.articles?.autresArticles || 0;
+                                const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+                                const autresArticlesTotalWeight = autresArticlesCount * autresArticlesPoids;
+                                const totalWeight = poidsFromDimensions + autresArticlesTotalWeight;
+
+                                return totalWeight > 0 ? (
+                                    <li className="font-medium text-gray-700 mt-1">
+                                        Poids total: {totalWeight.toFixed(2)} kg
+                                        {autresArticlesTotalWeight > 0 && (
+                                            <span className="text-xs text-blue-700 ml-1">
+                                                (dont {autresArticlesTotalWeight.toFixed(2)} kg pour les autres articles)
+                                            </span>
+                                        )}
+                                    </li>
+                                ) : null;
+                            })()}
                         </ul>
                     </div>
                 )}

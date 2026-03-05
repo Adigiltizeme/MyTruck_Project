@@ -13,10 +13,11 @@ export interface ArticleDimension {
 
 interface ArticleDimensionsFormProps {
     initialArticles?: ArticleDimension[];
-    onChange: (articles: ArticleDimension[], autresArticlesCount?: number) => void;
+    onChange: (articles: ArticleDimension[], autresArticlesCount?: number, autresArticlesPoids?: number) => void;
     readOnly?: boolean;
     isEditing?: boolean;
     initialAutresArticles?: number;
+    initialAutresArticlesPoids?: number;
 }
 
 const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
@@ -24,7 +25,8 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     onChange,
     readOnly = false,
     isEditing = false,
-    initialAutresArticles = 0
+    initialAutresArticles = 0,
+    initialAutresArticlesPoids = 0
 }) => {
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);
@@ -34,11 +36,14 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [interactionTracker, setInteractionTracker] = useState<Set<string>>(new Set());
     const [showAutresArticles, setShowAutresArticles] = useState(initialAutresArticles > 0);
     const [autresArticlesCount, setAutresArticlesCount] = useState(initialAutresArticles || 0);
+    const [autresArticlesPoids, setAutresArticlesPoids] = useState<number>(initialAutresArticlesPoids || 0); // Poids moyen unitaire
+    const [showDimensionDetails, setShowDimensionDetails] = useState(false);
 
     // Utiliser une référence pour suivre si les dimensions initiales ont déjà été chargées
     const initializedRef = useRef(false);
     const lastNotifiedArticlesRef = useRef<ArticleDimension[]>([]);
     const lastNotifiedAutresArticlesRef = useRef<number>(0);
+    const lastNotifiedAutresArticlesPoidsRef = useRef<number>(0);
 
     // Synchroniser autresArticlesCount avec initialAutresArticles quand il change
     useEffect(() => {
@@ -48,6 +53,14 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             setShowAutresArticles(initialAutresArticles > 0);
         }
     }, [initialAutresArticles]);
+
+    // Synchroniser autresArticlesPoids avec initialAutresArticlesPoids quand il change
+    useEffect(() => {
+        if (initialAutresArticlesPoids !== autresArticlesPoids && initialAutresArticlesPoids > 0) {
+            console.log(`⚖️ [DIMENSIONS] Synchronisation autresArticlesPoids: ${autresArticlesPoids} → ${initialAutresArticlesPoids}`);
+            setAutresArticlesPoids(initialAutresArticlesPoids);
+        }
+    }, [initialAutresArticlesPoids]);
 
     const detectUserInteraction = useCallback((articleId: string, fieldValue: any) => {
         if (fieldValue && fieldValue.toString().trim() !== '') {
@@ -76,6 +89,14 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 if (hasContentInInitialArticles) {
                     setHasUserStartedTyping(true);
                 }
+
+                // Si les articles initiaux ont des dimensions, afficher la section dimensions
+                const hasDimensions = initialArticles.some(article =>
+                    article.nom || article.longueur || article.largeur || article.hauteur || article.poids
+                );
+                if (hasDimensions || readOnly) {
+                    setShowDimensionDetails(true);
+                }
             }
         } else if (!initializedRef.current) {
             // Créer un article par défaut seulement si aucune donnée initiale et pas encore initialisé
@@ -91,7 +112,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
             }]);
             initializedRef.current = true;
         }
-    }, [initialArticles]);
+    }, [initialArticles, readOnly]);
 
     // Validation des erreurs (uniquement quand les articles changent)
     useEffect(() => {
@@ -108,12 +129,20 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         articles.forEach((article) => {
             const articleErrors: string[] = [];
 
-            // Seulement valider les articles sur lesquels l'utilisateur a travaillé
+            // Toujours valider la quantité (obligatoire)
+            if (article.quantite <= 0) {
+                articleErrors.push('La quantité doit être supérieure à 0');
+            }
+
+            // Seulement valider les dimensions si l'utilisateur a choisi de les afficher
+            // ou si on a des données existantes
             const userWorkedOnThisArticle = interactionTracker.has(article.id) ||
                 (article.nom && article.nom.trim() !== '');
-            if (userWorkedOnThisArticle) {
-                if (!article.nom.trim()) {
-                    articleErrors.push('Le nom de l\'article est requis');
+
+            if (userWorkedOnThisArticle && showDimensionDetails) {
+                // Nom requis seulement si les dimensions sont affichées
+                if (!article.nom || !article.nom.trim()) {
+                    articleErrors.push('Le nom de l\'article est requis si vous renseignez les dimensions');
                 }
 
                 if (article.longueur !== undefined && article.longueur <= 0) {
@@ -133,18 +162,13 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                 }
             }
 
-            // Toujours valider la quantité si elle est définie
-            if (article.quantite <= 0) {
-                articleErrors.push('La quantité doit être supérieure à 0');
-            }
-
             if (articleErrors.length > 0) {
                 errors[article.id] = articleErrors;
             }
         });
 
         setValidationErrors(errors);
-    }, [articles, hasUserStartedTyping, interactionTracker, hasAttemptedSubmission]);
+    }, [articles, hasUserStartedTyping, interactionTracker, hasAttemptedSubmission, showDimensionDetails]);
 
     // Notification du parent - seulement quand nécessaire
     useEffect(() => {
@@ -154,23 +178,25 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         const currentString = JSON.stringify(articles);
         const lastNotifiedString = JSON.stringify(lastNotifiedArticlesRef.current);
         const autresArticlesChanged = autresArticlesCount !== lastNotifiedAutresArticlesRef.current;
+        const autresArticlesPoidsChanged = autresArticlesPoids !== lastNotifiedAutresArticlesPoidsRef.current;
 
-        if (currentString !== lastNotifiedString || autresArticlesChanged) {
+        if (currentString !== lastNotifiedString || autresArticlesChanged || autresArticlesPoidsChanged) {
             console.log("📦 [DIMENSIONS] Notification du parent pour changement de dimensions ou autres articles");
             lastNotifiedArticlesRef.current = [...articles];
             lastNotifiedAutresArticlesRef.current = autresArticlesCount;
+            lastNotifiedAutresArticlesPoidsRef.current = autresArticlesPoids;
 
             // CORRECTION CRITIQUE: Utiliser un timeout pour éviter les appels synchrones
             // et s'assurer que l'appel se fait APRÈS le rendu complet
             const timer = setTimeout(() => {
                 // IMPORTANT: onChange ici ne doit affecter QUE les dimensions
                 // Il ne doit PAS déclencher handleVehicleSelect
-                onChange(articles, autresArticlesCount);
+                onChange(articles, autresArticlesCount, autresArticlesPoids);
             }, 0);
 
             return () => clearTimeout(timer);
         }
-    }, [articles, onChange, autresArticlesCount]);
+    }, [articles, onChange, autresArticlesCount, autresArticlesPoids]);
 
     // Le reste des fonctions reste identique...
     const addArticle = useCallback(() => {
@@ -327,29 +353,95 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Nom de l'article */}
-                            <div className={index === 0 ? "col-span-2" : "col-span-2"}>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Nom de l'article <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={article.nom}
-                                    onChange={(e) => handleChange(article.id, 'nom', e.target.value)}
-                                    className={`w-full border ${!article.nom && hasUserStartedTyping && validationErrors[article.id]
-                                        ? 'border-red-300'
-                                        : 'border-gray-300'
-                                        } rounded-md px-3 py-2`}
-                                    placeholder={index === 0 ? "Ex: Palmier Kentia" : "Ex: Pot en terre cuite"}
-                                    disabled={readOnly}
-                                    required
-                                />
-                            </div>
+                        {/* Quantité - TOUJOURS VISIBLE */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Quantité <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="number"
+                                value={article.quantite}
+                                onChange={(e) => handleChange(article.id, 'quantite', e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                min={1}
+                                step="1"
+                                disabled={readOnly}
+                                required
+                            />
+                        </div>
 
-                            {/* ARTICLE 1 (le plus grand) : Dimensions complètes */}
-                            {index === 0 && (
-                                <>
+                        {/* Bouton pour afficher les dimensions - seulement pour article 1 */}
+                        {!readOnly && index === 0 && !showDimensionDetails && (
+                            <div className="flex flex-col items-center mt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDimensionDetails(true)}
+                                    className="px-4 py-2 bg-green-50 border border-green-300 rounded-md text-green-800 hover:bg-green-100 flex items-center transition"
+                                >
+                                    <Plus className="w-5 h-5 mr-2" />
+                                    Renseigner les dimensions (nom, longueur, largeur, hauteur, poids)
+                                </button>
+                                <p className="text-xs text-gray-500 mt-2 text-center">
+                                    RECOMMANDÉ - Permet une estimation plus précise du véhicule et des équipiers
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Section dimensions - masquable (ou toujours visible en readOnly) */}
+                        {(index === 0 && (showDimensionDetails || readOnly)) && (
+                            <div className="mt-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h5 className="font-medium">Dimensions détaillées</h5>
+                                    {!readOnly && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                // Masquer la section dimensions
+                                                setShowDimensionDetails(false);
+
+                                                // Réinitialiser les champs dimensions (garder seulement quantité)
+                                                setArticles(prevArticles => prevArticles.map(article => ({
+                                                    ...article,
+                                                    nom: '',
+                                                    longueur: undefined,
+                                                    largeur: undefined,
+                                                    hauteur: undefined,
+                                                    poids: undefined
+                                                    // quantite reste inchangée
+                                                })));
+
+                                                // Réinitialiser les flags d'interaction pour éviter erreurs de validation
+                                                setInteractionTracker(new Set());
+                                                setHasUserStartedTyping(false);
+                                                setValidationErrors({});
+                                            }}
+                                            className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                                        >
+                                            <Minus className="w-4 h-4 mr-1" />
+                                            Retirer
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Nom de l'article */}
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nom de l'article
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={article.nom}
+                                            onChange={(e) => handleChange(article.id, 'nom', e.target.value)}
+                                            className={`w-full border ${!article.nom && hasUserStartedTyping && validationErrors[article.id]
+                                                ? 'border-red-300'
+                                                : 'border-gray-300'
+                                                } rounded-md px-3 py-2`}
+                                            placeholder="Ex: Palmier Kentia"
+                                            disabled={readOnly}
+                                        />
+                                    </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Longueur (cm)
@@ -400,7 +492,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Poids (kg) <span className="text-red-500">*</span>
+                                            Poids (kg)
                                         </label>
                                         <input
                                             type="number"
@@ -413,14 +505,29 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                             disabled={readOnly}
                                         />
                                     </div>
-                                </>
-                            )}
+                                </div>
+                            </div>
+                        )}
 
-                            {/* ARTICLE 2 (le plus lourd) : Seulement poids */}
-                            {index === 1 && (
+                        {/* ARTICLE 2 (le plus lourd) : Affichage normal */}
+                        {index === 1 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Nom de l'article
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={article.nom}
+                                        onChange={(e) => handleChange(article.id, 'nom', e.target.value)}
+                                        className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                        placeholder="Ex: Pot en terre cuite"
+                                        disabled={readOnly}
+                                    />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Poids (kg) <span className="text-red-500">*</span>
+                                        Poids (kg)
                                     </label>
                                     <input
                                         type="number"
@@ -431,31 +538,13 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                         min="0"
                                         step="0.1"
                                         disabled={readOnly}
-                                        required
                                     />
                                     <p className="text-xs text-gray-500 mt-1">
                                         Le poids de cet article servira uniquement pour le calcul des équipiers
                                     </p>
                                 </div>
-                            )}
-
-                            {/* Quantité */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Quantité <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    value={article.quantite}
-                                    onChange={(e) => handleChange(article.id, 'quantite', e.target.value)}
-                                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                                    min={1}
-                                    step="1"
-                                    disabled={readOnly}
-                                    required
-                                />
                             </div>
-                        </div>
+                        )}
                     </div>
                 ))}
             </div>
@@ -505,6 +594,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                 onClick={() => {
                                     setShowAutresArticles(false);
                                     setAutresArticlesCount(0);
+                                    setAutresArticlesPoids(0);
                                 }}
                                 className="text-red-600 hover:text-red-800 flex items-center text-sm"
                             >
@@ -516,24 +606,60 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                     <p className="text-sm text-gray-700 mb-3">
                         Nombre d'articles restants (ni parmi les plus grands, ni parmi les plus lourds)
                     </p>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Nombre d'autres articles
-                        </label>
-                        <input
-                            type="number"
-                            value={autresArticlesCount}
-                            onChange={(e) => setAutresArticlesCount(parseInt(e.target.value) || 0)}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2"
-                            min={0}
-                            step="1"
-                            disabled={readOnly}
-                            placeholder="Ex: 5"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                            Ces articles seront ajoutés au nombre total d'articles
-                        </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Nombre d'autres articles
+                            </label>
+                            <input
+                                type="number"
+                                value={autresArticlesCount}
+                                onChange={(e) => setAutresArticlesCount(parseInt(e.target.value) || 0)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                min={0}
+                                step="1"
+                                disabled={readOnly}
+                                placeholder="Ex: 5"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Ces articles seront ajoutés au nombre total
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Poids moyen unitaire (kg)
+                            </label>
+                            <input
+                                type="number"
+                                value={autresArticlesPoids === 0 ? '' : autresArticlesPoids}
+                                onChange={(e) => setAutresArticlesPoids(parseFloat(e.target.value) || 0)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                min={0}
+                                step="0.1"
+                                disabled={readOnly}
+                                placeholder="Ex: 2.5"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Poids moyen d'un de ces articles
+                            </p>
+                        </div>
                     </div>
+
+                    {/* Calcul automatique du poids total */}
+                    {autresArticlesCount > 0 && autresArticlesPoids > 0 && (
+                        <div className="mt-3 p-3 bg-white rounded border border-blue-200">
+                            <p className="text-sm text-gray-700">
+                                <span className="font-medium">Poids total des autres articles :</span>{' '}
+                                <span className="text-blue-700 font-bold">
+                                    {(autresArticlesCount * autresArticlesPoids).toFixed(1)} kg
+                                </span>
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {autresArticlesCount} article(s) × {autresArticlesPoids} kg = {(autresArticlesCount * autresArticlesPoids).toFixed(1)} kg
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 

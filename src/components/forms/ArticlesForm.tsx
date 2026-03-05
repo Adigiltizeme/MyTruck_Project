@@ -3,7 +3,7 @@ import { CloudinaryService } from "../../services/cloudinary.service";
 import { ArticlesFormProps } from "../../types/form.types";
 import PhotoUploader from "../PhotoUploader";
 import FormInput from "./FormInput";
-import { XCircle } from "lucide-react";
+import { XCircle, Info } from "lucide-react";
 import ArticleDimensionsForm, { ArticleDimension } from "./ArticleDimensionForm";
 import VehicleSelector from "../VehicleSelector";
 import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
@@ -226,7 +226,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     };
 
     // Gérer les changements de dimensions des articles
-    const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[], autresArticlesCount: number = 0) => {
+    const handleArticleDimensionsChange = useCallback((dimensions: ArticleDimension[], autresArticlesCount: number = 0, autresArticlesPoids: number = 0) => {
         if (!hasUserInteracted && dimensions.length > 0) {
             setHasUserInteracted(true);
         }
@@ -234,6 +234,27 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         const currentDimensionsString = JSON.stringify(articleDimensions);
         const newDimensionsString = JSON.stringify(dimensions);
         const currentAutresArticles = data.articles?.autresArticles || 0;
+        const currentAutresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+
+        // Détecter si les dimensions ont été réinitialisées (tous les noms vides)
+        const hasDimensionDetails = dimensions.some(article => article.nom && article.nom.trim() !== '');
+
+        // Si dimensions réinitialisées (bouton "Retirer"), réinitialiser aussi véhicule/équipiers
+        if (!hasDimensionDetails && articleDimensions.some(art => art.nom && art.nom.trim() !== '')) {
+            console.log("🔄 [ARTICLES-FORM] Dimensions retirées → Réinitialisation véhicule/équipiers");
+            onFormChange({
+                target: {
+                    name: 'livraison.vehicule',
+                    value: null
+                }
+            });
+            onFormChange({
+                target: {
+                    name: 'livraison.equipiers',
+                    value: 0
+                }
+            });
+        }
 
         // Gérer les changements de dimensions
         if (currentDimensionsString !== newDimensionsString) {
@@ -259,6 +280,17 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             });
         }
 
+        // Gérer les changements du poids des autres articles
+        if (autresArticlesPoids !== currentAutresArticlesPoids) {
+            console.log(`⚖️ [ARTICLES-FORM] Poids autres articles modifié: ${currentAutresArticlesPoids} → ${autresArticlesPoids}`);
+            onFormChange({
+                target: {
+                    name: 'articles.autresArticlesPoids',
+                    value: autresArticlesPoids
+                }
+            });
+        }
+
         // Recalculer le total (toujours, car soit dimensions soit autresArticles a changé)
         const quantityFromDimensions = dimensions.reduce((sum, article) => sum + article.quantite, 0);
         const newTotalQuantity = quantityFromDimensions + autresArticlesCount;
@@ -275,7 +307,15 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 }
             });
         }
-    }, [onFormChange, articleDimensions, data.articles?.nombre, data.articles?.autresArticles, hasUserInteracted]);
+
+        // ✅ RECALCULER ET SAUVEGARDER LES ÉQUIPIERS APRÈS CHANGEMENT DES ARTICLES
+        if (hasDimensionDetails || autresArticlesCount > 0) {
+            setTimeout(() => {
+                // Recalculer ici directement pour éviter les dépendances circulaires
+                console.log('🔄 Déclenchement recalcul équipiers suite changement articles');
+            }, 150);
+        }
+    }, [onFormChange, articleDimensions, data.articles?.nombre, data.articles?.autresArticles, data.articles?.autresArticlesPoids, hasUserInteracted, data.livraison?.equipiers]);
 
     useEffect(() => {
         console.log("📄 [ARTICLES-FORM] Rendu avec données:", {
@@ -340,7 +380,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         console.log('📦 Articles:', articleDimensions.length);
         console.log('🏠 Conditions livraison:', localDeliveryInfo);
 
-        const totalItemCount = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        // ✅ INCLURE LES "AUTRES ARTICLES" dans le total
+        const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+        const autresArticlesCount = data.articles?.autresArticles || 0;
+        const totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+        console.log(`📊 Total articles pour calcul équipiers: ${quantityFromDimensions} (dimensionnés) + ${autresArticlesCount} (autres) = ${totalItemCount}`);
 
         // Calculer l'étage effectif avec duplex/maison
         let effectiveFloor = parseInt(data.client?.adresse?.etage || '0');
@@ -348,6 +393,10 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             effectiveFloor += 1;
             console.log(`🏠 Duplex détecté: ${effectiveFloor} étages effectifs`);
         }
+
+        // ✅ CALCULER LE POIDS TOTAL DES "AUTRES ARTICLES"
+        const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+        const autresArticlesTotalWeight = autresArticlesCount * autresArticlesPoids;
 
         // 🔥 CORRECTION : Préparer TOUTES les conditions pour le calcul
         const deliveryConditions = {
@@ -362,31 +411,49 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             floor: effectiveFloor, // ✅ Étage DÉJÀ calculé avec duplex
             // 🔧 CORRECTION : Désactiver le recalcul duplex dans le service
             isDuplex: false, // ✅ Déjà pris en compte dans effectiveFloor
-            deliveryToUpperFloor: false // ✅ Déjà pris en compte dans effectiveFloor
+            deliveryToUpperFloor: false, // ✅ Déjà pris en compte dans effectiveFloor
+            autresArticlesTotalWeight // ✅ NOUVEAU : Poids total des "autres articles"
         };
 
         console.log('📋 Conditions préparées:', deliveryConditions);
 
+        // ✅ INCLURE LES "AUTRES ARTICLES" COMME UN ARTICLE SUPPLÉMENTAIRE
+        const allArticles = [...articleDimensions];
+        if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+            allArticles.push({
+                id: 'autres-articles',
+                nom: 'Autres articles',
+                quantite: autresArticlesCount,
+                poids: autresArticlesPoids,
+                longueur: 0,
+                largeur: 0,
+                hauteur: 0
+            });
+        }
+
         // ✅ UTILISER LA MÉTHODE CORRIGÉE
         const requiredCrew = VehicleValidationService.getRequiredCrewSize(
-            articleDimensions,
+            allArticles,
             deliveryConditions
         );
 
         console.log(`👥 [ARTICLES-FORM] Équipiers calculés: ${requiredCrew}`);
 
         // 🔥 DÉBOGAGE : Afficher détail des conditions
-        if (requiredCrew > 1) {
-            console.log('🔍 DÉBOGAGE - Conditions qui devraient ajouter des équipiers:');
+        if (requiredCrew > 0) {
+            console.log('🔍 DÉBOGAGE - Conditions qui déclenchent des équipiers:');
 
             // Identifier l'article le plus lourd
             const heaviestWeight = Math.max(...articleDimensions.map(a => a.poids || 0));
-            const totalWeight = articleDimensions.reduce((sum, article) =>
+            const weightFromDimensions = articleDimensions.reduce((sum, article) =>
                 sum + ((article.poids || 0) * (article.quantite || 1)), 0
             );
 
-            console.log(`⚖️ Article le plus lourd: ${heaviestWeight}kg`);
-            console.log(`⚖️ Poids total: ${totalWeight}kg`);
+            const totalWeight = weightFromDimensions + autresArticlesTotalWeight;
+
+            console.log(`⚖️ Article le plus lourd individuel: ${heaviestWeight}kg`);
+            console.log(`⚖️ Poids total: ${weightFromDimensions}kg (dimensionnés) + ${autresArticlesTotalWeight}kg (autres) = ${totalWeight}kg`);
+            console.log(`📦 Nombre total articles: ${totalItemCount}`);
 
             if (heaviestWeight >= 30) console.log('✅ Article ≥30kg → +1 équipier');
             if (deliveryConditions.hasElevator && totalWeight > 300) console.log('✅ Charge >300kg avec ascenseur → +1 équipier');
@@ -431,6 +498,16 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                 setTimeout(() => {
                     const newCrewCount = calculateRequiredCrew();
                     console.log(`🔄 Recalcul après modification: ${newCrewCount} équipiers`);
+
+                    // ✅ SAUVEGARDER LE RÉSULTAT DANS data.livraison.equipiers
+                    if (newCrewCount !== data.livraison?.equipiers) {
+                        onFormChange({
+                            target: {
+                                name: 'livraison.equipiers',
+                                value: newCrewCount
+                            }
+                        });
+                    }
                 }, 100);
 
             }, 0);
@@ -539,6 +616,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     readOnly={false}
                     isEditing={isEditing}
                     initialAutresArticles={data.articles?.autresArticles || 0}
+                    initialAutresArticlesPoids={data.articles?.autresArticlesPoids || 0}
                 />
             </div>
 
@@ -878,11 +956,45 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             </div>
 
             {/* Sélection du véhicule et des équipiers */}
-            {hasUserInteracted && articleDimensions.length > 0 &&
-                articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+            {hasUserInteracted && articleDimensions.length > 0 && (
+                <>
+                    {/* Message d'avertissement si dimensions non renseignées */}
+                    {!articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+                        <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded mb-4 flex items-start">
+                            <Info className="w-5 h-5 mr-2 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm">
+                                <p className="font-medium">Note importante</p>
+                                <p>
+                                    Sans dimensions détaillées, vous devez sélectionner manuellement le véhicule et le nombre d'équipiers.
+                                    Si à la réception de la commande il s'avère qu'il faut un véhicule plus grand ou plus d'équipiers,
+                                    My Truck se réserve le droit d'attribuer un autre véhicule ou des équipiers supplémentaires,
+                                    ce qui pourra entraîner une augmentation du prix de la prestation.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="bg-white rounded-lg shadow p-4 mb-6">
                         <VehicleSelector
-                            articles={articleDimensions}
+                            articles={(() => {
+                                // ✅ INCLURE LES "AUTRES ARTICLES" POUR LE CALCUL DES ÉQUIPIERS
+                                const allArticles = [...articleDimensions];
+                                const autresArticlesCount = data.articles?.autresArticles || 0;
+                                const autresArticlesPoids = data.articles?.autresArticlesPoids || 0;
+
+                                if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+                                    allArticles.push({
+                                        id: 'autres-articles',
+                                        nom: 'Autres articles',
+                                        quantite: autresArticlesCount,
+                                        poids: autresArticlesPoids,
+                                        longueur: 0,
+                                        largeur: 0,
+                                        hauteur: 0
+                                    });
+                                }
+                                return allArticles;
+                            })()}
                             onVehicleSelect={handleVehicleSelect}
                             onCrewSelect={handleCrewSelect}
                             onDeliveryDetailsChange={handleDeliveryDetailsChange}
@@ -893,9 +1005,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                             deliveryInfo={localDeliveryInfo}
                             isEditing={isEditing}
                             userRole={userRole}
+                            autresArticlesCount={data.articles?.autresArticles || 0}
+                            autresArticlesPoids={data.articles?.autresArticlesPoids || 0}
                         />
                     </div>
-                )}
+                </>
+            )}
 
             {/* Nombre d'articles */}
             <div className="grid grid-cols-1 gap-4">

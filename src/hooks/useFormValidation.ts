@@ -161,12 +161,31 @@ export const useFormValidation = (
                         ? JSON.parse(formData.livraison.details || '{}')
                         : (formData.livraison?.details || {});
 
-                    // Ajouter totalItemCount depuis articles
-                    deliveryConditions.totalItemCount = formData.articles.nombre || 0;
+                    // ✅ INCLURE LES "AUTRES ARTICLES" dans le calcul du nombre total
+                    const quantityFromDimensions = formData.articles.dimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
+                    const autresArticlesCount = formData.articles?.autresArticles || 0;
+                    deliveryConditions.totalItemCount = quantityFromDimensions + autresArticlesCount;
+
+                    // ✅ Créer le tableau allArticles incluant les "autres articles"
+                    const autresArticlesPoids = formData.articles?.autresArticlesPoids || 0;
+                    const allArticles = [...formData.articles.dimensions];
+                    if (autresArticlesCount > 0 && autresArticlesPoids > 0) {
+                        allArticles.push({
+                            nom: 'Autres articles',
+                            quantite: autresArticlesCount,
+                            poids: autresArticlesPoids,
+                            longueur: 0,
+                            largeur: 0,
+                            hauteur: 0
+                        } as any);
+                    }
+
+                    // ✅ Ajouter autresArticlesTotalWeight
+                    deliveryConditions.autresArticlesTotalWeight = autresArticlesCount * autresArticlesPoids;
 
                     const validation = VehicleValidationService.validateCrewSize(
                         formData.livraison?.equipiers ?? 0,
-                        formData.articles.dimensions,
+                        allArticles,
                         deliveryConditions
                     );
 

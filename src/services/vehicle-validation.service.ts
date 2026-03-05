@@ -244,6 +244,7 @@ export class VehicleValidationService {
             hasLargeVoluminousItems?: boolean;
             multipleLargeVoluminousItems?: boolean;
             complexAccess?: boolean; // combinaison: pas ascenseur + >45min + cours à traverser
+            autresArticlesTotalWeight?: number; // poids total des "autres articles"
         } = {}
     ): number {
         if (!articles || articles.length === 0) {
@@ -259,9 +260,13 @@ export class VehicleValidationService {
             }
         });
 
-        const totalWeight = articles.reduce((sum, article) =>
+        const weightFromDimensions = articles.reduce((sum, article) =>
             sum + ((article.poids || 0) * (article.quantite || 1)), 0
         );
+
+        // ✅ INCLURE LE POIDS DES "AUTRES ARTICLES"
+        const autresArticlesTotalWeight = deliveryConditions.autresArticlesTotalWeight || 0;
+        const totalWeight = weightFromDimensions + autresArticlesTotalWeight;
 
         const totalItemCount = deliveryConditions.totalItemCount ||
             articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
@@ -494,6 +499,7 @@ export class VehicleValidationService {
             hasLargeVoluminousItems?: boolean;
             multipleLargeVoluminousItems?: boolean;
             complexAccess?: boolean;
+            autresArticlesTotalWeight?: number;
         } = {}
     ): {
         requiredVehicle: VehicleType | null;
@@ -506,9 +512,13 @@ export class VehicleValidationService {
         triggeredConditions: string[];
         needsQuote: boolean;
     } {
-        const totalWeight = articles.reduce((sum, article) =>
+        const weightFromDimensions = articles.reduce((sum, article) =>
             sum + ((article.poids || 0) * (article.quantite || 1)), 0
         );
+
+        // ✅ INCLURE LE POIDS DES "AUTRES ARTICLES"
+        const autresArticlesTotalWeight = conditions.autresArticlesTotalWeight || 0;
+        const totalWeight = weightFromDimensions + autresArticlesTotalWeight;
 
         const totalItems = conditions.totalItemCount ||
             articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
