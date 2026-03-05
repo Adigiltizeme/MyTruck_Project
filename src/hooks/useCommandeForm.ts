@@ -471,7 +471,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
         isSubmittingRef.current = true;
 
         try {
-            // Vérifier si la date de livraison est dans le passé
+            // ✅ Vérifier si la date de livraison est dans le passé (sauf pour admin/direction)
             const livraisonDate = state.data.dates?.livraison ?
                 new Date(state.data.dates.livraison) : null;
             const today = new Date();
@@ -479,7 +479,8 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
             const isPastDate = livraisonDate && livraisonDate < today;
 
-            if (isPastDate) {
+            // ✅ Autoriser les dates passées UNIQUEMENT pour admin/direction
+            if (isPastDate && effectiveRole !== 'admin' && effectiveRole !== 'direction') {
                 alert('La date de livraison ne peut pas être dans le passé. Veuillez sélectionner une date future.');
                 setIsSubmitting(false);
                 return;
@@ -573,7 +574,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 isSubmittingRef.current = false;
             }, 1000);
         }
-    }, [state.step, state.data, validateStep, onSubmit, clearDraft, user, isSubmitting, forceClearAllDrafts]);
+    }, [state.step, state.data, validateStep, onSubmit, clearDraft, user, isSubmitting, forceClearAllDrafts, effectiveRole]);
 
     const forceCleanup = useCallback(async () => {
         console.log('[NETTOYAGE FORCÉ] Démarrage du nettoyage complet...');
