@@ -527,6 +527,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
                                         <p><span className="text-gray-500 dark:text-gray-400">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
                                         <p><span className="text-gray-500 dark:text-gray-400">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p>
+                                        <p className="break-words">
+                                            <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span>
+                                            <span className="inline-block">{commande.magasin?.manager}</span>
+                                        </p>
                                     </>
                                 )}
                             </div>
@@ -568,6 +572,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                 <span className="inline-block">{commande.magasin?.address || 'Non spécifiée'}</span>
                                             )}
                                         </p>
+                                        
+                                        {/* Vendeur du magasin destinataire */}
+                                        <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span> <span className="inline-block">{commande.magasin?.manager || 'Non spécifié'}</span></p>
+
                                     </>
                                 ) : (
                                     // ✅ COMMANDE : Afficher info client
@@ -691,8 +699,8 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         <div className="space-y-3">
                                             {commande.articles.dimensions.map((article: ArticleDimension, index: number) => (
                                                 <div key={index} className={`border rounded-lg p-3 ${index === 0 ? 'bg-blue-50 border-blue-300' :
-                                                        index === 1 ? 'bg-orange-50 border-orange-300' :
-                                                            'bg-gray-50'
+                                                    index === 1 ? 'bg-orange-50 border-orange-300' :
+                                                        'bg-gray-50'
                                                     }`}>
                                                     <div className="flex items-center gap-2 mb-2">
                                                         {index === 0 && <span className="text-lg">📦</span>}
