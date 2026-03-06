@@ -949,11 +949,13 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                     </div>
                                 )}
                             </div>
-                            {/* 💰 Total HT pour admin */}
-                            {isAdminRole(user?.role) && (
+                            {/* 💰 Total HT pour admin et magasin */}
+                            {(isAdminRole(user?.role) || user?.role === 'magasin') && (
                                 <div className="flex items-center space-x-4">
                                     <div className="bg-green-50 dark:bg-green-900 px-4 py-2 rounded-lg border-2 border-green-300 dark:border-green-600">
-                                        <span className="text-xs font-medium text-green-600 dark:text-green-300 mr-2">Total HT affiché :</span>
+                                        <span className="text-xs font-medium text-green-600 dark:text-green-300 mr-2">
+                                            Total HT affiché{user?.role === 'magasin' && user.storeName ? ` (${user.storeName})` : ''} :
+                                        </span>
                                         <span className="text-lg font-bold text-green-700 dark:text-green-200">
                                             {(paginatedItems as CommandeMetier[])
                                                 .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
@@ -965,15 +967,17 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                         </span>
                                     </div>
                                     <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2 rounded-lg border-2 border-blue-300 dark:border-blue-600">
-                                        <span className="text-xs font-medium text-blue-600 dark:text-blue-300 mr-2">Total général :</span>
+                                        <span className="text-xs font-medium text-blue-600 dark:text-blue-300 mr-2">
+                                            Total général{user?.role === 'magasin' && user.storeName ? ` (${user.storeName})` : ''} :
+                                        </span>
                                         <span className="text-lg font-bold text-blue-700 dark:text-blue-200">
-                                            {data
+                                            {filteredByRoleData
                                                 .filter(cmd => cmd.financier?.tarifHT && typeof cmd.financier.tarifHT === 'number')
                                                 .reduce((sum, cmd) => sum + (cmd.financier?.tarifHT || 0), 0)
                                                 .toFixed(2)}€
                                         </span>
                                         <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                                            ({data.length} cmd)
+                                            ({filteredByRoleData.length} cmd)
                                         </span>
                                     </div>
                                 </div>
@@ -1125,7 +1129,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Créneau</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Véhicule</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Réserve</th>
-                                    {isAdminRole(user?.role) && (
+                                    {(isAdminRole(user?.role) || user?.role === 'magasin') && (
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tarif HT</th>
                                     )}
                                     {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
@@ -1210,24 +1214,21 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                     {(commande.reserve || commande.livraison?.reserve) ? 'OUI' : 'NON'}
                                                 </span>
                                             </td>
-                                            {isAdminRole(user?.role) && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 text-left">
-                                                    {commande.financier?.tarifHT
-                                                        ? `${commande.financier.tarifHT}€`
-                                                        : 'N/A'
-                                                    }
+                                            {(isAdminRole(user?.role) || user?.role === 'magasin') && (
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                                                    {commande.financier?.tarifHT ? `${commande.financier.tarifHT.toFixed(2)}€` : 'N/A'}
                                                 </td>
                                             )}
                                             {user?.role !== 'magasin' && type !== 'INTER_MAGASIN' && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary dark:text-gray-100 text-left">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium secondary">
                                                     {commande.magasin?.name || 'N/A'}
                                                 </td>
                                             )}
                                             {user?.role !== 'chauffeur' && (
-                                                <td className="px-4 py-4 whitespace-nowrap">
+                                                <td className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300">
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleRenewCommande(commande); }}
-                                                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-lg"
+                                                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
                                                         title="Renouveler cette commande"
                                                     >
                                                         🔄
@@ -1247,20 +1248,6 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                     </div>
                                                 </td>
                                             )}
-                                            {/* COMMENTÉ : Bouton supprimer individuel remplacé par checkbox
-                                            {(isAdminRole(user?.role)) && (
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                                                    <div className="flex gap-2 justify-end">
-                                                        <button
-                                                            onClick={() => commande.id && handleDelete(commande.id)}
-                                                            className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                                        >
-                                                            Supprimer
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            )}
-                                            */}
                                         </tr>
                                         {expandedRow === commande.id && (
                                             <tr className="bg-gray-50 dark:bg-gray-700">
