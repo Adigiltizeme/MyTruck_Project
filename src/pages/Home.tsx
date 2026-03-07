@@ -222,7 +222,7 @@ const HomePage: React.FC = () => {
                                 </p>
                                 <p className="flex items-center">
                                     <span className="mr-2">✉️</span>
-                                    mytruck.transport@gmail.com
+                                    contact@mytruck-com.net
                                 </p>
                             </div>
                         </div>
@@ -298,7 +298,7 @@ const HomePage: React.FC = () => {
                     {/* Copyright */}
                     <div className="mt-4 pt-4 border-t border-gray-700 text-center text-xs text-gray-500">
                         <p>
-                            © {/*new Date().getFullYear()*/}2024 My Truck Transport et Livraison. Tous droits réservés.
+                            © {/*new Date().getFullYear()*/}2026 My Truck Transport et Livraison. Tous droits réservés.
                         </p>
                         <p className="mt-1">
                             Conçu pour l'excellence dans le transport d'articles volumineux.
