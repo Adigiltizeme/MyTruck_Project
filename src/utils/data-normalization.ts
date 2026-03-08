@@ -10,6 +10,7 @@ export const normalizeMagasin = (magasin: MagasinInfo): {
     phone: string;
     email: string;
     manager: string;
+    managers: string[];
     status: string;
     categories: string[];
     enseigne: string;
@@ -22,6 +23,7 @@ export const normalizeMagasin = (magasin: MagasinInfo): {
         phone: magasin.telephone || magasin.phone || '',
         email: magasin.email || '',
         manager: magasin.manager || '',
+        managers: magasin.managers || [],
         status: magasin.status,
         categories: magasin.categories || []
     };

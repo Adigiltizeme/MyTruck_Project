@@ -45,6 +45,7 @@ interface BackendMagasin {
     telephone?: string;
     email?: string;
     manager?: string;
+    managers?: string[];
     status: string;
     categories?: string[];
 }
@@ -104,6 +105,7 @@ export default function MagasinManagement() {
             phone: backendData.telephone ?? '',
             email: backendData.email,
             manager: backendData.manager,
+            managers: backendData.managers || [],
             status: backendData.status || 'inactif',
             categories: backendData.categories || [],
             photo: ''
@@ -633,10 +635,16 @@ export default function MagasinManagement() {
                                                                 {magasin.email}
                                                             </div>
                                                         )}
-                                                        {magasin.manager && (
+                                                        {magasin.managers && magasin.managers.length > 0 && (
                                                             <div className="flex items-center">
                                                                 <UserIcon className="h-4 w-4 mr-1" />
-                                                                {magasin.manager}
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {magasin.managers.map((vendeur, idx) => (
+                                                                        <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                                            {vendeur}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

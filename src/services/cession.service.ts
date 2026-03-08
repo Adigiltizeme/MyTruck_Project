@@ -103,24 +103,24 @@ export class CessionService {
 
       // Préparer le DTO pour le backend
       const dto: any = {
-        magasinOrigineId: cessionData.magasin_origine_id,
         dateLivraisonSouhaitee: cessionData.date_livraison_souhaitee,
+        magasinDestinationId: cessionData.magasin_destination_id, // ✅ Demandeur (toujours requis)
       };
 
-      // Ajouter soit l'ID du magasin de destination (mode liste), soit les infos magasin externe (mode manuel)
-      if (cessionData.magasin_destination_id) {
-        console.log('📋 Mode LISTE - magasinDestinationId:', cessionData.magasin_destination_id);
-        dto.magasinDestinationId = cessionData.magasin_destination_id;
+      // ✅ Ajouter soit l'ID du magasin d'origine (mode liste), soit les infos magasin externe (mode manuel)
+      if (cessionData.magasin_origine_id) {
+        console.log('📋 Mode LISTE - magasinOrigineId:', cessionData.magasin_origine_id);
+        dto.magasinOrigineId = cessionData.magasin_origine_id;
       } else if (cessionData.magasin_externe) {
-        console.log('✍️ Mode MANUEL - magasinExterne:', cessionData.magasin_externe);
-        dto.magasinExterne = {
+        console.log('✍️ Mode MANUEL - magasinOrigineExterne:', cessionData.magasin_externe);
+        dto.magasinOrigineExterne = {
           nom: cessionData.magasin_externe.nom,
           adresse: cessionData.magasin_externe.adresse,
           telephone: cessionData.magasin_externe.telephone || '',
           email: cessionData.magasin_externe.email || ''
         };
       } else {
-        console.error('❌ ERREUR: Aucun magasin de destination fourni (ni ID ni magasin externe)');
+        console.error('❌ ERREUR: Aucun magasin d\'origine fourni (ni ID ni magasin externe)');
       }
 
       // Compléter le DTO avec les articles et autres infos
@@ -148,6 +148,7 @@ export class CessionService {
       dto.optionEquipier = cessionData.equipiers || 0;
       dto.creneauLivraison = cessionData.creneau || '';
       dto.tarifHT = cessionData.tarifHT || 0;
+      dto.prenomVendeur = cessionData.prenom_vendeur || ''; // ✅ Vendeur du magasin demandeur
 
       console.log('📦 DTO complet à envoyer au backend:', JSON.stringify(dto, null, 2));
 

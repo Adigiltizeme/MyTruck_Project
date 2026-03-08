@@ -667,7 +667,8 @@ export class DataServiceAdapter {
                 return [
                     {
                         id: '76997d1d-2cc9-4144-96b9-4f3b181af0fc',
-                        name: 'Truffaut Boulogne',  // ✅ 'name' au lieu de 'nom'
+                        name: 'Truffaut Boulogne',
+                        enseigne: 'Truffaut',
                         address: '33 Av. Edouard Vaillant, 92100 Boulogne',
                         phone: '01 23 45 67 89',
                         email: 'boulogne@truffaut.com',
@@ -675,7 +676,8 @@ export class DataServiceAdapter {
                     },
                     {
                         id: '03705e9e-9af9-41ca-8e28-5046455b4b6f',
-                        name: 'Truffaut Ivry',  // ✅ 'name' au lieu de 'nom'
+                        name: 'Truffaut Ivry',
+                        enseigne: 'Truffaut',
                         address: '36 Rue Ernest Renan, 94200 Ivry',
                         phone: '01 98 76 54 32',
                         email: 'ivry@truffaut.com',

@@ -78,6 +78,7 @@ export class SlotsService {
                 date,
                 slot: { ...slot, maxCapacity: slot.maxCapacity !== undefined ? slot.maxCapacity : 10 },
                 isAvailable: slot.isActive && !this.isSlotPassed(date, slot.endTime),
+                isBlocked: false,
                 bookingsCount: 0,
                 maxCapacity: slot.maxCapacity !== undefined ? slot.maxCapacity : 10
             }));

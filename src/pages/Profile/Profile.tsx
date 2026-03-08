@@ -540,10 +540,22 @@ const Profile = () => {
                   )}
                   {actualUserData?.manager && (
                     <div>
-                      <label className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur</label>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Responsable/Vendeur (principal)</label>
                       <p className="py-2 px-3 border border-gray-300 rounded bg-gray-50">
                         {actualUserData.manager}
                       </p>
+                    </div>
+                  )}
+                  {actualUserData?.managers && actualUserData.managers.length > 0 && (
+                    <div>
+                      <label className="block text-gray-700 text-sm font-bold mb-2">Liste des vendeurs</label>
+                      <div className="py-2 px-3 border border-gray-300 rounded bg-gray-50 flex flex-wrap gap-2">
+                        {actualUserData.managers.map((vendeur: string, idx: number) => (
+                          <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                            {vendeur}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                   {actualUserData?.status && (

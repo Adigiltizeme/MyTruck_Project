@@ -85,7 +85,7 @@ const DocumentsPage: React.FC = () => {
                                     interphone: ''
                                 }
                             },
-                            magasin: commande.magasin || { id: '', name: '', address: '', phone: '', status: '' }
+                            magasin: commande.magasin || { id: '', name: '', address: '', enseigne: '', phone: '', status: '' }
                         });
                     });
                 }
@@ -113,7 +113,7 @@ const DocumentsPage: React.FC = () => {
                                     interphone: ''
                                 }
                             },
-                            magasin: commande.magasin || { id: '', name: '', address: '', phone: '', status: '' }
+                            magasin: commande.magasin || { id: '', name: '', address: '', enseigne: '', phone: '', status: '' }
                         });
                     });
                 }

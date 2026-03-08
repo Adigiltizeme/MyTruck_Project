@@ -377,27 +377,20 @@ export class VehicleValidationService {
             return 1;
         }
 
+        // 🔸 Plus de 20 articles (total) ET poids total > 50kg (sans ascenseur)
+        if (totalItemCount > 20 && totalWeight > 50 && !deliveryConditions.hasElevator) {
+            triggeredConditions.push(`1 équipier: Plus de 20 articles (${totalItemCount}) ET ${totalWeight}kg > 50kg sans ascenseur`);
+            console.log(`✅ 1 ÉQUIPIER: ${totalItemCount} articles ET ${totalWeight}kg sans ascenseur`);
+            return 1;
+        }
+
         // 🔸 Charge totale lourde (SEULEMENT si pas d'article ≥30kg individuel)
-        if (heaviestIndividualWeight < 30 && 
-            ((deliveryConditions.hasElevator && totalWeight >= 300) || 
+        if (heaviestIndividualWeight < 30 &&
+            ((deliveryConditions.hasElevator && totalWeight >= 300) ||
              (!deliveryConditions.hasElevator && totalWeight >= 200))) {
             const condition = deliveryConditions.hasElevator ? 'avec ascenseur' : 'sans ascenseur';
             triggeredConditions.push(`1 équipier: Charge lourde ${totalWeight}kg ${condition} (aucun article ≥30kg)`);
             console.log(`✅ 1 ÉQUIPIER: Charge lourde ${condition} sans article lourd individuel`);
-            return 1;
-        }
-
-        // 🔸 Étage élevé sans ascenseur (≥2ème étage) avec nombreux articles (≥20)
-        if (effectiveFloor >= 2 && !deliveryConditions.hasElevator && totalItemCount >= 20) {
-            triggeredConditions.push(`1 équipier: Étage élevé (${effectiveFloor}ème sans ascenseur) + nombreux articles (${totalItemCount})`);
-            console.log('✅ 1 ÉQUIPIER: Étage élevé + nombreux articles');
-            return 1;
-        }
-
-        // 🔸 Nombreux articles (≥20) - SEULEMENT si pas d'étage sans ascenseur
-        if (totalItemCount >= 20 && (deliveryConditions.hasElevator || effectiveFloor < 2)) {
-            triggeredConditions.push(`1 équipier: Nombreux articles (${totalItemCount} ≥20)`);
-            console.log('✅ 1 ÉQUIPIER: Nombreux articles (sans étage problématique)');
             return 1;
         }
 
@@ -601,7 +594,6 @@ export class VehicleValidationService {
                 const condition = conditions.hasElevator ? 'avec ascenseur' : 'sans ascenseur';
                 triggeredConditions.push(`1 équipier: Charge lourde ${totalWeight}kg ${condition}`);
             }
-            if (totalItems > 20) triggeredConditions.push(`1 équipier: Nombreux articles (${totalItems} >20)`);
             if (conditions.rueInaccessible) triggeredConditions.push('1 équipier: Rue inaccessible');
             if (conditions.paletteComplete && effectiveFloor === 0) triggeredConditions.push('1 équipier: Palette complète (rez-de-chaussée)');
             if ((conditions.parkingDistance || 0) > 50) triggeredConditions.push(`1 équipier: Distance portage (${conditions.parkingDistance}m >50m)`);

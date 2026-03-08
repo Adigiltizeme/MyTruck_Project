@@ -107,4 +107,5 @@ export interface CessionFormData {
     vehicule?: string;
     equipiers?: number;
     tarifHT?: number;
+    prenom_vendeur?: string; // ✅ Vendeur du magasin demandeur
 }

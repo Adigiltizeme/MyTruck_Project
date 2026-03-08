@@ -458,7 +458,6 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             if (heaviestWeight >= 30) console.log('✅ Article ≥30kg → +1 équipier');
             if (deliveryConditions.hasElevator && totalWeight > 300) console.log('✅ Charge >300kg avec ascenseur → +1 équipier');
             if (!deliveryConditions.hasElevator && totalWeight > 200) console.log('✅ Charge >200kg sans ascenseur → +1 équipier');
-            if (totalItemCount > 20) console.log('✅ Plus de 20 articles → +1 équipier');
             if (deliveryConditions.rueInaccessible) console.log('✅ Rue inaccessible → +1 équipier');
             if (deliveryConditions.paletteComplete) console.log('✅ Palette complète → +1 équipier');
             if (deliveryConditions.parkingDistance > 50) console.log('✅ Distance >50m → +1 équipier');

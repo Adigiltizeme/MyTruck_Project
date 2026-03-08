@@ -478,18 +478,18 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                 return (
                     // Section Informations existante
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-                        {/* Magasin d'origine (cédant) OU Magasin destinataire */}
+                        {/* Magasin destinataire (demandeur) OU Magasin */}
                         <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
                             <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
-                                {isCession ? "Magasin d'origine (cédant)" : 'Magasin'}
+                                {isCession ? 'Magasin destinataire (demandeur)' : 'Magasin'}
                             </h3>
                             <div className="space-y-2">
                                 {isCession ? (
-                                    // ✅ CESSION : Afficher magasinDestination comme origine/cédant
+                                    // ✅ CESSION : Afficher magasinDestination comme destinataire/demandeur
                                     <>
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasinDestination?.name || 'Non spécifié'}</span></p>
 
-                                        {/* Téléphone magasin cédant cliquable */}
+                                        {/* Téléphone magasin demandeur cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Téléphone:</span>
                                             {isValidPhone(commande.magasinDestination?.phone) ? (
@@ -502,7 +502,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
                                         </p>
 
-                                        {/* Adresse magasin cédant cliquable */}
+                                        {/* Adresse magasin demandeur cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Adresse:</span>
                                             {isValidAddress(commande.magasinDestination?.address) ? (
@@ -514,6 +514,15 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                 <span className="inline-block">{commande.magasinDestination?.address || 'Non spécifiée'}</span>
                                             )}
                                         </p>
+
+                                        {/* Vendeur du magasin demandeur - depuis prenomVendeur (cession-specific) ou fallback manager global */}
+                                        {(commande.prenomVendeur || commande.magasinDestination?.manager) && (
+                                            <p className="break-words">
+                                                <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span>
+                                                <span className="inline-block">{commande.prenomVendeur || commande.magasinDestination?.manager}</span>
+                                            </p>
+                                        )}
+
                                         {commande.cession?.motif && (
                                             <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Motif:</span> <span className="inline-block">{commande.cession.motif}</span></p>
                                         )}
@@ -527,27 +536,30 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
                                         <p><span className="text-gray-500 dark:text-gray-400">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
                                         <p><span className="text-gray-500 dark:text-gray-400">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p>
-                                        <p className="break-words">
-                                            <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span>
-                                            <span className="inline-block">{commande.magasin?.manager}</span>
-                                        </p>
+                                        {/* Vendeur depuis prenomVendeur (commande-specific) ou fallback manager global */}
+                                        {(commande.prenomVendeur || commande.magasin?.manager) && (
+                                            <p className="break-words">
+                                                <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span>
+                                                <span className="inline-block">{commande.prenomVendeur || commande.magasin.manager}</span>
+                                            </p>
+                                        )}
                                     </>
                                 )}
                             </div>
                         </div>
 
-                        {/* Client OU Magasin destinataire (pour cessions) */}
+                        {/* Client OU Magasin d'origine (cédant) pour cessions */}
                         <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
                             <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
-                                {isCession ? 'Magasin destinataire (demandeur)' : 'Client'}
+                                {isCession ? "Magasin d'origine (cédant)" : 'Client'}
                             </h3>
                             <div className="space-y-2">
                                 {isCession ? (
-                                    // ✅ CESSION : Afficher magasin comme destinataire
+                                    // ✅ CESSION : Afficher magasin comme origine/cédant
                                     <>
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
 
-                                        {/* Téléphone magasin destinataire cliquable */}
+                                        {/* Téléphone magasin cédant cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Téléphone:</span>
                                             {isValidPhone(commande.magasin?.phone) ? (
@@ -560,7 +572,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             )}
                                         </p>
 
-                                        {/* Adresse magasin destinataire cliquable */}
+                                        {/* Adresse magasin cédant cliquable */}
                                         <p className="break-words">
                                             <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Adresse:</span>
                                             {isValidAddress(commande.magasin?.address) ? (
@@ -572,10 +584,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                                 <span className="inline-block">{commande.magasin?.address || 'Non spécifiée'}</span>
                                             )}
                                         </p>
-                                        
-                                        {/* Vendeur du magasin destinataire */}
-                                        <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Vendeur:</span> <span className="inline-block">{commande.magasin?.manager || 'Non spécifié'}</span></p>
-
                                     </>
                                 ) : (
                                     // ✅ COMMANDE : Afficher info client

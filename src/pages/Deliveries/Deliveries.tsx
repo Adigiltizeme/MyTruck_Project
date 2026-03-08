@@ -64,7 +64,16 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
         // Si c'est un magasin, filtrer par storeId
         if (user?.role === 'magasin' && user.storeId) {
-            return data.filter(item => item.magasin?.id === user.storeId);
+            return data.filter(item => {
+                // Pour les commandes normales : vérifier magasin.id
+                const isNormalCommande = item.magasin?.id === user.storeId;
+
+                // Pour les cessions : vérifier AUSSI magasinDestination.id (le magasin demandeur)
+                const isCessionDemandeur = item.magasinDestination?.id === user.storeId;
+
+                // Garder si le magasin est soit le magasin normal, soit le demandeur de la cession
+                return isNormalCommande || isCessionDemandeur;
+            });
         }
 
         // Si c'est un chauffeur, filtrer par driverId
@@ -525,7 +534,8 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 })) || [];
 
                 const cessionData: any = {
-                    magasin_origine_id: commande.magasin?.id || user?.storeId || '',
+                    // ✅ CORRECTION : magasin_destination_id = demandeur (étape 1)
+                    magasin_destination_id: commande.magasin?.id || user?.storeId || '',
                     date_livraison_souhaitee: commande.dates?.livraison || new Date().toISOString().split('T')[0],
                     articles: articlesArray,
                     motif: commande.cession?.motif || '',
@@ -534,13 +544,14 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     creneau: commande.livraison?.creneau || '',
                     vehicule: commande.livraison?.vehicule || '',
                     equipiers: commande.livraison?.equipiers || 0,
-                    tarifHT: commande.financier?.tarifHT || 0
+                    tarifHT: commande.financier?.tarifHT || 0,
+                    prenom_vendeur: commande.magasin?.manager || '' // ✅ Vendeur du magasin demandeur
                 };
 
-                // ✅ Magasin destination : mode liste OU mode manuel
+                // ✅ Magasin origine (cédant) : mode liste OU mode manuel (étape 2)
                 if (commande.magasinDestination?.id) {
-                    cessionData.magasin_destination_id = commande.magasinDestination.id;
-                    console.log('📋 Mode LISTE - ID:', commande.magasinDestination.id);
+                    cessionData.magasin_origine_id = commande.magasinDestination.id;
+                    console.log('📋 Mode LISTE - Cédant ID:', commande.magasinDestination.id);
                 } else if (commande.magasinDestination?.name && commande.magasinDestination?.address) {
                     cessionData.magasin_externe = {
                         nom: commande.magasinDestination.name,
@@ -548,7 +559,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         telephone: commande.magasinDestination.phone || '',
                         email: commande.magasinDestination.email || ''
                     };
-                    console.log('✍️ Mode MANUEL - Magasin:', cessionData.magasin_externe);
+                    console.log('✍️ Mode MANUEL - Cédant:', cessionData.magasin_externe);
                 }
 
                 console.log('📦 CessionFormData préparée:', cessionData);
@@ -1129,7 +1140,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                         )}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                                        {type === 'INTER_MAGASIN' ? 'Cédant → Demandeur' : 'Client'}
+                                        {type === 'INTER_MAGASIN' ? 'Demandeur → Cédant' : 'Client'}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date livraison</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Statut commande</th>

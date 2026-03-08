@@ -144,20 +144,24 @@ export class SimpleBackendService {
                     id: backendData.magasin.id,
                     name: backendData.magasin.nom, // ✅ Backend.nom → Frontend.name
                     address: backendData.magasin.adresse, // ✅ Backend.adresse → Frontend.address
+                    enseigne: backendData.magasin.enseigne || backendData.magasin.nom || '',
                     phone: backendData.magasin.telephone,
                     email: backendData.magasin.email,
                     status: backendData.magasin.status || 'actif',
                     photo: backendData.magasin.photo || '',
-                    manager: backendData.magasin.manager || ''
+                    manager: backendData.magasin.manager || '',
+                    managers: backendData.magasin.managers || []
                 } : {
                     id: '',
                     name: '',
                     address: '',
+                    enseigne: '',
                     phone: '',
                     email: '',
                     status: '',
                     photo: '',
-                    manager: ''
+                    manager: '',
+                    managers: []
                 },
 
                 // ✅ CESSIONS : Magasin de destination pour les transferts inter-magasins
@@ -165,11 +169,13 @@ export class SimpleBackendService {
                     id: backendData.magasinDestination.id,
                     name: backendData.magasinDestination.nom, // ✅ Backend.nom → Frontend.name
                     address: backendData.magasinDestination.adresse, // ✅ Backend.adresse → Frontend.address
+                    enseigne: backendData.magasinDestination.enseigne || backendData.magasinDestination.nom || '',
                     phone: backendData.magasinDestination.telephone,
                     email: backendData.magasinDestination.email,
                     status: backendData.magasinDestination.status || 'actif',
                     photo: backendData.magasinDestination.photo || '',
-                    manager: backendData.magasinDestination.manager || ''
+                    manager: backendData.magasinDestination.manager || '',
+                    managers: backendData.magasinDestination.managers || []
                 } : undefined,
 
                 // ✅ CESSIONS : Informations supplémentaires sur la cession
@@ -221,6 +227,9 @@ export class SimpleBackendService {
                 },
 
                 documents: backendData.documents || [],
+
+                // ✅ Vendeur spécifique à cette commande/cession
+                prenomVendeur: backendData.prenomVendeur || '',
 
                 createdAt: backendData.createdAt,
                 updatedAt: backendData.updatedAt
@@ -463,6 +472,7 @@ export class SimpleBackendService {
                 id: string;
                 nom: string;
                 adresse: string;
+                enseigne?: string;
                 telephone?: string;
                 email?: string;
                 status?: string;
@@ -476,6 +486,7 @@ export class SimpleBackendService {
                 id: magasin.id,
                 name: magasin.nom,
                 address: magasin.adresse,
+                enseigne: magasin.enseigne || magasin.nom || '',
                 phone: magasin.telephone || '',
                 email: magasin.email || '',
                 status: magasin.status || 'actif',
@@ -494,6 +505,7 @@ export class SimpleBackendService {
                     id: 'fallback-1',
                     name: 'Magasin Temporaire',
                     address: 'Service temporairement indisponible',
+                    enseigne: 'Magasin Temporaire',
                     phone: '',
                     email: '',
                     status: 'maintenance',

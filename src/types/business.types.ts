@@ -58,7 +58,8 @@ export interface MagasinInfo {
     email?: string;
     photo?: string;
     status: string;
-    manager?: string;
+    manager?: string; // Vendeur principal (legacy)
+    managers?: string[]; // Liste de tous les vendeurs/managers
     categories?: string[];
 }
 

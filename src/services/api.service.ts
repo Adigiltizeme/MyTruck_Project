@@ -764,7 +764,7 @@ export class ApiService {
         optionEquipier: Number(commande.livraison?.equipiers || 0),
         tarifHT: Number(commande.financier?.tarifHT || 0),
         reserveTransport: commande.livraison?.reserve || false,
-        prenomVendeur: commande.vendeur?.prenom || null,
+        prenomVendeur: commande.magasin?.manager || null,
         remarques: commande.livraison?.remarques || '',
         ...(!isCession && { magasinId: commande.magasin?.id }),  // Livraisons normales uniquement
 
