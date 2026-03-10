@@ -262,6 +262,7 @@ export default function MagasinManagement() {
             closeModal();
         } catch (error) {
             console.error('❌ Erreur sauvegarde magasin complète:', error);
+            alert('Sauvegarde du magasin incomplète: ' + (error instanceof Error ? error.message : 'Message d\'erreur inconnu'));
             if (error instanceof Error) {
                 console.error('❌ Message d\'erreur:', error.message);
             } else {

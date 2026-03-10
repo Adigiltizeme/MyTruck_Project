@@ -534,8 +534,27 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                     // COMMANDE : Afficher magasin normal
                                     <>
                                         <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Nom:</span> <span className="inline-block">{commande.magasin?.name || 'Non spécifié'}</span></p>
-                                        <p><span className="text-gray-500 dark:text-gray-400">Téléphone:</span> {commande.magasin?.phone || 'Non spécifié'}</p>
-                                        <p><span className="text-gray-500 dark:text-gray-400">Adresse:</span> {commande.magasin?.address || 'Non spécifiée'}</p>
+                                        <p><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Téléphone:</span>
+                                            {isValidPhone(commande.magasin?.phone) ? (
+                                                <PhoneLink
+                                                    phone={commande.magasin?.phone!}
+                                                    className="inline-block"
+                                                />
+                                            ) : (
+                                                <span className="inline-block">{commande.magasin?.phone || 'Non spécifié'}</span>
+                                            )}</p>
+
+                                        <p className="break-words">
+                                            <span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Adresse:</span>
+                                            {isValidAddress(commande.magasin?.address) ? (
+                                                <AddressLink
+                                                    address={commande.magasin?.address!}
+                                                    className="inline-block"
+                                                />
+                                            ) : (
+                                                <span className="inline-block">{commande.magasin?.address || 'Non spécifiée'}</span>
+                                            )}
+                                        </p>
                                         {/* Vendeur depuis prenomVendeur (commande-specific) ou fallback manager global */}
                                         {(commande.prenomVendeur || commande.magasin?.manager) && (
                                             <p className="break-words">
