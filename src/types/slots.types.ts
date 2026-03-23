@@ -6,6 +6,11 @@ export interface TimeSlot {
     isActive: boolean;
     maxCapacity?: number; // Nombre max de livraisons
     currentBookings?: number; // Nombre actuel de réservations
+    magasinId?: string | null; // ID du magasin (null = créneau global)
+    magasin?: {
+        id: string;
+        nom: string;
+    } | null;
 }
 
 export interface SlotRestriction {
@@ -17,6 +22,7 @@ export interface SlotRestriction {
     blockedBy: string; // ID de l'admin qui a bloqué
     blockedAt: string; // Date de blocage
     temporaryUntil?: string; // Blocage temporaire jusqu'à cette date
+    magasinId?: string | null; // ID magasin (null = restriction globale)
 }
 
 export interface SlotAvailability {
@@ -28,6 +34,11 @@ export interface SlotAvailability {
         endTime: string;
         isActive: boolean;
         maxCapacity: number;
+        magasinId?: string | null;
+        magasin?: {
+            id: string;
+            nom: string;
+        } | null;
     };
     isAvailable: boolean;
     isBlocked: boolean;

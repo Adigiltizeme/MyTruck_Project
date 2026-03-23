@@ -363,9 +363,9 @@ export class DraftStorageService {
         try {
             const dbConfig: DatabaseConfig = {
                 name: 'MyTruckDrafts',
-                version: 3,
+                version: 4,
                 stores: {
-                    drafts: '++id,timestamp,status,storeId',
+                    drafts: '++id,timestamp,status,storeId,type,[storeId+type]',
                     photos: '++id,draftId',
                     metadata: 'key'
                 }
@@ -373,11 +373,18 @@ export class DraftStorageService {
 
             this.db = new Dexie(dbConfig.name);
 
-            // Version actuelle avec isolation par magasin
-            this.db.version(3).stores(dbConfig.stores).upgrade(async tx => {
-                console.log("[MIGRATION] Nettoyage des brouillons lors de la migration vers v3");
+            // Version actuelle avec isolation par magasin + type de commande
+            this.db.version(4).stores(dbConfig.stores).upgrade(async tx => {
+                console.log("[MIGRATION] Nettoyage des brouillons lors de la migration vers v4 (ajout champ type)");
                 // Nettoyer tous les anciens brouillons lors de la migration
                 await tx.table('drafts').clear();
+            });
+
+            // Version 3 avec isolation par magasin
+            this.db.version(3).stores({
+                drafts: '++id,timestamp,status,storeId',
+                photos: '++id,draftId',
+                metadata: 'key'
             });
 
             // Migration des anciennes données si nécessaire
@@ -409,9 +416,10 @@ export class DraftStorageService {
         }
     }
 
-    async saveDraft(data: Partial<CommandeMetier>, storeId?: string): Promise<DraftStorageResult> {
+    async saveDraft(data: Partial<CommandeMetier>, storeId?: string, type?: 'CLIENT' | 'INTER_MAGASIN'): Promise<DraftStorageResult> {
         try {
             const currentStoreId = storeId || this.getCurrentStoreId();
+            const draftType = type || 'CLIENT'; // Par défaut CLIENT si non spécifié
 
             // ========== VALIDATION DE SÉCURITÉ ASSOUPLIE ==========
             // Permettre la sauvegarde même sans storeId pour les admins ou cas spéciaux
@@ -481,13 +489,13 @@ export class DraftStorageService {
                         avec ${dataWithCompleteInfo.articles.dimensions?.length} dimensions d'articles`);
             // console.log(`Sauvegarde brouillon - Véhicule: ${dataWithCompleteInfo.livraison.vehicule}, Détails: ${dataWithCompleteInfo.livraison.details}`);
 
-            // Vérifier s'il existe déjà un brouillon pour ce magasin
+            // Vérifier s'il existe déjà un brouillon pour ce magasin ET ce type
             const existingDraft = await this.db.table('drafts')
-                .where('storeId')
-                .equals(finalStoreId)
+                .where('[storeId+type]')
+                .equals([finalStoreId, draftType])
                 .first();
 
-            console.log(` [SÉCURITÉ] Sauvegarde complète du brouillon pour le magasin ${finalStoreId}`);
+            console.log(` [SÉCURITÉ] Sauvegarde complète du brouillon pour le magasin ${finalStoreId} (type: ${draftType})`);
             console.log(`- Dimensions: ${dataWithCompleteInfo.articles.dimensions?.length || 0}`);
             console.log(`- Véhicule: ${dataWithCompleteInfo.livraison?.vehicule || 'non défini'}`);
             console.log(`- Détails livraison: ${dataWithCompleteInfo.livraison?.details || 'non défini'}`);
@@ -498,7 +506,8 @@ export class DraftStorageService {
                 lastModified: new Date().toISOString(),
                 status: DraftStatus.PENDING,
                 version: '1.0',
-                storeId: finalStoreId
+                storeId: finalStoreId,
+                type: draftType // ✅ AJOUTÉ: Type de commande
             };
 
             let id: number;
@@ -640,15 +649,17 @@ export class DraftStorageService {
     //         };
     //     }
     // }
-    async loadDraft(storeId: string): Promise<DraftStorageResult> {
+    async loadDraft(storeId: string, type?: 'CLIENT' | 'INTER_MAGASIN'): Promise<DraftStorageResult> {
         try {
+            const draftType = type || 'CLIENT'; // Par défaut CLIENT si non spécifié
+
             // ========== VALIDATION DE SÉCURITÉ STRICTE ==========
             if (!storeId || storeId === 'unknown_store') {
                 console.error("[SÉCURITÉ] Tentative de chargement sans storeId valide");
                 return { success: false, error: new Error("StoreId invalide") };
             }
 
-            console.log(`[SÉCURITÉ] Chargement du brouillon pour le magasin: ${storeId}`);
+            console.log(`[SÉCURITÉ] Chargement du brouillon pour le magasin: ${storeId} (type: ${draftType})`);
 
             // DIAGNOSTIC : Lister TOUS les brouillons en base
             const allDrafts = await this.db.table('drafts').toArray();
@@ -660,15 +671,18 @@ export class DraftStorageService {
             })));
 
             let draft = await this.db.table('drafts')
-                .where('storeId')
-                .equals(storeId) // STRICTEMENT égal au storeId demandé
+                .where('[storeId+type]')
+                .equals([storeId, draftType]) // STRICTEMENT égal au storeId ET type demandés
                 .first();
 
-            // FALLBACK SÉCURISÉ: Si pas trouvé par storeId, chercher par magasin.id dans les données
+            // FALLBACK SÉCURISÉ: Si pas trouvé par storeId+type, chercher par magasin.id dans les données
             if (!draft) {
-                console.log(`[SÉCURITÉ] Recherche alternative par magasin.id pour ${storeId}`);
+                console.log(`[SÉCURITÉ] Recherche alternative par magasin.id pour ${storeId} (type: ${draftType})`);
                 const allDraftsForFallback = await this.db.table('drafts').toArray();
-                draft = allDraftsForFallback.find(d => d.data?.magasin?.id === storeId);
+                draft = allDraftsForFallback.find(d =>
+                    d.data?.magasin?.id === storeId &&
+                    (d.type === draftType || (!d.type && draftType === 'CLIENT')) // Support anciens brouillons sans type
+                );
                 if (draft) {
                     console.log(`[SÉCURITÉ] Brouillon trouvé par fallback magasin.id, ID: ${draft.id}`);
                 }
@@ -738,16 +752,18 @@ export class DraftStorageService {
         }
     }
 
-    async clearDraft(storeId?: string): Promise<DraftStorageResult> {
+    async clearDraft(storeId?: string, type?: 'CLIENT' | 'INTER_MAGASIN'): Promise<DraftStorageResult> {
         try {
-            if (storeId) {
-                // ========== SUPPRESSION SÉCURISÉE PAR MAGASIN ==========
-                console.log(`[SÉCURITÉ] Suppression du brouillon pour le magasin: ${storeId}`);
+            const draftType = type || 'CLIENT'; // Par défaut CLIENT si non spécifié
 
-                // Trouver et supprimer le brouillon spécifique à ce magasin
+            if (storeId) {
+                // ========== SUPPRESSION SÉCURISÉE PAR MAGASIN ET TYPE ==========
+                console.log(`[SÉCURITÉ] Suppression du brouillon pour le magasin: ${storeId} (type: ${draftType})`);
+
+                // Trouver et supprimer le brouillon spécifique à ce magasin ET ce type
                 const draft = await this.db.table('drafts')
-                    .where('storeId')
-                    .equals(storeId)
+                    .where('[storeId+type]')
+                    .equals([storeId, draftType])
                     .first();
 
                 if (draft) {

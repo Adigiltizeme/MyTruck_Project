@@ -54,10 +54,11 @@ export class SlotsService {
         return response.json();
     }
 
-    // 🔍 RÉCUPÉRATION DES CRÉNEAUX
-    async getTimeSlots(): Promise<TimeSlot[]> {
+    // 🔍 RÉCUPÉRATION DES CRÉNEAUX (avec filtrage optionnel par magasin)
+    async getTimeSlots(magasinId?: string): Promise<TimeSlot[]> {
         try {
-            return await this.request<TimeSlot[]>('/slots');
+            const params = magasinId ? `?magasinId=${magasinId}` : '';
+            return await this.request<TimeSlot[]>(`/slots${params}`);
         } catch (error) {
             console.warn('Fallback vers créneaux par défaut:', error);
             return SlotsService.DEFAULT_SLOTS;
@@ -65,11 +66,12 @@ export class SlotsService {
     }
 
     // 📅 DISPONIBILITÉ POUR UNE DATE DONNÉE
-    async getAvailabilityForDate(date: string): Promise<SlotAvailability[]> {
-        console.log('🔍 Récupération disponibilité créneaux pour:', date);
+    async getAvailabilityForDate(date: string, magasinId?: string): Promise<SlotAvailability[]> {
+        console.log('🔍 Récupération disponibilité créneaux pour:', date, 'magasinId:', magasinId);
 
         try {
-            return await this.request<SlotAvailability[]>(`/slots/availability/${date}`);
+            const params = magasinId ? `?magasinId=${magasinId}` : '';
+            return await this.request<SlotAvailability[]>(`/slots/availability/${date}${params}`);
         } catch (error) {
             console.warn('Erreur récupération disponibilités:', error);
             // Fallback : tous les créneaux disponibles
@@ -96,19 +98,20 @@ export class SlotsService {
     }
 
     // 🚫 BLOQUER UN CRÉNEAU (ADMIN SEULEMENT)
-    async blockSlot(date: string, slotId: string, reason?: string, temporaryUntil?: string): Promise<void> {
+    async blockSlot(date: string, slotId: string, reason?: string, temporaryUntil?: string, magasinId?: string): Promise<void> {
         // 🔧 Vérifier l'utilisateur connecté
         const user = this.getCurrentUser();
         if (!user) {
             throw new Error('Utilisateur non connecté');
         }
 
-        const restriction: Partial<SlotRestriction> = {
+        const restriction: Partial<SlotRestriction> & { magasinId?: string } = {
             date,
             slotId,
             isBlocked: true,
             reason: reason || 'Bloqué par administration',
             temporaryUntil,
+            magasinId: magasinId || undefined,  // 🏪 ID magasin (undefined = global)
         };
 
         console.log('🚫 Blocage créneau:', restriction);
@@ -131,17 +134,19 @@ export class SlotsService {
     }
 
     // ✅ DÉBLOQUER UN CRÉNEAU (ADMIN SEULEMENT)
-    async unblockSlot(date: string, slotId: string): Promise<void> {
-        await this.request<void>(`/slots/restrictions/${date}/${slotId}`, {
+    async unblockSlot(date: string, slotId: string, magasinId?: string): Promise<void> {
+        const params = magasinId ? `?magasinId=${magasinId}` : '';
+        await this.request<void>(`/slots/restrictions/${date}/${slotId}${params}`, {
             method: 'DELETE'
         });
     }
 
     // 📊 OBTENIR LES RESTRICTIONS ACTIVES
-    async getActiveRestrictions(startDate?: string, endDate?: string): Promise<SlotRestriction[]> {
+    async getActiveRestrictions(startDate?: string, endDate?: string, magasinId?: string): Promise<SlotRestriction[]> {
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
+        if (magasinId) params.append('magasinId', magasinId);  // ✅ Ajouter filtrage par magasin
 
         const query = params.toString() ? `?${params.toString()}` : '';
         return await this.request<SlotRestriction[]>(`/slots/restrictions${query}`);

@@ -3,7 +3,7 @@ import { DraftStorageService } from '../services/draftStorage';
 import { CommandeMetier } from '../types/business.types';
 import { useAuth } from '../contexts/AuthContext';
 
-export const useDraftStorage = () => {
+export const useDraftStorage = (draftType: 'CLIENT' | 'INTER_MAGASIN' = 'CLIENT') => {
     // Initialisation du service en dehors des effets
     const draftService = React.useMemo(() => new DraftStorageService(), []);
 
@@ -67,10 +67,10 @@ export const useDraftStorage = () => {
             try {
                 loadingRef.current = true;
                 setLoading(true);
-                console.log(`[SÉCURITÉ] Chargement STRICTEMENT pour le magasin ${user.storeName} (${user.storeId})`);
+                console.log(`[SÉCURITÉ] Chargement STRICTEMENT pour le magasin ${user.storeName} (${user.storeId}) type ${draftType}`);
 
                 // IMPORTANT: Charger UNIQUEMENT pour ce magasin spécifique
-                const result = await draftService.loadDraft(user.storeId);
+                const result = await draftService.loadDraft(user.storeId, draftType);
 
                 if (result.success && result.data) {
                     // DOUBLE VÉRIFICATION: S'assurer que le brouillon appartient bien au bon magasin
@@ -145,9 +145,9 @@ export const useDraftStorage = () => {
             loadingInProgress.current = true;
             setLoading(true);
 
-            console.log(`[DRAFT] Chargement UNIQUE pour le magasin ${storeId}`);
+            console.log(`[DRAFT] Chargement UNIQUE pour le magasin ${storeId} (type ${draftType})`);
 
-            const result = await draftService.loadDraft(storeId);
+            const result = await draftService.loadDraft(storeId, draftType);
 
             if (result.success && result.data) {
                 const draftData = result.data.data;
@@ -202,16 +202,17 @@ export const useDraftStorage = () => {
         return 'commandeDraft'; // Clé par défaut pour admin ou utilisateurs sans magasin
     }, [user?.role, user?.storeId]);
 
-    const saveDraft = useCallback(async (data: Partial<CommandeMetier>) => {
+    const saveDraft = useCallback(async (data: Partial<CommandeMetier>, type?: 'CLIENT' | 'INTER_MAGASIN') => {
         if (user?.role !== 'magasin' || !user.storeId) {
             console.warn("[SÉCURITÉ] Tentative de sauvegarde sans contexte magasin valide");
             return { success: false, error: new Error("Contexte magasin invalide") };
         }
 
-        console.log(`[SÉCURITÉ] Sauvegarde pour ${user.storeName} (${user.storeId}) avec dimensions:`, data.articles?.dimensions?.length || 0);
+        const finalType = type || draftType; // Utiliser le type passé OU le type du hook
+        console.log(`[SÉCURITÉ] Sauvegarde pour ${user.storeName} (${user.storeId}) type ${finalType} avec dimensions:`, data.articles?.dimensions?.length || 0);
 
         // Laisser le service DraftStorage gérer la validation de sécurité de manière intelligente
-        const result = await draftService.saveDraft(data, user.storeId);
+        const result = await draftService.saveDraft(data, user.storeId, finalType);
 
         if (result.success) {
             // Mettre à jour l'état local
@@ -220,17 +221,18 @@ export const useDraftStorage = () => {
         }
 
         return result;
-    }, [user?.storeId, user?.storeName, user?.role, draftService]);
+    }, [user?.storeId, user?.storeName, user?.role, draftService, draftType]);
 
-    const clearDraft = useCallback(async () => {
+    const clearDraft = useCallback(async (type?: 'CLIENT' | 'INTER_MAGASIN') => {
         if (user?.role !== 'magasin' || !user.storeId) {
             return { success: false, error: new Error("Contexte magasin invalide") };
         }
 
-        console.log(`[SÉCURITÉ] Suppression du brouillon pour ${user.storeName} (${user.storeId})`);
+        const finalType = type || draftType; // Utiliser le type passé OU le type du hook
+        console.log(`[SÉCURITÉ] Suppression du brouillon pour ${user.storeName} (${user.storeId}) type ${finalType}`);
 
         try {
-            const result = await draftService.clearDraft(user.storeId);
+            const result = await draftService.clearDraft(user.storeId, finalType);
 
             if (result.success) {
                 // IMPORTANT: Réinitialiser complètement l'état local
@@ -247,7 +249,7 @@ export const useDraftStorage = () => {
             console.error(`[ERREUR] Échec de suppression du brouillon pour ${user.storeId}:`, error);
             return { success: false, error: error as Error };
         }
-    }, [user?.storeId, user?.storeName, user?.role, draftService]);
+    }, [user?.storeId, user?.storeName, user?.role, draftService, draftType]);
 
     const forceClearAllDrafts = useCallback(async () => {
         console.log("[NETTOYAGE FORCÉ] Suppression de tous les brouillons");

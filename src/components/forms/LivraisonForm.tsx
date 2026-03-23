@@ -626,15 +626,18 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
             try {
                 const date = data.dates.livraison.split('T')[0];
-                console.log('🕐 Chargement créneaux dynamiques pour:', date);
 
-                const availability = await slotsService.getAvailabilityForDate(date);
+                // 🏪 Récupérer le magasinId depuis les données (commande client OU cession)
+                const magasinId = data.magasin?.id || data.magasinDestination?.id;
+                console.log('🕐 Chargement créneaux dynamiques pour:', { date, magasinId });
+
+                const availability = await slotsService.getAvailabilityForDate(date, magasinId);
 
                 // Filtrer les créneaux disponibles uniquement
                 const availableOnly = availability.filter(slot => slot.isAvailable);
 
                 setAvailableSlots(availableOnly);
-                console.log(`✅ ${availableOnly.length} créneaux disponibles chargés`);
+                console.log(`✅ ${availableOnly.length} créneaux disponibles chargés (magasin: ${magasinId || 'tous'})`);
 
                 // Si aucun créneau dynamique disponible, passer en mode fallback
                 if (availableOnly.length === 0) {
@@ -668,7 +671,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         };
 
         loadAvailableSlots();
-    }, [data.dates?.livraison, useDynamicSlots]);
+    }, [data.dates?.livraison, useDynamicSlots, data.magasin?.id, data.magasinDestination?.id]);
 
     const toggleSlotsMode = () => {
         setUseDynamicSlots(!useDynamicSlots);

@@ -622,17 +622,19 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         }
     };
 
-    // ✅ Renouveler une commande existante : copie les données sans id/dates/statuts/chauffeurs
+    // ✅ Renouveler une commande existante : copie PROFONDE les données sans id/dates/statuts/chauffeurs
     const handleRenewCommande = (commande: CommandeMetier) => {
+        // ⚠️ IMPORTANT: Utiliser JSON.parse(JSON.stringify()) pour copie profonde
+        // Cela évite que les modifications affectent la commande originale
         const renewalData: Partial<CommandeMetier> = {
-            // ✅ Données copiées
+            // ✅ Données copiées EN PROFONDEUR
             type: commande.type,
-            client: commande.client,
+            client: commande.client ? JSON.parse(JSON.stringify(commande.client)) : undefined,
             articles: {
                 nombre: commande.articles?.nombre || 0,
                 details: commande.articles?.details,
-                categories: commande.articles?.categories,
-                dimensions: commande.articles?.dimensions,
+                categories: commande.articles?.categories ? JSON.parse(JSON.stringify(commande.articles.categories)) : undefined,
+                dimensions: commande.articles?.dimensions ? JSON.parse(JSON.stringify(commande.articles.dimensions)) : [],
                 canBeTilted: commande.articles?.canBeTilted,
                 autresArticles: commande.articles?.autresArticles,
             },
@@ -645,9 +647,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 reserve: false,
                 chauffeurs: [],
             },
-            magasin: commande.magasin,
-            magasinDestination: commande.magasinDestination,
-            cession: commande.cession,
+            magasin: commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined,
+            magasinDestination: commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined,
+            cession: commande.cession ? JSON.parse(JSON.stringify(commande.cession)) : undefined,
             // ✅ Données réinitialisées
             dates: {
                 commande: new Date().toISOString(),

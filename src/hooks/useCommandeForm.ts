@@ -15,7 +15,8 @@ import { handleStorageError } from '../utils/error-handler';
 
 export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void>, isCession: boolean = false, isRenewal: boolean = false) => {
     const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-    const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed, forceClearAllDrafts } = useDraftStorage();
+    // ⚠️ Brouillons UNIQUEMENT pour commandes CLIENT (pas cessions, pas renouvellements)
+    const { draftData, hasDraft, saveDraft, clearDraft, draftProposed, setDraftProposed, forceClearAllDrafts } = useDraftStorage('CLIENT');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState<Partial<CommandeMetier & { [key: string]: any }>>({
@@ -92,10 +93,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
     // }, [hasDraft, draftData, draftProposed, clearDraft, user?.storeId]);
 
     // Simplifier la vérification pour faire confiance à draftStorage
-    // DÉSACTIVÉ pour les cessions et les renouvellements (ne sauvegardent pas de brouillon)
+    // DÉSACTIVÉ pour les renouvellements ET les cessions (ne sauvegardent pas de brouillon)
     useEffect(() => {
-        if (isCession || isRenewal) {
-            // Pas de brouillon pour les cessions ni les renouvellements
+        if (isRenewal || isCession) {
+            // Pas de brouillon pour les renouvellements ni les cessions
             setDraftProposed(true);
             return;
         }
@@ -210,9 +211,9 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
         }
     }, [hasDraft, draftData, draftProposed, clearDraft, isCession, isRenewal]);
 
-    // Sauvegarde automatique du brouillon (désactivée pour les renouvellements)
+    // Sauvegarde automatique du brouillon (désactivée pour les renouvellements ET les cessions)
     useEffect(() => {
-        if (isRenewal) return; // Pas de sauvegarde brouillon pour les renouvellements
+        if (isRenewal || isCession) return; // Pas de sauvegarde brouillon pour les renouvellements ni les cessions
         if (state.isDirty) {
             const hasChanges = !deepEqual(state.data, initialFormState.data);
 
@@ -252,13 +253,17 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
 
                     console.log("Sauvegarde automatique du brouillon avec dimensions:", dataToSave.articles.dimensions?.length || 0);
                     console.log("📦 Détail dimensions sauvegardées:", JSON.stringify(dataToSave.articles.dimensions, null, 2));
+                    console.log("📊 Quantité totale sauvegardée:", dataToSave.articles.nombre);
+                    console.log("📦 Autres articles sauvegardés:", dataToSave.articles.autresArticles);
+
+                    // Le type est automatiquement géré par useDraftStorage(draftType)
                     saveDraft(dataToSave);
-                }, 2000); // Augmenter le délai pour éviter les sauvegardes trop fréquentes
+                }, 3000); // ⏱️ 3 secondes pour laisser le temps aux multiples onChange de se propager
 
                 return () => clearTimeout(saveTimeout);
             }
         }
-    }, [state.data, state.isDirty, saveDraft, user?.role, user?.storeId, user?.storeName, user?.storeAddress]);
+    }, [state.data, state.isDirty, saveDraft, user?.role, user?.storeId, user?.storeName, user?.storeAddress, isCession]);
 
     // Initialiser les données du formulaire avec les infos magasin dès le début
     useEffect(() => {

@@ -144,16 +144,23 @@ class ApiAuthService {
                     email: user.magasin.email || '',
                     manager: user.magasin.manager || ''
                 } : undefined,
-                storeId: user.magasin?.id,
-                storeName: user.magasin?.nom || user.magasin?.name,
-                storeAddress: user.magasin?.adresse || user.magasin?.address,
-                storePhone: user.magasin?.telephone || user.magasin?.phone,
+                // ✅ IMPORTANT: Prioriser les champs directs (RoleSelector) sur les champs imbriqués
+                storeId: user.storeId || user.magasin?.id,
+                storeName: user.storeName || user.magasin?.nom || user.magasin?.name,
+                storeAddress: user.storeAddress || user.magasin?.adresse || user.magasin?.address,
+                storePhone: user.storePhone || user.magasin?.telephone || user.magasin?.phone,
                 // Si c'est un chauffeur, définir driverId et driverName
-                driverId: user.role?.toLowerCase() === 'chauffeur' ? user.id : undefined,
-                driverName: user.role?.toLowerCase() === 'chauffeur' 
+                driverId: user.driverId || (user.role?.toLowerCase() === 'chauffeur' ? user.id : undefined),
+                driverName: user.driverName || (user.role?.toLowerCase() === 'chauffeur'
                     ? user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim()
-                    : undefined,
+                    : undefined),
             };
+
+            console.log('📦 User restauré depuis localStorage:', {
+                role: authUser.role,
+                storeId: authUser.storeId,
+                driverId: authUser.driverId
+            });
 
             return authUser;
         } catch (error) {
@@ -293,7 +300,7 @@ class ApiAuthService {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [loading, setLoading] = useState(true);
-    const [sessionTimeout] = useState(60 * 60 * 1000); // 1 heure
+    const [sessionTimeout] = useState(24 * 60 * 60 * 1000); // 24 heures
     const userActivityTimeout = useRef<NodeJS.Timeout | null>(null);
     const lastActivityTime = useRef<number>(Date.now());
 
@@ -439,8 +446,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setUser(updatedUser);
 
+        // ✅ IMPORTANT: Persister les changements dans localStorage pour survivre au rafraîchissement
         if (typeof window !== 'undefined') {
             window.currentAuthUser = updatedUser;
+            // Récupérer les données user actuelles dans localStorage
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    const userData = JSON.parse(userStr);
+                    // Mettre à jour avec les nouvelles valeurs
+                    const updatedUserData = {
+                        ...userData,
+                        role,
+                        originalRole: userData.originalRole || userData.role,
+                        storeId: options?.storeId || userData.storeId,
+                        storeName: options?.storeName || userData.storeName,
+                        storeAddress: options?.storeAddress || userData.storeAddress,
+                        driverId: options?.driverId || userData.driverId,
+                        driverName: options?.driverName || userData.driverName,
+                    };
+                    localStorage.setItem('user', JSON.stringify(updatedUserData));
+                    console.log('✅ User mis à jour dans localStorage:', { role, storeId: options?.storeId });
+                } catch (error) {
+                    console.error('❌ Erreur mise à jour localStorage:', error);
+                }
+            }
         }
     };
 

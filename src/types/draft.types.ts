@@ -9,6 +9,7 @@ export interface DraftData {
     lastModified: string;     // Date de dernière modification
     status: DraftStatus;      // Statut du brouillon
     storeId?: string;         // ID du magasin associé
+    type?: 'CLIENT' | 'INTER_MAGASIN'; // Type de commande (CLIENT ou CESSION)
 }
 
 // Statuts possibles d'un brouillon
