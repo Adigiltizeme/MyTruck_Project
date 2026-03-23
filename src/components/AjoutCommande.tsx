@@ -38,64 +38,68 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     const { user } = useAuth();
     // Préparer les données initiales avec l'adresse du magasin si disponible
     const getInitialData = () => {
-        const baseData = initialData || {
-            commande: {
-                numeroCommande: '',
-                dates: {
-                    commande: new Date().toISOString(),
-                    livraison: '',
-                    misAJour: {
+        // ⚠️ COPIE PROFONDE pour renouvellements: évite que les modifications affectent la commande originale
+        // Pour les données de contact (localStorage), JSON.parse les a déjà copiées
+        const baseData = (initialData && isRenewal)
+            ? JSON.parse(JSON.stringify(initialData))
+            : (initialData || {
+                commande: {
+                    numeroCommande: '',
+                    dates: {
                         commande: new Date().toISOString(),
-                        livraison: ''
+                        livraison: '',
+                        misAJour: {
+                            commande: new Date().toISOString(),
+                            livraison: ''
+                        }
+                    },
+                },
+                client: {
+                    nom: '',
+                    prenom: '',
+                    nomComplet: '',
+                    telephone: {
+                        principal: '',
+                        secondaire: ''
+                    },
+                    adresse: {
+                        type: 'Domicile',
+                        ligne1: '',
+                        batiment: '',
+                        etage: '',
+                        ascenseur: false,
+                        interphone: ''
                     }
                 },
-            },
-            client: {
-                nom: '',
-                prenom: '',
-                nomComplet: '',
-                telephone: {
-                    principal: '',
-                    secondaire: ''
+                articles: {
+                    nombre: 0,
+                    details: '',
+                    photos: [],
+                    dimensions: []
                 },
-                adresse: {
-                    type: 'Domicile',
-                    ligne1: '',
-                    batiment: '',
-                    etage: '',
-                    ascenseur: false,
-                    interphone: ''
+                livraison: {
+                    creneau: '',
+                    vehicule: '',
+                    equipiers: 0,
+                    reserve: false,
+                    remarques: '',
+                    chauffeurs: []
+                },
+                vendeur: {
+                    prenom: '',
+                },
+                magasin: {
+                    id: user?.storeId || '',
+                    name: user?.storeName || '',
+                    address: user?.storeAddress || '',
+                    enseigne: 'Truffaut',
+                    phone: '',
+                    email: '',
+                    manager: '',
+                    status: '',
+                    photo: ''
                 }
-            },
-            articles: {
-                nombre: 0,
-                details: '',
-                photos: [],
-                dimensions: []
-            },
-            livraison: {
-                creneau: '',
-                vehicule: '',
-                equipiers: 0,
-                reserve: false,
-                remarques: '',
-                chauffeurs: []
-            },
-            vendeur: {
-                prenom: '',
-            },
-            magasin: {
-                id: user?.storeId || '',
-                name: user?.storeName || '',
-                address: user?.storeAddress || '',
-                enseigne: 'Truffaut',
-                phone: '',
-                email: '',
-                manager: '',
-                status: '',
-                photo: ''
-            }
-        };
+            });
 
         // ✅ FUSIONNER avec les données pré-remplies depuis le contact
         if (commande && Object.keys(commande).length > 0) {
