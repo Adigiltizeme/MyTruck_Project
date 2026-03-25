@@ -118,22 +118,23 @@ export class SimpleBackendService {
                 reserve: backendData.reserveTransport || false,
 
                 // ✅ Client optionnel (absent pour les cessions inter-magasins)
+                // ⚠️ COPIE PROFONDE pour éviter partage de références entre commandes
                 client: backendData.client ? {
-                    nom: backendData.client.nom || '',
-                    prenom: backendData.client.prenom || '',
+                    nom: String(backendData.client.nom || ''),
+                    prenom: String(backendData.client.prenom || ''),
                     nomComplet: `${backendData.client.prenom || ''} ${backendData.client.nom || ''}`.trim(),
                     telephone: {
-                        principal: backendData.client.telephone || '',
-                        secondaire: backendData.client.telephoneSecondaire || ''
+                        principal: String(backendData.client.telephone || ''),
+                        secondaire: String(backendData.client.telephoneSecondaire || '')
                     },
                     adresse: {
-                        type: backendData.client.typeAdresse || 'Domicile',
-                        ligne1: backendData.client.adresseLigne1 || '',
-                        batiment: backendData.client.batiment || '',
+                        type: (backendData.client.typeAdresse === 'Professionnelle' ? 'Professionnelle' : 'Domicile') as 'Domicile' | 'Professionnelle',
+                        ligne1: String(backendData.client.adresseLigne1 || ''),
+                        batiment: String(backendData.client.batiment || ''),
                         etage: backendData.client.etage !== undefined
                             ? String(backendData.client.etage)
                             : '',
-                        ascenseur: backendData.client.ascenseur === true,
+                        ascenseur: Boolean(backendData.client.ascenseur),
                         interphone: backendData.client.interphone !== undefined
                             ? String(backendData.client.interphone)
                             : '',
@@ -340,21 +341,12 @@ export class SimpleBackendService {
      */
     async getCommandes(type?: 'CLIENT' | 'INTER_MAGASIN'): Promise<CommandeMetier[]> {
         try {
-            const typeParam = type ? `&type=${type}` : '';
-            console.log(`🔄 SimpleBackendService: Tentative récupération commandes${type ? ` (type=${type})` : ''}...`);
+            const typeParam = type ? `type=${type}` : '';
+            console.log(`🔄 SimpleBackendService: Récupération de TOUTES les commandes${type ? ` (type=${type})` : ''}...`);
 
-            // ✅ SOLUTION PROGRESSIVE : Essayer d'abord avec moins de données
-            let result;
-            try {
-                console.log('📡 Essai avec take=100...');
-                result = await this.request<{ data: any[] }>(`/commandes?take=100${typeParam}`);
-                console.log(`✅ Succès avec take=100: ${result.data.length} commandes`);
-            } catch (error) {
-                console.warn('⚠️ Echec avec take=100, essai avec take=20');
-                console.log('📡 Essai avec take=20...');
-                result = await this.request<{ data: any[] }>(`/commandes?take=20${typeParam}`);
-                console.log(`✅ Succès avec take=20: ${result.data.length} commandes`);
-            }
+            // ✅ RÉCUPÉRATION DE TOUTES LES COMMANDES (pas de limite)
+            const result = await this.request<{ data: any[] }>(`/commandes${typeParam ? `?${typeParam}` : ''}`);
+            console.log(`✅ ${result.data.length} commandes récupérées depuis le backend`);
 
             // ✅ TRANSFORMER chaque commande avec protection
             const transformedData = result.data.map(item => {
@@ -366,12 +358,11 @@ export class SimpleBackendService {
                 }
             }).filter(Boolean);
 
-            console.log(`🔄 ${transformedData.length} commandes transformées avec succès`);
+            console.log(`✅ ${transformedData.length} commandes transformées avec succès`);
             return transformedData;
         } catch (error) {
-            console.error('❌ TOTAL ECHEC récupération commandes:', error);
+            console.error('❌ Erreur récupération commandes:', error);
             // ✅ FALLBACK : Retourner données vides plutôt que crash
-            console.log('🔄 FALLBACK ACTIVÉ: Retour array vide pour commandes');
             return [];
         }
     }

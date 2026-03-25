@@ -80,6 +80,15 @@ export function formReducer(state: FormState, action: FormAction): FormState {
             // Mise à jour de la valeur finale
             current[fieldPath[fieldPath.length - 1]] = action.payload.value;
 
+            // ⚠️ Recalcul automatique de nomComplet quand nom ou prenom changent
+            if (fieldPath[0] === 'client' && (fieldPath[1] === 'nom' || fieldPath[1] === 'prenom')) {
+                const nom = fieldPath[1] === 'nom' ? action.payload.value : (newData.client?.nom || '');
+                const prenom = fieldPath[1] === 'prenom' ? action.payload.value : (newData.client?.prenom || '');
+                if (newData.client) {
+                    newData.client.nomComplet = `${nom} ${prenom}`.trim();
+                }
+            }
+
             // Gestion spéciale pour les tableaux comme les dimensions
             if (fieldPath[0] === 'articles' && fieldPath[1] === 'dimensions') {
                 return {

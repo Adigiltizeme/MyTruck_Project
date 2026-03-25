@@ -484,6 +484,11 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     const [showSuccess, setShowSuccess] = useState(false);
     const [prefilledData, setPrefilledData] = useState<any>(null);
 
+    // ✅ Modal de choix lors du renouvellement (affichée APRÈS détection changements)
+    const [showRenewalChoiceModal, setShowRenewalChoiceModal] = useState(false);
+    const [pendingCommandeData, setPendingCommandeData] = useState<any>(null); // Données en attente de confirmation
+    const [originalClientData, setOriginalClientData] = useState<any>(null); // Client original pour comparaison
+
     // ✅ Charger données pré-remplies depuis localStorage (approche ContactsManagement.tsx)
     useEffect(() => {
         const storedData = localStorage.getItem('commandeFromContact');
@@ -507,6 +512,34 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         if (loading || isCreatingCommandeRef.current) {
             console.log('Création déjà en cours, blocage');
             return;
+        }
+
+        // 🔍 DÉTECTION CHANGEMENTS CLIENT (renouvellement uniquement)
+        // ⚠️ Ne PAS détecter si le flag _forceNewClient est déjà présent (venant de la modal)
+        const alreadyDecided = (commande as any)._forceNewClient !== undefined;
+
+        if (originalClientData && commande.client && !alreadyDecided) {
+            const clientChanged = (
+                originalClientData.nom !== commande.client.nom ||
+                originalClientData.prenom !== commande.client.prenom ||
+                originalClientData.telephone?.principal !== commande.client.telephone?.principal ||
+                originalClientData.telephone?.secondaire !== commande.client.telephone?.secondaire ||
+                originalClientData.adresse?.ligne1 !== commande.client.adresse?.ligne1 ||
+                originalClientData.adresse?.batiment !== commande.client.adresse?.batiment ||
+                originalClientData.adresse?.etage !== commande.client.adresse?.etage ||
+                originalClientData.adresse?.interphone !== commande.client.adresse?.interphone ||
+                originalClientData.adresse?.ascenseur !== commande.client.adresse?.ascenseur ||
+                originalClientData.adresse?.type !== commande.client.adresse?.type
+            );
+
+            if (clientChanged) {
+                console.log('⚠️ Changements détectés dans les données client → Affichage modal de choix');
+                setPendingCommandeData(commande);
+                setShowRenewalChoiceModal(true);
+                return; // ⚠️ Ne pas créer tout de suite
+            } else {
+                console.log('✅ Aucun changement client détecté → Création directe');
+            }
         }
 
         setLoading(true);
@@ -572,8 +605,8 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 // ✅ COMMANDES NORMALES : Utiliser le service standard
                 console.log('📦 Création COMMANDE CLIENT standard');
 
-                // S'assurer que le magasin est correctement spécifié pour les utilisateurs magasin
-                let commandeToCreate = { ...commande };
+                // ⚠️ COPIE PROFONDE pour éviter de modifier la commande originale lors de renouvellements
+                let commandeToCreate = JSON.parse(JSON.stringify(commande));
 
                 if (user?.role === 'magasin' && user.storeId && (!commande.magasin?.id || commande.magasin.id === '')) {
                     console.log('Ajout des informations du magasin à la commande');
@@ -622,12 +655,10 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         }
     };
 
-    // ✅ Renouveler une commande existante : copie PROFONDE les données sans id/dates/statuts/chauffeurs
+    // ✅ Renouveler une commande : Ouvrir formulaire + stocker client original pour détection changements
     const handleRenewCommande = (commande: CommandeMetier) => {
-        // ⚠️ IMPORTANT: Utiliser JSON.parse(JSON.stringify()) pour copie profonde
-        // Cela évite que les modifications affectent la commande originale
+        // Préparer les données de renouvellement
         const renewalData: Partial<CommandeMetier> = {
-            // ✅ Données copiées EN PROFONDEUR
             type: commande.type,
             client: commande.client ? JSON.parse(JSON.stringify(commande.client)) : undefined,
             articles: {
@@ -643,27 +674,36 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 equipiers: commande.livraison?.equipiers || 0,
                 remarques: commande.livraison?.remarques || '',
                 details: commande.livraison?.details,
-                creneau: '',   // ✅ Réinitialisé : à choisir
+                creneau: '',
                 reserve: false,
                 chauffeurs: [],
             },
             magasin: commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined,
             magasinDestination: commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined,
             cession: commande.cession ? JSON.parse(JSON.stringify(commande.cession)) : undefined,
-            // ✅ Données réinitialisées
             dates: {
                 commande: new Date().toISOString(),
-                livraison: '',  // ✅ Vide : date obligatoirement choisie par l'utilisateur
+                livraison: '',
                 misAJour: { commande: new Date().toISOString(), livraison: '' }
+            },
+            financier: {
+                tarifHT: commande.financier?.tarifHT || 0,
             },
             statuts: {
                 commande: 'En attente',
-                livraison: 'EN ATTENTE'
+                livraison: 'EN ATTENTE',
             },
-            financier: { tarifHT: 0 },
-            chauffeurs: [],
         };
 
+        // 🔑 Stocker les données client ORIGINALES pour comparaison ultérieure
+        if (commande.client) {
+            setOriginalClientData(JSON.parse(JSON.stringify(commande.client)));
+            console.log('📋 Client original stocké pour détection changements:', commande.client);
+        } else {
+            setOriginalClientData(null);
+        }
+
+        // Ouvrir le formulaire avec les données pré-remplies
         setPrefilledData(renewalData);
         setShowNewCommandeModal(true);
     };
@@ -1298,6 +1338,89 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     Commande créée avec succès !
                 </div>
             )}
+
+            {/* ✅ Modal de choix : Même client ou Nouveau client (affichée APRÈS détection changements) */}
+            <Modal
+                isOpen={showRenewalChoiceModal}
+                onClose={() => {
+                    setShowRenewalChoiceModal(false);
+                    setPendingCommandeData(null);
+                }}
+            >
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                        ⚠️ Changements détectés
+                    </h2>
+                    <p className="mb-6 text-gray-600 dark:text-gray-400">
+                        Vous avez modifié les informations du client <span className="font-semibold">{pendingCommandeData?.client?.nom} {pendingCommandeData?.client?.prenom}</span>.
+                        <br />
+                        <br />
+                        Que souhaitez-vous faire ?
+                    </p>
+
+                    <div className="space-y-3">
+                        {/* Option 1 : Mettre à jour le client existant */}
+                        <button
+                            onClick={async () => {
+                                setShowRenewalChoiceModal(false);
+                                // Ne pas ajouter le flag _forceNewClient → Met à jour le client existant
+                                await handleCreateCommande(pendingCommandeData);
+                                setPendingCommandeData(null);
+                                setOriginalClientData(null);
+                            }}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
+                        >
+                            <div className="flex items-start">
+                                <span className="text-2xl mr-3">👤</span>
+                                <div>
+                                    <div className="font-semibold">Mettre à jour le client existant</div>
+                                    <div className="text-sm text-blue-100 mt-1">
+                                        Les informations du client seront mises à jour dans la base de données.
+                                        <br />
+                                        <span className="text-xs">⚠️ Toutes les commandes de ce client afficheront les nouvelles informations.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+
+                        {/* Option 2 : Créer un nouveau client */}
+                        <button
+                            onClick={async () => {
+                                setShowRenewalChoiceModal(false);
+                                // Ajouter le flag pour forcer création nouveau client
+                                const commandeWithFlag = { ...pendingCommandeData, _forceNewClient: true };
+                                await handleCreateCommande(commandeWithFlag);
+                                setPendingCommandeData(null);
+                                setOriginalClientData(null);
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
+                        >
+                            <div className="flex items-start">
+                                <span className="text-2xl mr-3">✨</span>
+                                <div>
+                                    <div className="font-semibold">Créer un nouveau client</div>
+                                    <div className="text-sm text-green-100 mt-1">
+                                        Un nouveau client sera créé avec ces informations.
+                                        <br />
+                                        <span className="text-xs">✅ Les anciennes commandes resteront inchangées.</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+
+                        {/* Bouton Annuler */}
+                        <button
+                            onClick={() => {
+                                setShowRenewalChoiceModal(false);
+                                setPendingCommandeData(null);
+                            }}
+                            className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <div className="px-4 py-3 border-t">
                 <Pagination

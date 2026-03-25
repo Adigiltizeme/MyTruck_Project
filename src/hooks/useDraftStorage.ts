@@ -224,15 +224,25 @@ export const useDraftStorage = (draftType: 'CLIENT' | 'INTER_MAGASIN' = 'CLIENT'
     }, [user?.storeId, user?.storeName, user?.role, draftService, draftType]);
 
     const clearDraft = useCallback(async (type?: 'CLIENT' | 'INTER_MAGASIN') => {
-        if (user?.role !== 'magasin' || !user.storeId) {
-            return { success: false, error: new Error("Contexte magasin invalide") };
+        // ✅ Permettre aux admins ET magasins de supprimer les brouillons
+        if (!user || (user.role !== 'magasin' && user.role !== 'admin' && user.role !== 'direction')) {
+            console.warn(`[CLEAR DRAFT] Rôle ${user?.role} non autorisé - retour succès sans action`);
+            // Pour les autres rôles (chauffeur, etc.), retourner succès silencieusement
+            return { success: true };
         }
 
         const finalType = type || draftType; // Utiliser le type passé OU le type du hook
-        console.log(`[SÉCURITÉ] Suppression du brouillon pour ${user.storeName} (${user.storeId}) type ${finalType}`);
+        const storeIdToUse = user.storeId || user.id; // Admin peut ne pas avoir storeId
+
+        if (!storeIdToUse) {
+            console.warn('[CLEAR DRAFT] Aucun ID disponible pour suppression');
+            return { success: true }; // Retourner succès silencieusement
+        }
+
+        console.log(`[SÉCURITÉ] Suppression du brouillon pour ${user.storeName || user.name} (${storeIdToUse}) type ${finalType}`);
 
         try {
-            const result = await draftService.clearDraft(user.storeId, finalType);
+            const result = await draftService.clearDraft(storeIdToUse, finalType);
 
             if (result.success) {
                 // IMPORTANT: Réinitialiser complètement l'état local

@@ -157,8 +157,13 @@ export class BackendDataService {
         }
     }
 
-    public async createCommande(commande: Partial<CommandeMetier>): Promise<CommandeMetier> {
+    public async createCommande(commandeParam: Partial<CommandeMetier>): Promise<CommandeMetier> {
+        // ⚠️ COPIE PROFONDE pour éviter de modifier l'objet original lors de duplications
+        // Sans cela, les modifications ci-dessous affectent la commande source dans la liste
+        const commande = JSON.parse(JSON.stringify(commandeParam));
+
         try {
+
             // Récupérer les informations utilisateur
             const userString = localStorage.getItem('user');
             const user = userString ? JSON.parse(userString) : null;

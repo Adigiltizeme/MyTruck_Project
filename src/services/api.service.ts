@@ -768,6 +768,11 @@ export class ApiService {
         remarques: commande.livraison?.remarques || '',
         ...(!isCession && { magasinId: commande.magasin?.id }),  // Livraisons normales uniquement
 
+        // ✅ Flag pour forcer la création d'un nouveau client (renouvellement de commande)
+        ...(((commande as any)._forceNewClient !== undefined) && {
+          _forceNewClient: (commande as any)._forceNewClient
+        }),
+
         // ✅ Cessions : Inversion logique origine/destination
         // - magasinId = magasin choisi (cédant/origine)
         // - magasinDestinationId = magasin créateur (destinataire)

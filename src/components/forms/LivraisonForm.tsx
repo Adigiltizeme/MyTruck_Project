@@ -679,14 +679,38 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         setAvailableSlots([]);
     };
 
+    /**
+     * ✅ Vérifie si un créneau est disponible avec délai de prévenance de 2h
+     * Un créneau est indisponible si son heure de début est dans moins de 2h
+     *
+     * Exemple: Il est 15h00
+     * - 16h-18h → Indisponible (début dans 1h < 2h)
+     * - 17h-19h → Disponible (début dans 2h = 2h)
+     * - 18h-20h → Disponible (début dans 3h > 2h)
+     */
     const isCreneauPasse = useCallback((creneau: string) => {
-        if (data.dates?.livraison === minDate) {
-            const [heureFin] = creneau.split('-')[1].split('h');
-            const heureActuelle = new Date().getHours();
-            return parseInt(heureFin) <= heureActuelle;
+        // Si la date de livraison est dans le futur (pas aujourd'hui), tous les créneaux sont disponibles
+        if (data.dates?.livraison !== minDate) {
+            return false;
         }
-        return false;
-    }, [data.dates?.livraison]);
+
+        // Pour aujourd'hui, vérifier le délai de prévenance de 2h
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTimeInMinutes = currentHour * 60 + currentMinutes;
+
+        // Extraire l'heure de DÉBUT du créneau (ex: "16h-18h" → 16)
+        const [heureDebut] = creneau.split('-')[0].split('h');
+        const heureDebutInt = parseInt(heureDebut);
+        const heureDebutInMinutes = heureDebutInt * 60;
+
+        // Calculer le délai en minutes entre maintenant et le début du créneau
+        const delaiEnMinutes = heureDebutInMinutes - currentTimeInMinutes;
+
+        // ✅ DÉLAI DE PRÉVENANCE: Le créneau est indisponible si début dans moins de 2h (120 minutes)
+        return delaiEnMinutes < 120;
+    }, [data.dates?.livraison, minDate]);
 
     const creneauxDisponibles = CRENEAUX_LIVRAISON.filter(creneau => !isCreneauPasse(creneau));
 

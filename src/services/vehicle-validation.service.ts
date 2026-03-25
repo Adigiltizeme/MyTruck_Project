@@ -336,35 +336,35 @@ export class VehicleValidationService {
         // Article ≥60kg et <90kg
         if (heaviestIndividualWeight >= 60 && heaviestIndividualWeight < 90) {
             triggeredConditions.push(`2 équipiers: Article lourd (${heaviestIndividualWeight}kg ≥60kg et <90kg)`);
-            console.log('⚠️ 2 ÉQUIPIERS: Article ≥60kg et <90kg');
+            // console.log('⚠️ 2 ÉQUIPIERS: Article ≥60kg et <90kg'); // Debug désactivé (trop verbeux)
             return 2;
         }
 
         // ≥3 étages sans ascenseur avec ≥30 articles plantes/terreaux/pots
         if (effectiveFloor >= 3 && !deliveryConditions.hasElevator && plantArticleCount >= 30) {
             triggeredConditions.push(`2 équipiers: ${effectiveFloor} étages + ${plantArticleCount} articles plantes sans ascenseur`);
-            console.log('⚠️ 2 ÉQUIPIERS: Étages + plantes sans ascenseur');
+            // console.log('⚠️ 2 ÉQUIPIERS: Étages + plantes sans ascenseur'); // Debug désactivé (trop verbeux)
             return 2;
         }
 
         // Palette à dépalettiser + montage en étage
         if (deliveryConditions.paletteComplete && effectiveFloor > 0) {
             triggeredConditions.push(`2 équipiers: Palette + montage en étage (${effectiveFloor}ème)`);
-            console.log('⚠️ 2 ÉQUIPIERS: Palette + étage');
+            // console.log('⚠️ 2 ÉQUIPIERS: Palette + étage'); // Debug désactivé (trop verbeux)
             return 2;
         }
 
         // Gros sujets volumineux (palmiers, etc.)
         if (deliveryConditions.hasLargeVoluminousItems) {
             triggeredConditions.push('2 équipiers: Gros sujet volumineux (palmier, etc.)');
-            console.log('⚠️ 2 ÉQUIPIERS: Gros sujet volumineux');
+            // console.log('⚠️ 2 ÉQUIPIERS: Gros sujet volumineux'); // Debug désactivé (trop verbeux)
             return 2;
         }
 
         // Manutention ≥30min et ≤45min
         if ((deliveryConditions.estimatedHandlingTime || 0) >= 30 && (deliveryConditions.estimatedHandlingTime || 0) <= 45) {
             triggeredConditions.push(`2 équipiers: Manutention longue (${deliveryConditions.estimatedHandlingTime}min ≥30min et ≤45min)`);
-            console.log('⚠️ 2 ÉQUIPIERS: Manutention ≥30min et ≤45min');
+            // console.log('⚠️ 2 ÉQUIPIERS: Manutention ≥30min et ≤45min'); // Debug désactivé (trop verbeux)
             return 2;
         }
 
@@ -373,7 +373,7 @@ export class VehicleValidationService {
         // 🔸 CONDITION PRIORITAIRE: Article ≥30kg et <60kg (prend priorité sur charge totale)
         if (heaviestIndividualWeight >= 30 && heaviestIndividualWeight < 60) {
             triggeredConditions.push(`1 équipier: Article lourd (${heaviestIndividualWeight}kg ≥30kg et <60kg)`);
-            console.log('✅ 1 ÉQUIPIER: Article ≥30kg et <60kg');
+            // console.log('✅ 1 ÉQUIPIER: Article ≥30kg et <60kg'); // Debug désactivé (trop verbeux)
             return 1;
         }
 
