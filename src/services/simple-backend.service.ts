@@ -6,14 +6,6 @@ export class SimpleBackendService {
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const token = localStorage.getItem('authToken');
 
-        // ✅ DEBUG: Log détaillé pour diagnostic
-        console.log('🔍 SimpleBackendService.request:', {
-            endpoint,
-            hasToken: !!token,
-            tokenLength: token?.length,
-            method: options.method || 'GET'
-        });
-
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'ngrok-skip-browser-warning': 'true',

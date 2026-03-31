@@ -60,8 +60,6 @@ export class ApiService {
     this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
     this.token = localStorage.getItem('authToken');
 
-    console.log('🔗 ApiService initialisé:', this.baseUrl);
-
     this.testConnectivity();
   }
 
