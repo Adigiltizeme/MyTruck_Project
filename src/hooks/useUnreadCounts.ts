@@ -46,11 +46,11 @@ export const useUnreadCounts = () => {
       return;
     }
 
-    console.log('🔔 fetchUnreadCounts démarré pour', {
-      userId: user.id,
-      role: user.role,
-      hasToken: !!token
-    });
+    // console.log('🔔 fetchUnreadCounts démarré pour', {
+    //   userId: user.id,
+    //   role: user.role,
+    //   hasToken: !!token
+    // });
 
     try {
       setCounts(prev => ({ ...prev, loading: true }));
@@ -112,11 +112,11 @@ export const useUnreadCounts = () => {
         // Test simple pour vérifier que l'authentification fonctionne
         const testResponse = await apiService.get('/auth/me');
         if (testResponse) {
-          console.log('🔔 useUnreadCounts: Authentification vérifiée, activation du hook');
+          // console.log('🔔 useUnreadCounts: Authentification vérifiée, activation du hook');
           setIsReady(true);
         }
       } catch (error) {
-        console.log('🔔 useUnreadCounts: Authentification pas encore prête, attente...');
+        // console.log('🔔 useUnreadCounts: Authentification pas encore prête, attente...');
         setIsReady(false);
         setCounts({ messages: 0, contacts: 0, loading: false });
       }
@@ -131,7 +131,7 @@ export const useUnreadCounts = () => {
   useEffect(() => {
     if (!isReady) return;
 
-    console.log('🔔 useUnreadCounts: Démarrage fetchUnreadCounts...');
+    // console.log('🔔 useUnreadCounts: Démarrage fetchUnreadCounts...');
     const timer = setTimeout(() => {
       fetchUnreadCounts();
     }, 500); // Délai de sécurité
@@ -146,7 +146,7 @@ export const useUnreadCounts = () => {
     const interval = setInterval(() => {
       // Vérifier que l'utilisateur est toujours connecté et prêt
       if (isReady && user?.id && localStorage.getItem('authToken')) {
-        console.log('🔔 useUnreadCounts: Actualisation périodique...');
+        // console.log('🔔 useUnreadCounts: Actualisation périodique...');
         fetchUnreadCounts();
       }
     }, 30000);
@@ -161,7 +161,7 @@ export const useUnreadCounts = () => {
 
     // Délai court pour laisser la page se charger et marquer les messages comme lus
     const timer = setTimeout(() => {
-      console.log('🔔 useUnreadCounts: Rafraîchissement suite au changement de route ->', location.pathname);
+      // console.log('🔔 useUnreadCounts: Rafraîchissement suite au changement de route ->', location.pathname);
       fetchUnreadCounts();
     }, 500);
 
@@ -190,10 +190,10 @@ export const useUnreadCounts = () => {
   const refreshCounts = () => {
     // Vérifier que l'utilisateur est connecté et prêt
     if (isReady && user?.id && localStorage.getItem('authToken')) {
-      console.log('🔔 useUnreadCounts: Actualisation forcée...');
+      // console.log('🔔 useUnreadCounts: Actualisation forcée...');
       fetchUnreadCounts();
     } else {
-      console.log('🔔 useUnreadCounts: refreshCounts ignoré - pas prêt');
+      // console.log('🔔 useUnreadCounts: refreshCounts ignoré - pas prêt');
     }
   };
 

@@ -301,7 +301,6 @@ function createHistoricalData(commandes: any[], filters: FilterOptions, nowFranc
                         });
 
                         if (itemDateStr !== nowFrance) {
-                            console.log(`📅 Commande ${c.id}: date ${itemDateStr} ≠ aujourd'hui ${nowFrance}`);
                             return false; // Pas aujourd'hui
                         }
 

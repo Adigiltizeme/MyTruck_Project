@@ -51,7 +51,10 @@ export const useCommandeExpiration = ({
                 const statutCommande = commande.statuts?.commande;
                 const statutLivraison = commande.statuts?.livraison;
 
-                console.log(`📋 Commande ${commande.numeroCommande}: date=${itemDateStr}, statutCmd=${statutCommande}, statutLiv=${statutLivraison}`);
+                // ✅ EXCLUSION : Ignorer les commandes déjà livrées (statut final positif)
+                if (statutLivraison === 'LIVREE') {
+                    return; // Commandes livrées ne sont jamais considérées comme expirées
+                }
 
                 // Règle 1 : Commandes en attente/confirmées expirées → Annulation automatique
                 if (
@@ -74,9 +77,8 @@ export const useCommandeExpiration = ({
                         commande,
                         action: 'archive'
                     });
-                } else {
-                    console.log(`⚠️ Commande ${commande.numeroCommande} expirée mais ne correspond à aucune règle`);
                 }
+                // Note : Autres statuts (En cours, En route, etc.) avec date passée sont ignorés
             }
         });
 

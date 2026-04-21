@@ -164,21 +164,6 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 timeZone: 'Europe/Paris'
             });
 
-            // Debug détaillé pour les premières commandes
-            if (index < 10) {
-                console.log(`📅 Commande ${index + 1} (${item.numeroCommande}):`, {
-                    dateBrute: livraisonDate,
-                    dateObjet: itemDate.toString(),
-                    dateISO: itemDateStr,
-                    aujourdhui: todayStr,
-                    comparaison: {
-                        isToday: itemDateStr === todayStr,
-                        isUpcoming: itemDateStr > todayStr,
-                        isHistory: itemDateStr < todayStr
-                    }
-                });
-            }
-
             if (itemDateStr === todayStr) {
                 counts.today++;
             } else if (itemDateStr > todayStr) {
