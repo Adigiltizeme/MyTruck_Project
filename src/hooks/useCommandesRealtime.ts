@@ -23,9 +23,23 @@ export const useCommandesRealtime = ({
   onCommandeChauffeurAssigned,
   autoConnect = true
 }: UseCommandesRealtimeProps = {}) => {
+  console.log('🎯 [useCommandesRealtime] Hook initialized', { autoConnect });
+
   const { user } = useAuth();
   const socketRef = useRef<any>(null);
   const isConnectingRef = useRef(false);
+
+  // ✅ Stocker les callbacks dans des refs pour éviter reconnexions inutiles
+  const onCommandeUpdatedRef = useRef(onCommandeUpdated);
+  const onCommandeStatusChangedRef = useRef(onCommandeStatusChanged);
+  const onCommandeChauffeurAssignedRef = useRef(onCommandeChauffeurAssigned);
+
+  // Mettre à jour les refs quand les callbacks changent
+  useEffect(() => {
+    onCommandeUpdatedRef.current = onCommandeUpdated;
+    onCommandeStatusChangedRef.current = onCommandeStatusChanged;
+    onCommandeChauffeurAssignedRef.current = onCommandeChauffeurAssigned;
+  }, [onCommandeUpdated, onCommandeStatusChanged, onCommandeChauffeurAssigned]);
 
   const connectWebSocket = useCallback(() => {
     console.log('🔌 [CommandesRealtime] Connecting WebSocket...', {
@@ -95,21 +109,21 @@ export const useCommandesRealtime = ({
     // ✅ ÉVÉNEMENTS COMMANDES TEMPS RÉEL
     socket.on('commande-updated', (data) => {
       console.log('📦 [CommandesRealtime] Commande updated:', data);
-      onCommandeUpdated?.(data);
+      onCommandeUpdatedRef.current?.(data);
     });
 
     socket.on('commande-status-changed', (data) => {
       console.log('🔄 [CommandesRealtime] Commande status changed:', data);
-      onCommandeStatusChanged?.(data);
+      onCommandeStatusChangedRef.current?.(data);
     });
 
     socket.on('commande-chauffeurs-assigned', (data) => {
       console.log('🚛 [CommandesRealtime] Chauffeurs assigned:', data);
-      onCommandeChauffeurAssigned?.(data);
+      onCommandeChauffeurAssignedRef.current?.(data);
     });
 
     socketRef.current = socket;
-  }, [user, onCommandeUpdated, onCommandeStatusChanged, onCommandeChauffeurAssigned]);
+  }, [user]); // ✅ Plus besoin des callbacks en dépendances
 
   const disconnect = useCallback(() => {
     if (socketRef.current) {

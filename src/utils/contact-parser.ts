@@ -1,17 +1,56 @@
 /**
  * Parser le message structuré d'un contact de type DEVIS
  * Extrait les données client, articles, livraison et dates
+ * ✅ Supporte aussi les CESSIONS INTER-MAGASINS
  */
 export const parseContactMessage = (message: string) => {
   const data: any = {
-    client: { adresse: {}, telephone: {} },
     articles: { dimensions: [] },
     livraison: { conditionsSpeciales: {} },
     dates: {},
     magasin: {}
   };
 
-  // Parser CLIENT
+  // ✅ Parser MAGASIN DESTINATAIRE (pour cessions)
+  const magasinDestinataireMatch = message.match(/=== MAGASIN DESTINATAIRE \(DEMANDEUR\) ===\n([\s\S]*?)(?:\n===|$)/);
+  if (magasinDestinataireMatch) {
+    const magasinSection = magasinDestinataireMatch[1];
+
+    const nomMatch = magasinSection.match(/Nom\s*:\s*(.+)/);
+    const enseigneMatch = magasinSection.match(/Enseigne\s*:\s*(.+)/);
+    const adresseMatch = magasinSection.match(/Adresse\s*:\s*(.+)/);
+    const telMatch = magasinSection.match(/Téléphone\s*:\s*(.+)/);
+    const managerMatch = magasinSection.match(/Responsable\s*:\s*(.+)/);
+
+    data.magasinDestinataire = {
+      nom: nomMatch?.[1]?.trim(),
+      enseigne: enseigneMatch?.[1]?.trim(),
+      adresse: adresseMatch?.[1]?.trim(),
+      telephone: telMatch?.[1]?.trim(),
+      manager: managerMatch?.[1]?.trim()
+    };
+  }
+
+  // ✅ Parser MAGASIN D'ORIGINE (pour cessions)
+  const magasinOrigineMatch = message.match(/=== MAGASIN CÉDANT ===\n([\s\S]*?)(?:\n===|$)/);
+  if (magasinOrigineMatch) {
+    const magasinSection = magasinOrigineMatch[1];
+    const nomMatch = magasinSection.match(/Nom\s*:\s*(.+)/);
+    const enseigneMatch = magasinSection.match(/Enseigne\s*:\s*(.+)/);
+    const adresseMatch = magasinSection.match(/Adresse\s*:\s*(.+)/);
+    const telMatch = magasinSection.match(/Téléphone\s*:\s*(.+)/);
+    const managerMatch = magasinSection.match(/Responsable\s*:\s*(.+)/);
+
+    data.magasinOrigine = {
+      nom: nomMatch?.[1].trim(),
+      enseigne: enseigneMatch?.[1].trim(),
+      adresse: adresseMatch?.[1].trim(),
+      telephone: telMatch?.[1].trim(),
+      manager: managerMatch?.[1].trim()
+    };
+  }
+
+  // Parser CLIENT (pour commandes classiques)
   const clientMatch = message.match(/=== CLIENT ===\n([\s\S]*?)(?:\n===|$)/);
   if (clientMatch) {
     const clientSection = clientMatch[1];
@@ -21,6 +60,9 @@ export const parseContactMessage = (message: string) => {
     const etageMatch = clientSection.match(/Étage\s*:\s*(.+)/);
     const interphoneMatch = clientSection.match(/Interphone\s*:\s*(.+)/);
     const ascenseurMatch = clientSection.match(/Ascenseur\s*:\s*(.+)/);
+
+    // ✅ N'initialiser client QUE si section CLIENT existe
+    data.client = { adresse: {}, telephone: {} };
 
     if (nomMatch) {
       const fullName = nomMatch[1].trim();
@@ -66,8 +108,10 @@ export const parseContactMessage = (message: string) => {
     const dimensionRegex = /\d+\.\s*(?:📦|⚖️)\s*\[.*?\]\s*(.+?)\s*\(x(\d+)\)\s*(?:-\s*L:(\d+)cm)?\s*(?:l:(\d+)cm)?\s*(?:H:(\d+)cm)?\s*(?:-\s*Poids:\s*(\d+(?:\.\d+)?)kg)?/g;
     let match;
     while ((match = dimensionRegex.exec(articlesSection)) !== null) {
+      // ✅ CORRECTION : Si le nom est "(Non renseigné)", le transformer en chaîne vide
+      const articleName = match[1].trim();
       data.articles.dimensions.push({
-        nom: match[1].trim(),
+        nom: articleName === '(Non renseigné)' ? '' : articleName,
         quantite: parseInt(match[2]),
         longueur: match[3] ? parseInt(match[3]) : undefined,
         largeur: match[4] ? parseInt(match[4]) : undefined,

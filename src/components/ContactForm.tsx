@@ -45,6 +45,13 @@ interface ContactFormProps {
       nom?: string;
       manager?: string;
     };
+    magasinDestination?: {
+      name?: string;
+      enseigne?: string;
+      address?: string;
+      phone?: string;
+      manager?: string;
+    };
   };
 }
 
@@ -67,11 +74,59 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
       return '';
     }
 
-    const { client, articles, livraison, dates, magasin } = prefilledData;
-    let message = 'Demande de devis pour livraison :\n\n';
+    const { client, magasinDestination, articles, livraison, dates, magasin } = prefilledData;
 
-    // Informations client
-    if (client) {
+    // ✅ Détecter si c'est une CESSION (présence de magasinDestination)
+    const isCession = !!magasinDestination;
+
+    let message = `Demande de devis pour ${isCession ? 'cession inter-magasins' : 'livraison'} :\n\n`;
+
+    // ✅ CESSION : Informations MAGASIN DESTINATAIRE (demandeur qui reçoit)
+    if (isCession && magasin) {
+      message += '=== MAGASIN DESTINATAIRE (DEMANDEUR) ===\n';
+      if (magasin.nom) {
+        message += `Nom : ${magasin.nom}\n`;
+      }
+      if ((magasin as any).enseigne) {
+        message += `Enseigne : ${(magasin as any).enseigne}\n`;
+      }
+      // ✅ CORRECTION : Utiliser user.storeAddress si magasin.adresse n'existe pas
+      const magasinAdresse = (magasin as any).adresse || user?.storeAddress;
+      if (magasinAdresse) {
+        message += `Adresse : ${magasinAdresse}\n`;
+      }
+      if ((magasin as any).telephone) {
+        message += `Téléphone : ${(magasin as any).telephone}\n`;
+      }
+      if (magasin.manager) {
+        message += `Responsable : ${magasin.manager}\n`;
+      }
+      message += '\n';
+    }
+
+    // ✅ CESSION : Informations MAGASIN D'ORIGINE (cédant qui envoie)
+    if (isCession && magasinDestination) {
+      message += '=== MAGASIN CÉDANT ===\n';
+      if (magasinDestination.name) {
+        message += `Nom : ${magasinDestination.name}\n`;
+      }
+      if (magasinDestination.enseigne) {
+        message += `Enseigne : ${magasinDestination.enseigne}\n`;
+      }
+      if (magasinDestination.address) {
+        message += `Adresse : ${magasinDestination.address}\n`;
+      }
+      if ((magasinDestination as any).phone) {
+        message += `Téléphone : ${(magasinDestination as any).phone}\n`;
+      }
+      if (magasinDestination.manager) {
+        message += `Responsable : ${magasinDestination.manager}\n`;
+      }
+      message += '\n';
+    }
+
+    // ✅ COMMANDE CLIENT : Informations client
+    if (!isCession && client) {
       message += '=== CLIENT ===\n';
       if (client.nom || client.prenom) {
         message += `Nom : ${client.nom || ''} ${client.prenom || ''}\n`;
@@ -114,7 +169,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ isOpen, onClose, reason = 'RE
         message += '\nArticles avec dimensions (les plus grands/lourds) :\n';
         articles.dimensions.forEach((dim: any, index: number) => {
           const title = index === 0 ? '📦 [Article le plus grand]' : index === 1 ? '⚖️ [Article le plus lourd]' : '';
-          message += `  ${index + 1}. ${title ? title + ' ' : ''}${dim.nom || 'Article'} (x${dim.quantite || 1})`;
+          // ✅ CORRECTION : Ne pas mettre "Article" par défaut si dim.nom est vide
+          const articleName = dim.nom && dim.nom.trim() !== '' ? dim.nom : '(Non renseigné)';
+          message += `  ${index + 1}. ${title ? title + ' ' : ''}${articleName} (x${dim.quantite || 1})`;
           if (dim.longueur || dim.largeur || dim.hauteur) {
             message += ` - `;
             if (dim.longueur) message += `L:${dim.longueur}cm `;

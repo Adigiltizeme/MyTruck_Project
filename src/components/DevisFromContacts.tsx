@@ -230,11 +230,14 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
     }
   };
 
-  // ✅ CRÉER COMMANDE DEPUIS DEVIS - Approche événement custom (comme "Demandez votre devis ici")
+  // ✅ CRÉER COMMANDE/CESSION DEPUIS DEVIS - Détection automatique du type
   const handleCreateCommande = (contact: Contact) => {
     try {
       // Parser le message du contact pour extraire les données
       const contactData = parseContactMessage(contact.message);
+
+      // ✅ DÉTECTION : Si magasinDestinataire ET magasinOrigine existent, c'est une CESSION
+      const isCession = !!(contactData.magasinDestinataire && contactData.magasinOrigine);
 
       const prefilledFormData = {
         contactId: contact.id,
@@ -248,17 +251,19 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
         },
       };
 
-      console.log('✅ DevisFromContacts - Ouverture formulaire avec données:', prefilledFormData);
+      console.log(`✅ DevisFromContacts - Type: ${isCession ? 'CESSION' : 'COMMANDE'} - Données:`, prefilledFormData);
 
-      // ✅ Stocker dans localStorage pour la navigation (approche ContactsManagement.tsx)
-      localStorage.setItem('commandeFromContact', JSON.stringify(prefilledFormData));
+      // ✅ Stocker dans localStorage avec clé appropriée
+      const storageKey = isCession ? 'cessionFromContact' : 'commandeFromContact';
+      localStorage.setItem(storageKey, JSON.stringify(prefilledFormData));
 
-      // ✅ CORRECTION : Naviguer avec ?openForm=true comme ContactsManagement.tsx
-      navigate('/deliveries?openForm=true');
+      // ✅ Naviguer vers la bonne page selon le type
+      const targetRoute = isCession ? '/cessions?openForm=true' : '/deliveries?openForm=true';
+      navigate(targetRoute);
 
     } catch (error) {
-      console.error('❌ Erreur lors de la création de commande:', error);
-      setError('Impossible de créer la commande à partir de ce contact');
+      console.error('❌ Erreur lors de la création:', error);
+      setError('Impossible de créer la commande/cession à partir de ce contact');
     }
   };
 
@@ -553,12 +558,12 @@ const DevisFromContacts: React.FC<DevisFromContactsProps> = ({ searchTerm = '' }
                     </>
                   )}
 
-                  {/* Bouton Créer Commande (seulement pour admin avec devis validé) */}
+                  {/* Bouton Créer Commande/Cession (seulement pour admin avec devis validé) */}
                   {isAdminRole(user?.role) && contact.statut === 'DEVIS_VALIDE' && (
                     <button
                       onClick={() => handleCreateCommande(contact)}
                       className="p-2 text-purple-700 rounded-lg hover:bg-purple-200"
-                      title="Créer une commande avec les données de ce devis"
+                      title="Créer une commande/cession depuis ce devis"
                     >
                       <PlusCircle className="w-4 h-4" />
                     </button>

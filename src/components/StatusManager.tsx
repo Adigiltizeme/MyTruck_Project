@@ -135,24 +135,37 @@ export const StatusManager: React.FC<StatusManagerProps> = ({
         try {
             setLoading(true);
 
-            // ✅ SYNCHRONISATION AUTOMATIQUE DES ANNULATIONS
-            let finalStatutCommande = selectedStatutCommande;
-            let finalStatutLivraison = selectedStatutLivraison;
+            // ✅ RÈGLES PERMISSIONS PAR RÔLE
+            // - ADMIN/DIRECTION : Peuvent modifier les deux statuts
+            // - MAGASIN : Peut SEULEMENT modifier statutCommande (backend synchro automatique)
+            // - CHAUFFEUR : Peut SEULEMENT modifier statutLivraison (backend synchro automatique)
 
-            // Si l'un des statuts est annulé, annuler l'autre automatiquement
-            if (selectedStatutCommande === 'Annulée' && selectedStatutLivraison !== 'ANNULEE') {
-                finalStatutLivraison = 'ANNULEE';
-                console.log('🔄 Auto-synchronisation: Commande annulée → Livraison ANNULEE');
-            } else if (selectedStatutLivraison === 'ANNULEE' && selectedStatutCommande !== 'Annulée') {
-                finalStatutCommande = 'Annulée';
-                console.log('🔄 Auto-synchronisation: Livraison ANNULEE → Commande Annulée');
+            const isAdmin = isAdminRole(user?.role);
+            const isMagasin = user?.role === 'magasin';
+            const isChauffeur = user?.role === 'chauffeur';
+
+            let statutCommandeToSend: string | undefined;
+            let statutLivraisonToSend: string | undefined;
+
+            if (isAdmin) {
+                // ✅ ADMIN/DIRECTION : Envoie les deux statuts
+                statutCommandeToSend = selectedStatutCommande;
+                statutLivraisonToSend = selectedStatutLivraison;
+            } else if (isMagasin) {
+                // ✅ MAGASIN : Envoie SEULEMENT statutCommande (backend synchro auto)
+                statutCommandeToSend = selectedStatutCommande;
+                statutLivraisonToSend = undefined;
+            } else if (isChauffeur) {
+                // ✅ CHAUFFEUR : Envoie SEULEMENT statutLivraison (backend synchro auto)
+                statutCommandeToSend = undefined;
+                statutLivraisonToSend = selectedStatutLivraison;
             }
 
-            // ✅ BACKEND INTELLIGENT gérera toutes les règles
+            // ✅ BACKEND INTELLIGENT gérera toutes les règles + synchronisation automatique
             await dataService.updateStatutsCommande(
                 commande.id,
-                finalStatutCommande,
-                finalStatutLivraison,
+                statutCommandeToSend,
+                statutLivraisonToSend,
                 'Modification manuelle via modal'
             );
 

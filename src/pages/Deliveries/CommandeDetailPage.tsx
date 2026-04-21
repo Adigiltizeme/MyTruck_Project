@@ -35,6 +35,82 @@ const CommandeDetailPage: React.FC = () => {
         fetchCommande();
     }, [id, dataService]);
 
+    // ✅ ÉCOUTER LES ÉVÉNEMENTS WEBSOCKET GLOBAUX pour refresh temps réel
+    useEffect(() => {
+        const handleCommandeUpdate = (event: Event) => {
+            const data = (event as CustomEvent).detail;
+            console.log('📡 [CommandeDetailPage] Commande mise à jour reçue:', data);
+
+            // Recharger uniquement si c'est la commande actuellement affichée
+            if (data?.commandeId === id || data?.commande?.id === id) {
+                const fetchCommande = async () => {
+                    if (!id) return;
+                    try {
+                        const updatedData = await dataService.getCommande(id);
+                        if (updatedData) {
+                            setCommande(updatedData);
+                        }
+                    } catch (err) {
+                        console.error('Erreur lors du rechargement:', err);
+                    }
+                };
+                fetchCommande();
+            }
+        };
+
+        const handleStatusChange = (event: Event) => {
+            const data = (event as CustomEvent).detail;
+            console.log('📡 [CommandeDetailPage] Changement statut reçu:', data);
+
+            // Recharger uniquement si c'est la commande actuellement affichée
+            if (data?.commandeId === id) {
+                const fetchCommande = async () => {
+                    if (!id) return;
+                    try {
+                        const updatedData = await dataService.getCommande(id);
+                        if (updatedData) {
+                            setCommande(updatedData);
+                        }
+                    } catch (err) {
+                        console.error('Erreur lors du rechargement:', err);
+                    }
+                };
+                fetchCommande();
+            }
+        };
+
+        const handleChauffeurAssigned = (event: Event) => {
+            const data = (event as CustomEvent).detail;
+            console.log('📡 [CommandeDetailPage] Chauffeur assigné reçu:', data);
+
+            // Recharger uniquement si c'est la commande actuellement affichée
+            if (data?.commandeId === id) {
+                const fetchCommande = async () => {
+                    if (!id) return;
+                    try {
+                        const updatedData = await dataService.getCommande(id);
+                        if (updatedData) {
+                            setCommande(updatedData);
+                        }
+                    } catch (err) {
+                        console.error('Erreur lors du rechargement:', err);
+                    }
+                };
+                fetchCommande();
+            }
+        };
+
+        window.addEventListener('commande-updated', handleCommandeUpdate);
+        window.addEventListener('commande-status-changed', handleStatusChange);
+        window.addEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+
+        return () => {
+            window.removeEventListener('commande-updated', handleCommandeUpdate);
+            window.removeEventListener('commande-status-changed', handleStatusChange);
+            window.removeEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+        };
+    }, [id, dataService]);
+
     const handleUpdate = (updatedCommande: CommandeMetier) => {
         setCommande(updatedCommande);
     };

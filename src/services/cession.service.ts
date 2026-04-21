@@ -120,7 +120,7 @@ export class CessionService {
           email: cessionData.magasin_externe.email || ''
         };
       } else {
-        console.error('❌ ERREUR: Aucun magasin d\'origine fourni (ni ID ni magasin externe)');
+        console.error('❌ ERREUR: Aucun magasin cédant fourni (ni ID ni magasin externe)');
       }
 
       // Compléter le DTO avec les articles et autres infos

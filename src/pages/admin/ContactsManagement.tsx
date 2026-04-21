@@ -112,13 +112,32 @@ const ContactDetailModal: React.FC<ContactDetailModalProps> = ({
 
       console.log('📦 Données contact parsées:', contactData);
 
+      // ✅ Détecter si c'est une CESSION ou une COMMANDE CLIENT
+      const isCession = !!(contactData as any).magasinDestinataire && !!(contactData as any).magasinOrigine;
+      console.log(`📦 Type de demande: ${isCession ? 'CESSION INTER-MAGASINS' : 'COMMANDE CLIENT'}`);
+
       // Calculer le tarif avec TarificationService
       const tarificationService = new TarificationService();
 
+      // ✅ Pour CESSIONS : adresse magasin origine → magasin destinataire
+      // ✅ Pour COMMANDES : adresse magasin → client
+      const adresseMagasin = isCession
+        ? (contactData as any).magasinOrigine?.adresse || ''
+        : contactData.magasin?.adresse || '';
+
+      const adresseLivraison = isCession
+        ? (contactData as any).magasinDestinataire?.adresse || ''
+        : contactData.client?.adresse?.ligne1 || '';
+
+      console.log(`📍 Adresses pour calcul:`, {
+        origine: adresseMagasin,
+        destination: adresseLivraison
+      });
+
       const tarifResult = await tarificationService.calculerTarif({
         vehicule: contactData.livraison?.vehicule || '1M3',
-        adresseMagasin: contactData.magasin?.adresse || '',
-        adresseLivraison: contactData.client?.adresse?.ligne1 || '',
+        adresseMagasin,
+        adresseLivraison,
         equipiers: contactData.livraison?.equipiers || 0,
         userRole: 'admin' // Admin peut bypasser les limites de devis
       });

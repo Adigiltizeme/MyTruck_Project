@@ -145,6 +145,37 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                     ...(commande.magasin as any)
                 };
             }
+
+            // ✅ FUSIONNER DONNÉES CESSION selon la source
+            // CAS 1 : Depuis contact/devis (parser) → magasinDestinataire (DEMANDEUR) + magasinOrigine (CÉDANT)
+            // CAS 2 : Depuis renouvellement → commande.magasin (CÉDANT) + commande.magasinDestination (DEMANDEUR)
+            // ⚠️ ARCHITECTURE : magasin = CÉDANT, magasinDestination = DEMANDEUR (partout : DB, formulaire, affichage)
+
+            // Pour contact/devis : magasinDestinataire (DEMANDEUR du parser) → baseData.magasinDestination (DEMANDEUR final)
+            if ((commande as any).magasinDestinataire) {
+                baseData.magasinDestination = {
+                    ...baseData.magasinDestination,
+                    ...(commande as any).magasinDestinataire,
+                    // Normaliser les champs (nom → name pour compatibilité)
+                    name: (commande as any).magasinDestinataire.nom || (commande as any).magasinDestinataire.name,
+                    address: (commande as any).magasinDestinataire.adresse || (commande as any).magasinDestinataire.address,
+                    phone: (commande as any).magasinDestinataire.telephone || (commande as any).magasinDestinataire.phone,
+                    manager: (commande as any).magasinDestinataire.manager
+                };
+            }
+
+            // Pour contact/devis : magasinOrigine (CÉDANT du parser) → baseData.magasin (CÉDANT final)
+            if ((commande as any).magasinOrigine) {
+                baseData.magasin = {
+                    ...baseData.magasin,
+                    ...(commande as any).magasinOrigine,
+                    // Normaliser les champs (nom → name pour compatibilité)
+                    name: (commande as any).magasinOrigine.nom || (commande as any).magasinOrigine.name,
+                    address: (commande as any).magasinOrigine.adresse || (commande as any).magasinOrigine.address,
+                    phone: (commande as any).magasinOrigine.telephone || (commande as any).magasinOrigine.phone,
+                    manager: (commande as any).magasinOrigine.manager
+                };
+            }
         }
 
         // Si nous sommes en mode magasin, ajouter les informations du magasin
@@ -162,6 +193,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
     const [formData, setFormData] = useState(getInitialData());
     const [creneaux, setCreneaux] = useState(CRENEAUX_LIVRAISON);
     const [vehicules, setVehicules] = useState<{ [key: string]: string }>(VEHICULES);
+    // ✅ CORRECTION : Initialiser vide, le useEffect se chargera de définir la valeur après chargement des magasins
     const [selectedMagasinId, setSelectedMagasinId] = useState<string>('');
     const [magasins, setMagasins] = useState<Array<{ id: string; nom: string; adresse: string; enseigne: string }>>([]);
     const [loadingMagasins, setLoadingMagasins] = useState(false);
@@ -240,7 +272,13 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         errors={state.errors}
                         onChange={handleInputChange}
                         isEditing={isEditing}
-                        magasinOrigineId={user?.storeId}
+                        magasinOrigineId={
+                            // ✅ CORRECTION : Pour renouvellement, utiliser le magasin de la commande originale
+                            // Sinon utiliser le storeId de l'utilisateur (magasin) ou selectedMagasinId (admin)
+                            isRenewal && initialData?.magasin?.id
+                                ? initialData.magasin.id
+                                : (user?.storeId || selectedMagasinId)
+                        }
                     />
                 ) : (
                     <ClientForm
@@ -344,6 +382,16 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 setLoadingMagasins(true);
                 const response = await apiService.get('/magasins') as { data: Array<{ id: string; nom: string; adresse: string; enseigne: string }> };
                 setMagasins(response.data || []);
+
+                // ✅ CORRECTION : Pour renouvellement OU création depuis contact/devis, initialiser selectedMagasinId APRÈS chargement
+                // Utiliser commande (données renouvellement) en priorité, sinon initialData (données contact/devis)
+                const magasinId = commande?.magasin?.id || initialData?.magasin?.id;
+                if (magasinId && !selectedMagasinId) {
+                    const magasinExists = response.data.find(m => m.id === magasinId);
+                    if (magasinExists) {
+                        setSelectedMagasinId(magasinId);
+                    }
+                }
             } catch (error) {
                 console.error('Erreur chargement magasins:', error);
             } finally {
@@ -352,7 +400,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
         };
 
         loadMagasins();
-    }, [user?.role]);
+    }, [user?.role, isRenewal, initialData?.magasin?.id, commande?.magasin?.id]);
 
     // ✅ PRÉ-REMPLIR LE FORMULAIRE avec les données de commande (depuis contact/devis)
     const lastCommandeRef = useRef<any>(null);
@@ -479,10 +527,22 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                 manager: '',
                 status: '',
                 photo: ''
-            } : undefined
+            } : undefined,
+            // ✅ AJOUT : magasinDestination pour les cessions
+            magasinDestination: (commande as any).magasinDestination ? {
+                id: (commande as any).magasinDestination.id || '',
+                name: (commande as any).magasinDestination.name || (commande as any).magasinDestination.nom || '',
+                address: (commande as any).magasinDestination.address || (commande as any).magasinDestination.adresse || '',
+                enseigne: (commande as any).magasinDestination.enseigne || 'Truffaut',
+                phone: (commande as any).magasinDestination.phone || (commande as any).magasinDestination.telephone || '',
+                email: (commande as any).magasinDestination.email || '',
+                manager: (commande as any).magasinDestination.manager || '',
+                status: (commande as any).magasinDestination.status || '',
+                photo: ''
+            } : undefined,
+            // ✅ AJOUT : cession pour les cessions
+            cession: (commande as any).cession || undefined
         };
-
-        console.log('📦 Dispatch RESTORE_DRAFT avec:', restoredData);
 
         // 3. Dispatch RESTORE_DRAFT pour restaurer toutes les données d'un coup
         setTimeout(() => {

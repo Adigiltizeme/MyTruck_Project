@@ -331,6 +331,34 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         };
     }, []);
 
+    // ✅ ÉCOUTER LES ÉVÉNEMENTS WEBSOCKET GLOBAUX pour refresh temps réel
+    useEffect(() => {
+        const handleCommandeUpdate = (event: Event) => {
+            console.log('📡 [Deliveries] Commande mise à jour reçue:', (event as CustomEvent).detail);
+            fetchData(); // Recharger les données automatiquement
+        };
+
+        const handleStatusChange = (event: Event) => {
+            console.log('📡 [Deliveries] Changement statut reçu:', (event as CustomEvent).detail);
+            fetchData(); // Recharger les données automatiquement
+        };
+
+        const handleChauffeurAssigned = (event: Event) => {
+            console.log('📡 [Deliveries] Chauffeur assigné reçu:', (event as CustomEvent).detail);
+            fetchData(); // Recharger les données automatiquement
+        };
+
+        window.addEventListener('commande-updated', handleCommandeUpdate);
+        window.addEventListener('commande-status-changed', handleStatusChange);
+        window.addEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+
+        return () => {
+            window.removeEventListener('commande-updated', handleCommandeUpdate);
+            window.removeEventListener('commande-status-changed', handleStatusChange);
+            window.removeEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+        };
+    }, []);
+
     useEffect(() => {
         // Debug automatique en dev
         if (process.env.NODE_ENV === 'development') {
@@ -489,28 +517,37 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     const [pendingCommandeData, setPendingCommandeData] = useState<any>(null); // Données en attente de confirmation
     const [originalClientData, setOriginalClientData] = useState<any>(null); // Client original pour comparaison
 
-    // ✅ Charger données pré-remplies depuis localStorage (approche ContactsManagement.tsx)
+    // ✅ Charger données pré-remplies depuis localStorage (commande OU cession)
     useEffect(() => {
-        const storedData = localStorage.getItem('commandeFromContact');
+        // Détecter la clé appropriée selon le type de page
+        const storageKey = type === 'INTER_MAGASIN' ? 'cessionFromContact' : 'commandeFromContact';
+        const storedData = localStorage.getItem(storageKey);
+
         if (storedData) {
             try {
                 const parsedData = JSON.parse(storedData);
-                console.log('✅ Deliveries - Données contact chargées depuis localStorage:', parsedData);
+                console.log(`✅ Deliveries - Données ${type === 'INTER_MAGASIN' ? 'cession' : 'commande'} chargées:`, parsedData);
                 setPrefilledData(parsedData);
                 setShowNewCommandeModal(true);
                 // Nettoyer le localStorage après récupération
-                localStorage.removeItem('commandeFromContact');
+                localStorage.removeItem(storageKey);
             } catch (error) {
                 console.error('❌ Erreur parsing données contact:', error);
-                localStorage.removeItem('commandeFromContact');
+                localStorage.removeItem(storageKey);
             }
         }
-    }, []);
+    }, [type]);
 
     const handleCreateCommande = async (commande: Partial<CommandeMetier>) => {
         // Éviter les créations multiples
         if (loading || isCreatingCommandeRef.current) {
             console.log('Création déjà en cours, blocage');
+            return;
+        }
+
+        // ✅ Protection contre null
+        if (!commande) {
+            console.error('❌ handleCreateCommande appelé avec null');
             return;
         }
 
@@ -678,6 +715,8 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 reserve: false,
                 chauffeurs: [],
             },
+            // ✅ ARCHITECTURE CESSIONS : Cohérence totale BASE/FORMULAIRE/AFFICHAGE
+            // PARTOUT : magasin = CÉDANT (origine), magasinDestination = DEMANDEUR (créateur)
             magasin: commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined,
             magasinDestination: commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined,
             cession: commande.cession ? JSON.parse(JSON.stringify(commande.cession)) : undefined,
@@ -1107,7 +1146,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); handleRenewCommande(commande); }}
                                                 className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 text-lg"
-                                                title="Renouveler cette commande"
+                                                title={type === 'INTER_MAGASIN' ? 'Renouveler cette cession' : 'Renouveler cette commande'}
                                             >
                                                 🔄
                                             </button>
@@ -1290,7 +1329,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleRenewCommande(commande); }}
                                                         className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                                                        title="Renouveler cette commande"
+                                                        title={type === 'INTER_MAGASIN' ? 'Renouveler cette cession' : 'Renouveler cette commande'}
                                                     >
                                                         🔄
                                                     </button>
@@ -1362,11 +1401,16 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         {/* Option 1 : Mettre à jour le client existant */}
                         <button
                             onClick={async () => {
+                                // ✅ Capturer la valeur AVANT de modifier l'état
+                                const commandeToCreate = pendingCommandeData;
                                 setShowRenewalChoiceModal(false);
-                                // Ne pas ajouter le flag _forceNewClient → Met à jour le client existant
-                                await handleCreateCommande(pendingCommandeData);
                                 setPendingCommandeData(null);
                                 setOriginalClientData(null);
+
+                                // Ne pas ajouter le flag _forceNewClient → Met à jour le client existant
+                                if (commandeToCreate) {
+                                    await handleCreateCommande(commandeToCreate);
+                                }
                             }}
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
                         >
@@ -1386,12 +1430,17 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         {/* Option 2 : Créer un nouveau client */}
                         <button
                             onClick={async () => {
+                                // ✅ Capturer la valeur AVANT de modifier l'état
+                                const commandeToCreate = pendingCommandeData;
                                 setShowRenewalChoiceModal(false);
-                                // Ajouter le flag pour forcer création nouveau client
-                                const commandeWithFlag = { ...pendingCommandeData, _forceNewClient: true };
-                                await handleCreateCommande(commandeWithFlag);
                                 setPendingCommandeData(null);
                                 setOriginalClientData(null);
+
+                                // Ajouter le flag pour forcer création nouveau client
+                                if (commandeToCreate) {
+                                    const commandeWithFlag = { ...commandeToCreate, _forceNewClient: true };
+                                    await handleCreateCommande(commandeWithFlag);
+                                }
                             }}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
                         >

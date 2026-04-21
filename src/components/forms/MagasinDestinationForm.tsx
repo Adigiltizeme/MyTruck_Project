@@ -92,8 +92,10 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                     const origine = transformedMagasins.find(m => m.id === magasinOrigineId);
                     setMagasinOrigine(origine || null);
 
-                    // ✅ Définir le mode par défaut selon l'enseigne
-                    if (origine?.enseigne) {
+                    // ✅ CORRECTION : Ne définir le mode par défaut QUE si aucune donnée pré-remplie
+                    const hasPrefilledData = magasinDestData.id || magasinDestData.name;
+
+                    if (!hasPrefilledData && origine?.enseigne) {
                         // Vérifier s'il existe d'autres magasins de la même enseigne
                         const autresMagasinsMemeEnseigne = transformedMagasins.filter(
                             m => m.enseigne === origine.enseigne && m.id !== magasinOrigineId
@@ -106,10 +108,11 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
                             console.log(`⚠️ Aucun autre magasin ${origine.enseigne} → Mode manuel uniquement`);
                             setInputMode('manuel');
                         }
-                    } else {
+                    } else if (!hasPrefilledData) {
                         console.log('⚠️ Enseigne non définie → Mode manuel uniquement');
                         setInputMode('manuel');
                     }
+                    // Si données pré-remplies, laisser l'autre useEffect gérer le mode
                 }
 
                 // Filtrer pour exclure le magasin d'origine ET garder seulement même enseigne
@@ -143,8 +146,17 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
         if (magasinDestData.id && magasins.length > 0) {
             const magasin = magasins.find(m => m.id === magasinDestData.id);
             setSelectedMagasin(magasin || null);
+            // ✅ Si un magasin avec ID est trouvé, passer en mode liste
+            if (magasin) {
+                setInputMode('liste');
+                console.log('✅ Magasin cédant pré-rempli (mode liste):', magasin.name);
+            }
+        } else if (magasinDestData.name && !magasinDestData.id) {
+            // ✅ Si données sans ID (saisie manuelle), passer en mode manuel
+            setInputMode('manuel');
+            console.log('✅ Magasin cédant pré-rempli (mode manuel):', magasinDestData.name);
         }
-    }, [magasinDestData.id, magasins]);
+    }, [magasinDestData.id, magasinDestData.name, magasins]);
 
     // Gérer la sélection d'un magasin depuis la liste
     const handleMagasinSelect = (magasinId: string) => {
@@ -231,7 +243,7 @@ export const MagasinDestinationForm: React.FC<MagasinDestinationFormProps> = ({
         >
             <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                    Magasin d'origine (cédant)
+                    Magasin cédant
                 </h2>
 
                 {/* Toggle mode de saisie - Affiché UNIQUEMENT si magasins de même enseigne disponibles */}

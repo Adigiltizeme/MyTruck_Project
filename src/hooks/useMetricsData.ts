@@ -22,7 +22,8 @@ export const useMetricsData = (filters: FilterOptions) => {
         filters.customDateRange?.start,
         filters.customDateRange?.end,
         filters.customDateRange?.mode,
-        filters.customDateRange?.singleDate
+        filters.customDateRange?.singleDate,
+        (filters as any)._refreshTrigger // ✅ AJOUT : Trigger pour refresh temps réel
     ]);
 
     useEffect(() => {

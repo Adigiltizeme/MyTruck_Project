@@ -9,7 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/Home';
 import CommandeDetailPage from './pages/Deliveries/CommandeDetailPage';
 import DevModeToggle from './components/DevModeToggle';
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { OptimizedImageCache } from './services/optimized-image-cache.service';
 import Dexie from 'dexie';
 import { ToastContainer } from 'react-toastify';
@@ -44,6 +44,7 @@ import RealTimeMessaging from './components/RealTimeMessaging';
 import { LiveTracking } from './pages/admin/LiveTracking';
 import AvisClient from './pages/AvisClient';
 import { UpdateAnnouncement } from './components/UpdateAnnouncement';
+import { useCommandesRealtime } from './hooks/useCommandesRealtime';
 
 const App = () => {
 
@@ -52,6 +53,37 @@ const App = () => {
   const notificationContext = useNotifications();
 
   const { refreshUserContext } = useAuth();
+
+  // ✅ État pour forcer le refresh global lors des mises à jour WebSocket
+  const [globalRefreshTrigger, setGlobalRefreshTrigger] = useState(0);
+
+  // ✅ WEBSOCKET GLOBAL - Connecté dès le chargement de l'app
+  const handleCommandeUpdate = useCallback((data: unknown) => {
+    console.log('📡 [App] Commande mise à jour globale:', data);
+    setGlobalRefreshTrigger(prev => prev + 1);
+    // Forcer le rechargement des données dans tous les composants qui écoutent
+    window.dispatchEvent(new CustomEvent('commande-updated', { detail: data }));
+  }, []);
+
+  const handleStatusChange = useCallback((data: unknown) => {
+    console.log('📡 [App] Changement statut global:', data);
+    setGlobalRefreshTrigger(prev => prev + 1);
+    window.dispatchEvent(new CustomEvent('commande-status-changed', { detail: data }));
+  }, []);
+
+  const handleChauffeurAssigned = useCallback((data: unknown) => {
+    console.log('📡 [App] Chauffeur assigné global:', data);
+    setGlobalRefreshTrigger(prev => prev + 1);
+    window.dispatchEvent(new CustomEvent('commande-chauffeurs-assigned', { detail: data }));
+  }, []);
+
+  // Connexion WebSocket globale
+  useCommandesRealtime({
+    onCommandeUpdated: handleCommandeUpdate,
+    onCommandeStatusChanged: handleStatusChange,
+    onCommandeChauffeurAssigned: handleChauffeurAssigned,
+    autoConnect: true
+  });
 
   // Initialiser le service de notification
   useEffect(() => {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMetricsData } from '../../hooks/useMetricsData';
-import { useCommandesRealtime } from '../../hooks/useCommandesRealtime';
 import { MetricCard } from './MetricCard';
 import { DeliveriesTable } from '../DeliveriesTable';
 import { PerformanceChart } from './charts/PerformanceChart';
@@ -61,30 +60,33 @@ export const UnifiedDashboard: React.FC<UnifiedDashboardProps> = ({
 
     const { data, loading, error } = useMetricsData(filtersWithCustomDates);
 
-    // ✅ SYNCHRONISATION TEMPS RÉEL avec WebSocket
-    const handleCommandeUpdate = useCallback((data: unknown) => {
-        console.log('📡 [UnifiedDashboard] Commande mise à jour reçue:', data);
-        // Rafraîchir les données en incrémentant le trigger
-        setRefreshTrigger(prev => prev + 1);
-    }, []);
+    // ✅ ÉCOUTER LES ÉVÉNEMENTS WEBSOCKET GLOBAUX (émis par App.tsx) pour refresh temps réel
+    useEffect(() => {
+        const handleCommandeUpdate = (event: Event) => {
+            console.log('📡 [UnifiedDashboard] Commande mise à jour reçue:', (event as CustomEvent).detail);
+            setRefreshTrigger(prev => prev + 1);
+        };
 
-    const handleStatusChange = useCallback((data: unknown) => {
-        console.log('📡 [UnifiedDashboard] Changement statut reçu:', data);
-        setRefreshTrigger(prev => prev + 1);
-    }, []);
+        const handleStatusChange = (event: Event) => {
+            console.log('📡 [UnifiedDashboard] Changement statut reçu:', (event as CustomEvent).detail);
+            setRefreshTrigger(prev => prev + 1);
+        };
 
-    const handleChauffeurAssigned = useCallback((data: unknown) => {
-        console.log('📡 [UnifiedDashboard] Chauffeur assigné reçu:', data);
-        setRefreshTrigger(prev => prev + 1);
-    }, []);
+        const handleChauffeurAssigned = (event: Event) => {
+            console.log('📡 [UnifiedDashboard] Chauffeur assigné reçu:', (event as CustomEvent).detail);
+            setRefreshTrigger(prev => prev + 1);
+        };
 
-    // Activer les listeners WebSocket
-    useCommandesRealtime({
-        onCommandeUpdated: handleCommandeUpdate,
-        onCommandeStatusChanged: handleStatusChange,
-        onCommandeChauffeurAssigned: handleChauffeurAssigned,
-        autoConnect: true
-    });
+        window.addEventListener('commande-updated', handleCommandeUpdate);
+        window.addEventListener('commande-status-changed', handleStatusChange);
+        window.addEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+
+        return () => {
+            window.removeEventListener('commande-updated', handleCommandeUpdate);
+            window.removeEventListener('commande-status-changed', handleStatusChange);
+            window.removeEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+        };
+    }, []);
 
     // ✅ Hook GPS tracking pour admins
     const token = localStorage.getItem('authToken');

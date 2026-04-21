@@ -570,7 +570,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                         {/* Client OU Magasin d'origine (cédant) pour cessions */}
                         <div className="space-y-3 bg-white p-4 rounded-lg border border-gray-200 dark:border-gray-600 dark:bg-gray-700">
                             <h3 className="font-semibold text-lg mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
-                                {isCession ? "Magasin d'origine (cédant)" : 'Client'}
+                                {isCession ? "Magasin cédant" : 'Client'}
                             </h3>
                             <div className="space-y-2">
                                 {isCession ? (

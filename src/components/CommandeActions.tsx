@@ -379,11 +379,12 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
     const handleCancel = async () => {
         try {
             setLoading(true);
-            // ✅ UTILISER le nouveau système intelligent
+            // ✅ MAGASIN envoie SEULEMENT statutCommande
+            // Le backend synchronise automatiquement statutLivraison → ANNULEE
             await dataService.updateStatutsCommande(
                 commande?.id,
-                'Annulée',
-                'ANNULEE',
+                'Annulée',       // ✅ statutCommande
+                undefined,       // ✅ statutLivraison non envoyé (backend gère la synchro)
                 'Annulation par magasin'
             );
 

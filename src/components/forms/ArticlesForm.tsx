@@ -1085,8 +1085,8 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
             </div>
 
             {/* Bouton pour afficher/masquer l'estimation */}
-            {estimationTarif && hasUserInteracted && articleDimensions.length > 0 &&
-                articleDimensions.some(art => art.nom && art.nom.trim() !== '') && (
+            {/* ✅ Afficher dès qu'un véhicule est sélectionné (dimensions FACULTATIVES) */}
+            {estimationTarif && hasUserInteracted && (
                     <div className="mb-6">
                         <button
                             type="button"

@@ -35,6 +35,34 @@ const DocumentsPage: React.FC = () => {
         loadData();
     }, []);
 
+    // ✅ ÉCOUTER LES ÉVÉNEMENTS WEBSOCKET GLOBAUX pour refresh temps réel
+    useEffect(() => {
+        const handleCommandeUpdate = (event: Event) => {
+            console.log('📡 [DocumentsPage] Commande mise à jour reçue:', (event as CustomEvent).detail);
+            loadData(); // Recharger les données automatiquement
+        };
+
+        const handleStatusChange = (event: Event) => {
+            console.log('📡 [DocumentsPage] Changement statut reçu:', (event as CustomEvent).detail);
+            loadData(); // Recharger les données automatiquement
+        };
+
+        const handleChauffeurAssigned = (event: Event) => {
+            console.log('📡 [DocumentsPage] Chauffeur assigné reçu:', (event as CustomEvent).detail);
+            loadData(); // Recharger les données automatiquement
+        };
+
+        window.addEventListener('commande-updated', handleCommandeUpdate);
+        window.addEventListener('commande-status-changed', handleStatusChange);
+        window.addEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+
+        return () => {
+            window.removeEventListener('commande-updated', handleCommandeUpdate);
+            window.removeEventListener('commande-status-changed', handleStatusChange);
+            window.removeEventListener('commande-chauffeurs-assigned', handleChauffeurAssigned);
+        };
+    }, []);
+
     const loadData = async () => {
         try {
             setLoading(true);
