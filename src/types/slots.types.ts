@@ -42,6 +42,7 @@ export interface SlotAvailability {
     };
     isAvailable: boolean;
     isBlocked: boolean;
+    forceAvailable?: boolean;
     blockReason?: string;
     reason?: string;
     bookingsCount: number;

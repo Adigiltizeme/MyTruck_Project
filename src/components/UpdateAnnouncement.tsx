@@ -7,14 +7,14 @@ import { NotificationService } from '../services/notificationService';
 
 const STORAGE_KEY = 'myTruck_dismissedAnnouncements';
 
-// Map backend types to frontend types for styling
-type AnnouncementTypeUI = 'new-feature' | 'improvement' | 'maintenance' | 'info';
+type AnnouncementTypeUI = 'new-feature' | 'improvement' | 'maintenance' | 'info' | 'update';
 const mapBackendTypeToUI = (type: Announcement['type']): AnnouncementTypeUI => {
     switch (type) {
         case 'NEW_FEATURE': return 'new-feature';
         case 'IMPROVEMENT': return 'improvement';
         case 'MAINTENANCE': return 'maintenance';
         case 'INFO': return 'info';
+        case 'UPDATE': return 'update';
         default: return 'info';
     }
 };
@@ -26,7 +26,7 @@ const mapBackendTypeToUI = (type: Announcement['type']): AnnouncementTypeUI => {
  * - Réutilisable pour toutes les futures annonces
  */
 export const UpdateAnnouncement: React.FC = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [visibleAnnouncement, setVisibleAnnouncement] = useState<Announcement | null>(null);
 
@@ -136,15 +136,24 @@ export const UpdateAnnouncement: React.FC = () => {
     }, [visibleAnnouncement, createNotificationFromAnnouncement]);
 
     const handleCTA = useCallback(() => {
-        if (!visibleAnnouncement?.ctaLink) return;
+        if (!visibleAnnouncement) return;
 
-        // Créer une notification avant de naviguer
+        // Pour UPDATE : déconnecter pour forcer un nouveau token, puis recharger les nouveaux assets
+        if (visibleAnnouncement.type === 'UPDATE') {
+            const dismissedData = localStorage.getItem(STORAGE_KEY);
+            const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
+            dismissed[visibleAnnouncement.id] = true;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed));
+            logout(); // Efface le token → l'utilisateur se reconnecte avec un token frais
+            window.location.reload();
+            return;
+        }
+
+        if (!visibleAnnouncement.ctaLink) return;
+
         createNotificationFromAnnouncement(visibleAnnouncement);
-
-        // Naviguer vers le lien
         navigate(visibleAnnouncement.ctaLink);
 
-        // Fermer l'annonce (sans créer une 2ème notification)
         const dismissedData = localStorage.getItem(STORAGE_KEY);
         const dismissed: { [key: string]: boolean } = dismissedData ? JSON.parse(dismissedData) : {};
         dismissed[visibleAnnouncement.id] = true;
@@ -178,6 +187,12 @@ export const UpdateAnnouncement: React.FC = () => {
                     bg: 'bg-gradient-to-r from-gray-500 to-slate-600',
                     border: 'border-gray-300',
                     icon: 'ℹ️'
+                };
+            case 'update':
+                return {
+                    bg: 'bg-gradient-to-r from-violet-600 to-purple-700',
+                    border: 'border-violet-300',
+                    icon: '⬆️'
                 };
             default:
                 return {
@@ -236,12 +251,16 @@ export const UpdateAnnouncement: React.FC = () => {
                             >
                                 J'ai compris
                             </button>
-                            {visibleAnnouncement.ctaText && (
+                            {(visibleAnnouncement.ctaText || visibleAnnouncement.type === 'UPDATE') && (
                                 <button
                                     onClick={handleCTA}
-                                    className="px-4 py-2 bg-white text-blue-600 hover:bg-gray-100 rounded-lg font-bold transition-colors shadow-lg"
+                                    className={`px-4 py-2 rounded-lg font-bold transition-colors shadow-lg ${
+                                        visibleAnnouncement.type === 'UPDATE'
+                                            ? 'bg-white text-violet-700 hover:bg-violet-50'
+                                            : 'bg-white text-blue-600 hover:bg-gray-100'
+                                    }`}
                                 >
-                                    {visibleAnnouncement.ctaText} →
+                                    {visibleAnnouncement.ctaText || 'Mettre à jour et se reconnecter'} →
                                 </button>
                             )}
                         </div>

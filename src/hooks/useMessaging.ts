@@ -94,12 +94,12 @@ export const useMessaging = ({
     }
 
     // Détection automatique production vs développement
-    const isProduction = import.meta.env.NODE_ENV === 'production' ||
+    const isProduction = import.meta.env.PROD ||
                           window.location.hostname.includes('vercel.app') ||
                           window.location.hostname.includes('mytrucktransport');
 
     const defaultWsUrl = isProduction
-      ? 'https://mytruckprojectbackend-production.up.railway.app'
+      ? 'https://my-truck-api-production.up.railway.app'
       : 'http://localhost:3000';
 
     const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;

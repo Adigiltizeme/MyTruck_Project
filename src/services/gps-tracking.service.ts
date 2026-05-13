@@ -143,7 +143,7 @@ class GPSTrackingService {
             auth: {
                 token: this.config.token,
             },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,

@@ -206,8 +206,7 @@ export const useUnreadCounts = () => {
 
     try {
       // Configuration WebSocket identique à useMessaging
-      const isProduction = import.meta.env.MODE === 'production' ||
-                          import.meta.env.NODE_ENV === 'production' ||
+      const isProduction = import.meta.env.PROD ||
                           window.location.hostname !== 'localhost';
 
       const defaultWsUrl = isProduction

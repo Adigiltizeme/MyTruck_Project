@@ -55,7 +55,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     const [isDeleting, setIsDeleting] = useState(false);
 
     // ✅ NOUVEL ÉTAT pour filtres temporels
-    const [temporalFilter, setTemporalFilter] = useState<'all' | 'today' | 'upcoming' | 'history'>('all');
+    const [temporalFilter, setTemporalFilter] = useState<'all' | 'today' | 'tomorrow' | 'upcoming' | 'history'>('all');
 
     // Filtrer les données selon le rôle de l'utilisateur
     const filteredByRoleData = useMemo(() => {
@@ -93,35 +93,23 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
         if (temporalFilter === 'all') return filteredByRoleData;
 
-        // Utiliser le fuseau horaire français pour les livraisons
-        const todayFrance = new Date().toLocaleDateString('en-CA', {
-            timeZone: 'Europe/Paris'
-        });
-        const todayStr = todayFrance; // Format YYYY-MM-DD
+        const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+        const tomorrowDate = new Date();
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+        const tomorrowStr = tomorrowDate.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
 
         const filtered = filteredByRoleData.filter(item => {
             const livraisonDate = item.dates?.livraison || item.dateLivraison;
             if (!livraisonDate) return false;
 
-            const itemDate = new Date(livraisonDate);
-            const itemDateStr = itemDate.toLocaleDateString('en-CA', {
-                timeZone: 'Europe/Paris'
-            });
+            const itemDateStr = new Date(livraisonDate).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
 
             switch (temporalFilter) {
-                case 'today':
-                    return itemDateStr === todayStr;
-
-                case 'upcoming':
-                    // À venir : commandes datées après aujourd'hui (peu importe le statut)
-                    return itemDateStr > todayStr;
-
-                case 'history':
-                    // Historique : TOUTES les commandes dont les dates sont passées
-                    return itemDateStr < todayStr;
-
-                default:
-                    return true;
+                case 'today':    return itemDateStr === todayStr;
+                case 'tomorrow': return itemDateStr === tomorrowStr;
+                case 'upcoming': return itemDateStr > todayStr;
+                case 'history':  return itemDateStr < todayStr;
+                default:         return true;
             }
         });
 
@@ -147,25 +135,28 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         });
         const todayStr = todayFrance; // Format YYYY-MM-DD
 
+        const tomorrowDateCount = new Date();
+        tomorrowDateCount.setDate(tomorrowDateCount.getDate() + 1);
+        const tomorrowStr = tomorrowDateCount.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
+
         const counts = {
             all: filteredByRoleData.length,
             today: 0,
+            tomorrow: 0,
             upcoming: 0,
             history: 0
         };
 
-        // Utiliser EXACTEMENT la même logique que le filtrage
-        filteredByRoleData.forEach((item, index) => {
+        filteredByRoleData.forEach((item) => {
             const livraisonDate = item.dates?.livraison || item.dateLivraison;
-            if (!livraisonDate) return; // Même condition que le filtrage
+            if (!livraisonDate) return;
 
-            const itemDate = new Date(livraisonDate);
-            const itemDateStr = itemDate.toLocaleDateString('en-CA', {
-                timeZone: 'Europe/Paris'
-            });
+            const itemDateStr = new Date(livraisonDate).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
 
             if (itemDateStr === todayStr) {
                 counts.today++;
+            } else if (itemDateStr === tomorrowStr) {
+                counts.tomorrow++;
             } else if (itemDateStr > todayStr) {
                 counts.upcoming++;
             } else if (itemDateStr < todayStr) {
@@ -346,7 +337,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
     useEffect(() => {
         // Debug automatique en dev
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
             window.debugDeliveries = () => dataService.debugDeliversPage();
             console.log('💡 Debug disponible: window.debugDeliveries()');
         }
@@ -894,12 +885,13 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
 
                 {/* ✅ FILTRES TEMPORELS - Onglets de filtrage */}
                 <div className="mb-6">
-                    <div className="grid grid-cols-2 sm:flex sm:space-x-1 gap-1 sm:gap-0 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+                    <div className="grid grid-cols-3 sm:flex sm:space-x-1 gap-1 sm:gap-0 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                         {[
-                            { key: 'all', label: `Toutes (${temporalCounts.all})`, shortLabel: `Toutes`, desc: 'Toutes les commandes' },
-                            { key: 'today', label: `Aujourd'hui (${temporalCounts.today})`, shortLabel: `Aujourd'hui`, desc: 'Commandes du jour' },
-                            { key: 'upcoming', label: `À venir (${temporalCounts.upcoming})`, shortLabel: `À venir`, desc: 'Commandes à venir' },
-                            { key: 'history', label: `Historique (${temporalCounts.history})`, shortLabel: `Historique`, desc: 'Commandes terminées' },
+                            { key: 'all',      label: `Toutes (${temporalCounts.all})`,           shortLabel: `Toutes`,       desc: 'Toutes les commandes' },
+                            { key: 'today',    label: `Aujourd'hui (${temporalCounts.today})`,    shortLabel: `Aujourd'hui`,  desc: 'Commandes du jour' },
+                            ...(user?.role !== 'magasin' ? [{ key: 'tomorrow', label: `Demain (${temporalCounts.tomorrow})`,      shortLabel: `Demain`,       desc: 'Commandes de demain' }] : []),
+                            { key: 'upcoming', label: `À venir (${temporalCounts.upcoming})`,     shortLabel: `À venir`,      desc: 'Commandes à venir (hors demain)' },
+                            { key: 'history',  label: `Historique (${temporalCounts.history})`,   shortLabel: `Historique`,   desc: 'Commandes terminées' },
                         ].map(({ key, label, shortLabel, desc }) => (
                             <button
                                 key={key}

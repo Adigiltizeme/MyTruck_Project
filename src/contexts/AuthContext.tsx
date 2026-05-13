@@ -301,7 +301,7 @@ class ApiAuthService {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [sessionTimeout] = useState(24 * 60 * 60 * 1000); // 24 heures
-    const userActivityTimeout = useRef<NodeJS.Timeout | null>(null);
+    const userActivityTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastActivityTime = useRef<number>(Date.now());
 
     // Initialisation de l'utilisateur depuis le stockage
@@ -357,6 +357,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         };
     }, [user, resetActivityTimer]);
+
+    // 🚨 ÉCOUTE ÉVÉNEMENT SESSION EXPIRÉE (depuis api.service.ts ou simple-backend.service.ts)
+    useEffect(() => {
+        const handleSessionExpired = (event: Event) => {
+            const detail = (event as CustomEvent).detail;
+            console.error('🚨 Session expirée détectée:', detail);
+
+            // Afficher notification utilisateur
+            NotificationService.error(`Votre session a expiré. Veuillez vous reconnecter.`);
+
+            // Déconnexion forcée
+            logout();
+        };
+
+        window.addEventListener('session-expired', handleSessionExpired);
+
+        return () => {
+            window.removeEventListener('session-expired', handleSessionExpired);
+        };
+    }, []);
 
     const login = async (email: string, password: string): Promise<AuthUser> => {
         try {

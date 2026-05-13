@@ -63,7 +63,7 @@ export const useCommandesRealtime = ({
     }
 
     // Détection environnement (production vs développement)
-    const isProduction = import.meta.env.NODE_ENV === 'production' ||
+    const isProduction = import.meta.env.PROD ||
                           window.location.hostname.includes('vercel.app') ||
                           window.location.hostname.includes('mytrucktransport');
 
@@ -78,7 +78,7 @@ export const useCommandesRealtime = ({
     // Créer connexion WebSocket
     const socket = io(wsUrl, {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'], // polling en premier : compatible Railway proxy, upgrade auto vers WS
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,

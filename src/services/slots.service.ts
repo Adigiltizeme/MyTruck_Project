@@ -79,7 +79,8 @@ export class SlotsService {
             return slots.map(slot => ({
                 date,
                 slot: { ...slot, maxCapacity: slot.maxCapacity !== undefined ? slot.maxCapacity : 10 },
-                isAvailable: slot.isActive && !this.isSlotPassed(date, slot.endTime),
+                // ✅ CORRECTION: Passer startTime (heure de début) pour vérifier le délai de prévenance
+                isAvailable: slot.isActive && !this.isSlotPassed(date, slot.startTime),
                 isBlocked: false,
                 bookingsCount: 0,
                 maxCapacity: slot.maxCapacity !== undefined ? slot.maxCapacity : 10
@@ -87,14 +88,29 @@ export class SlotsService {
         }
     }
 
-    // ⏰ VÉRIFIER SI UN CRÉNEAU EST PASSÉ
+    // ⏰ VÉRIFIER SI UN CRÉNEAU EST PASSÉ (avec délai de prévenance 2h)
     private isSlotPassed(date: string, endTime: string): boolean {
         const today = new Date().toISOString().split('T')[0];
+        // Si la date n'est pas aujourd'hui, le créneau n'est pas passé
         if (date !== today) return false;
 
-        const currentHour = new Date().getHours();
-        const slotEndHour = parseInt(endTime.replace('h', ''));
-        return currentHour >= slotEndHour;
+        // ✅ DÉLAI DE PRÉVENANCE 2H : Utiliser startTime au lieu de endTime
+        // Pour "14h-16h", on vérifie l'heure de DÉBUT (14h) avec 2h de prévenance
+        // Note: endTime passé en paramètre devrait être startTime
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinutes = now.getMinutes();
+        const currentTimeInMinutes = currentHour * 60 + currentMinutes;
+
+        // Extraire l'heure du créneau (endTime est mal nommé, c'est en fait le format "XXh")
+        const slotHour = parseInt(endTime.replace('h', ''));
+        const slotTimeInMinutes = slotHour * 60;
+
+        // Calculer le délai en minutes
+        const delaiEnMinutes = slotTimeInMinutes - currentTimeInMinutes;
+
+        // ✅ INDISPONIBLE si début dans moins de 2h (120 minutes)
+        return delaiEnMinutes < 120;
     }
 
     // 🚫 BLOQUER UN CRÉNEAU (ADMIN SEULEMENT)
@@ -138,6 +154,18 @@ export class SlotsService {
         const params = magasinId ? `?magasinId=${magasinId}` : '';
         await this.request<void>(`/slots/restrictions/${date}/${slotId}${params}`, {
             method: 'DELETE'
+        });
+    }
+
+    // 🚀 FORCER LA DISPONIBILITÉ D'UN CRÉNEAU (ADMIN SEULEMENT - override délai 2h)
+    async forceSlotAvailable(date: string, slotId: string, magasinId?: string): Promise<void> {
+        await this.request<void>('/slots/force-available', {
+            method: 'POST',
+            body: JSON.stringify({
+                date,
+                slotId,
+                magasinId: magasinId || undefined
+            })
         });
     }
 

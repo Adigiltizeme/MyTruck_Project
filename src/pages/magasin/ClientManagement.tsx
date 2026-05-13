@@ -6,6 +6,8 @@ import { ClientGDPR, ClientsResponse } from '../../types/business.types';
 import ClientDetailsModal from '../../components/ClientDetailsModal';
 import { isAdminRole } from '../../utils/role-helpers';
 
+declare const process: { env: { NODE_ENV: string } };
+
 export default function ClientManagement() {
     const [clients, setClients] = useState<ClientGDPR[]>([]);
     const [loading, setLoading] = useState(true);

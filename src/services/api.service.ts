@@ -198,6 +198,12 @@ export class ApiService {
 
           // ✅ Nettoyer le token invalide
           this.clearToken();
+
+          // 🚨 DÉCONNEXION AUTOMATIQUE : Émettre événement global pour forcer logout
+          window.dispatchEvent(new CustomEvent('session-expired', {
+            detail: { reason: 'Token invalide ou expiré', status: response.status }
+          }));
+
           throw new Error('Token invalide ou expiré');
         }
         let errorMessage = `Erreur ${response.status}: ${response.statusText}`;

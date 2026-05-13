@@ -35,7 +35,7 @@ export const useDriverTracking = (token: string | null): UseDriverTrackingReturn
         const wsUrl = import.meta.env.VITE_WS_URL || import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
         const socket = io(wsUrl, {
             auth: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
@@ -179,7 +179,7 @@ export const useAutoTracking = (
 
         const socket = io(wsUrl, {
             auth: { token },
-            transports: ['websocket', 'polling'],
+            transports: ['polling', 'websocket'],
             reconnection: true,
         });
 

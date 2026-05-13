@@ -76,6 +76,28 @@ const Header = () => {
 
   return (
     <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+      {/* Navigation back/forward */}
+      <div className="flex items-center gap-1 mr-4">
+        <button
+          onClick={() => navigate(-1)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+          title="Page précédente"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={() => navigate(1)}
+          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+          title="Page suivante"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
       {/* Recherche */}
       <div className="flex-1 max-w-md">
         {/* <form onSubmit={handleSearch} className="relative">

@@ -689,12 +689,18 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
      * - 18h-20h → Disponible (début dans 3h > 2h)
      */
     const isCreneauPasse = useCallback((creneau: string) => {
+        if (!data.dates?.livraison) return false;
+
+        // ✅ COMPARAISON CORRECTE : Normaliser les deux dates au format YYYY-MM-DD
+        const livraisonDate = new Date(data.dates.livraison).toISOString().split('T')[0];
+        const todayDate = new Date().toISOString().split('T')[0];
+
         // Si la date de livraison est dans le futur (pas aujourd'hui), tous les créneaux sont disponibles
-        if (data.dates?.livraison !== minDate) {
+        if (livraisonDate !== todayDate) {
             return false;
         }
 
-        // Pour aujourd'hui, vérifier le délai de prévenance de 2h
+        // ✅ POUR AUJOURD'HUI : Vérifier le délai de prévenance de 2h
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinutes = now.getMinutes();
@@ -710,7 +716,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
 
         // ✅ DÉLAI DE PRÉVENANCE: Le créneau est indisponible si début dans moins de 2h (120 minutes)
         return delaiEnMinutes < 120;
-    }, [data.dates?.livraison, minDate]);
+    }, [data.dates?.livraison]);
 
     const creneauxDisponibles = CRENEAUX_LIVRAISON.filter(creneau => !isCreneauPasse(creneau));
 

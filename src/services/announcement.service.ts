@@ -4,7 +4,7 @@ export interface Announcement {
     id: string;
     title: string;
     message: string;
-    type: 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO';
+    type: 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO' | 'UPDATE';
     icon?: string;
     ctaText?: string;
     ctaLink?: string;
@@ -21,7 +21,7 @@ export interface Announcement {
 export interface CreateAnnouncementDto {
     title: string;
     message: string;
-    type: 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO';
+    type: 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO' | 'UPDATE';
     icon?: string;
     ctaText?: string;
     ctaLink?: string;

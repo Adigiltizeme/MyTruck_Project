@@ -137,7 +137,10 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                 console.log('✅ Brouillon avec contenu détecté');
                 // Vérifier si la date de livraison est dans le passé
                 const livraisonDate = draftData.dates?.livraison ? new Date(draftData.dates.livraison) : null;
-                const isPastDate = livraisonDate && livraisonDate < new Date();
+                // Comparer uniquement les dates (sans heure) pour éviter faux positifs le jour même
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const isPastDate = livraisonDate && livraisonDate < todayStart;
 
                 // Marquer immédiatement comme proposé pour éviter les doubles alertes
                 setDraftProposed(true);

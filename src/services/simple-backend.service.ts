@@ -25,8 +25,8 @@ export class SimpleBackendService {
 
         if (!response.ok) {
             // ✅ DIAGNOSTIC détaillé pour erreurs d'authentification
-            if (response.status === 401) {
-                console.error('❌ SimpleBackendService 401:', {
+            if (response.status === 401 || response.status === 403) {
+                console.error('❌ SimpleBackendService 401/403:', {
                     endpoint,
                     hasToken: !!token,
                     tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
@@ -35,6 +35,11 @@ export class SimpleBackendService {
                         user: !!localStorage.getItem('user')
                     }
                 });
+
+                // 🚨 DÉCONNEXION AUTOMATIQUE : Émettre événement global pour forcer logout
+                window.dispatchEvent(new CustomEvent('session-expired', {
+                    detail: { reason: 'Token invalide ou expiré', status: response.status }
+                }));
             }
             throw new Error(`API Error: ${response.status}`);
         }

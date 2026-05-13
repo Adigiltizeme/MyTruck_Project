@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { CommandeMetier } from '../types/business.types';
 import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -119,24 +118,26 @@ export const useCommandeExpiration = ({
         await onCommandesUpdated();
     };
 
-    useEffect(() => {
-        if (enabled && commandes.length > 0) {
-            checkExpiredCommandes();
-        }
-    }, [commandes.length, enabled, user?.role]); // Se déclenche quand les commandes sont chargées
+    // ❌ EXPIRATION AUTOMATIQUE DÉSACTIVÉE
+    // L'expiration se fait uniquement via le bouton "Traiter les expirées" manuellement
+    // useEffect(() => {
+    //     if (enabled && commandes.length > 0) {
+    //         checkExpiredCommandes();
+    //     }
+    // }, [commandes.length, enabled, user?.role]);
 
-    // Vérification périodique (optionnelle - toutes les 10 minutes)
-    useEffect(() => {
-        if (!enabled || !isAdminRole(user?.role)) return;
+    // ❌ VÉRIFICATION PÉRIODIQUE DÉSACTIVÉE
+    // useEffect(() => {
+    //     if (!enabled || !isAdminRole(user?.role)) return;
 
-        const interval = setInterval(() => {
-            if (commandes.length > 0) {
-                checkExpiredCommandes();
-            }
-        }, 10 * 60 * 1000); // 10 minutes
+    //     const interval = setInterval(() => {
+    //         if (commandes.length > 0) {
+    //             checkExpiredCommandes();
+    //         }
+    //     }, 10 * 60 * 1000); // 10 minutes
 
-        return () => clearInterval(interval);
-    }, [enabled, user?.role, commandes.length]);
+    //     return () => clearInterval(interval);
+    // }, [enabled, user?.role, commandes.length]);
 
     return {
         checkExpiredCommandes: () => checkExpiredCommandes()

@@ -150,56 +150,6 @@ export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = fal
         }
     };
 
-    // 🚀 FORCER LA DISPONIBILITÉ (override délai 2h) - GLOBAL
-    const handleForceAvailableGlobal = async (slotId: string) => {
-        const confirmed = confirm('⚠️ Attention : Forcer la disponibilité GLOBALEMENT permet à TOUS les magasins de réserver ce créneau même si le délai de 2h n\'est pas respecté.\n\nConfirmer ?');
-        if (!confirmed) return;
-
-        try {
-            await slotsService.forceSlotAvailable(selectedDate, slotId, undefined);
-            await loadAvailability();
-            await loadRestrictions();
-        } catch (error) {
-            console.error('Erreur forcer disponibilité globale:', error);
-            alert('Erreur lors du forçage de disponibilité globale');
-        }
-    };
-
-    // 🚀 FORCER LA DISPONIBILITÉ (override délai 2h) - POUR UN MAGASIN
-    const handleForceAvailableMagasin = async (slotId: string) => {
-        if (!selectedMagasinId) {
-            alert('⚠️ Veuillez sélectionner un magasin spécifique');
-            return;
-        }
-
-        const magasinName = magasins.find(m => m.id === selectedMagasinId)?.nom || 'ce magasin';
-        const confirmed = confirm(`⚠️ Attention : Forcer la disponibilité UNIQUEMENT pour "${magasinName}".\n\nCe créneau sera disponible seulement pour ce magasin.\n\nConfirmer ?`);
-        if (!confirmed) return;
-
-        try {
-            await slotsService.forceSlotAvailable(selectedDate, slotId, selectedMagasinId);
-            await loadAvailability();
-            await loadRestrictions();
-        } catch (error) {
-            console.error('Erreur forcer disponibilité magasin:', error);
-            alert('Erreur lors du forçage de disponibilité pour le magasin');
-        }
-    };
-
-    const handleRemoveForce = async (slotId: string) => {
-        const confirmed = confirm('Retirer le forçage de disponibilité pour ce créneau ?');
-        if (!confirmed) return;
-
-        try {
-            await slotsService.unblockSlot(selectedDate, slotId, selectedMagasinId || undefined);
-            await loadAvailability();
-            await loadRestrictions();
-        } catch (error) {
-            console.error('Erreur retrait forçage:', error);
-            alert('Erreur lors du retrait du forçage');
-        }
-    };
-
     const isSlotBlocked = (slotId: string) => {
         return restrictions.some(r =>
             r.date === selectedDate &&
@@ -335,11 +285,9 @@ export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = fal
                                     key={slot.slot.id}
                                     className={`border rounded-lg p-4 ${blocked
                                         ? 'border-red-300 bg-red-50'
-                                        : slot.forceAvailable
-                                            ? 'border-orange-300 bg-orange-50'
-                                            : slot.isAvailable
-                                                ? 'border-green-300 bg-green-50'
-                                                : 'border-gray-300 bg-gray-50'
+                                        : slot.isAvailable
+                                            ? 'border-green-300 bg-green-50'
+                                            : 'border-gray-300 bg-gray-50'
                                         }`}
                                 >
                                     <div className="flex items-center justify-between mb-2">
@@ -388,9 +336,6 @@ export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = fal
                                         })()}
 
                                         <p>Réservations: {slot.bookingsCount}/{slot.maxCapacity}</p>
-                                        {slot.forceAvailable && (
-                                            <p className="text-orange-600 font-medium text-xs">⚡ Forcé disponible par admin</p>
-                                        )}
                                         {!slot.isAvailable && slot.reason && (
                                             <p className="text-red-600">⚠️ {slot.reason}</p>
                                         )}
@@ -400,61 +345,29 @@ export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = fal
                                     </div>
 
                                     {!readOnly && (
-                                        <div className="flex flex-col space-y-2">
-                                            {/* Ligne 1 : Bloquer/Débloquer/Retirer forçage */}
-                                            <div className="flex space-x-2">
-                                                {blocked ? (
-                                                    <button
-                                                        onClick={() => handleUnblockSlot(slot.slot.id)}
-                                                        className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                                                    >
-                                                        Débloquer
-                                                    </button>
-                                                ) : slot.forceAvailable ? (
-                                                    <button
-                                                        onClick={() => handleRemoveForce(slot.slot.id)}
-                                                        className="flex-1 px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700"
-                                                    >
-                                                        Retirer forçage
-                                                    </button>
-                                                ) : slot.isAvailable ? (
-                                                    <button
-                                                        onClick={() => {
-                                                            const reason = prompt('Raison du blocage (optionnel):');
-                                                            if (reason !== null) {
-                                                                handleBlockSlot(slot.slot.id, reason || undefined);
-                                                            }
-                                                        }}
-                                                        className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-                                                    >
-                                                        Bloquer
-                                                    </button>
-                                                ) : (
-                                                    <div className="flex-1 px-3 py-1 bg-gray-400 text-white text-sm rounded text-center">
-                                                        Indisponible
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Ligne 2 : Boutons Forcer disponible (uniquement pour le délai 2h, pas pour dates/créneaux passés) */}
-                                            {!blocked && !slot.forceAvailable && slot.reason === 'Créneau passé (délai de prévenance 2h)' && (
-                                                <div className="flex space-x-1">
-                                                    <button
-                                                        onClick={() => handleForceAvailableGlobal(slot.slot.id)}
-                                                        className="flex-1 px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 font-medium"
-                                                        title="Forcer disponible pour tous les magasins"
-                                                    >
-                                                        🌍 Forcer global
-                                                    </button>
-                                                    {selectedMagasinId && (
-                                                        <button
-                                                            onClick={() => handleForceAvailableMagasin(slot.slot.id)}
-                                                            className="flex-1 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 font-medium"
-                                                            title={`Forcer disponible uniquement pour ${magasins.find(m => m.id === selectedMagasinId)?.nom}`}
-                                                        >
-                                                            🏪 Forcer magasin
-                                                        </button>
-                                                    )}
+                                        <div className="flex space-x-2">
+                                            {blocked ? (
+                                                <button
+                                                    onClick={() => handleUnblockSlot(slot.slot.id)}
+                                                    className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                                >
+                                                    Débloquer
+                                                </button>
+                                            ) : slot.isAvailable ? (
+                                                <button
+                                                    onClick={() => {
+                                                        const reason = prompt('Raison du blocage (optionnel):');
+                                                        if (reason !== null) {
+                                                            handleBlockSlot(slot.slot.id, reason || undefined);
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                                >
+                                                    Bloquer
+                                                </button>
+                                            ) : (
+                                                <div className="flex-1 px-3 py-1 bg-gray-400 text-white text-sm rounded text-center">
+                                                    Indisponible
                                                 </div>
                                             )}
                                         </div>

@@ -141,6 +141,7 @@ const AnnouncementManagement: React.FC = () => {
         IMPROVEMENT: 'bg-green-100 text-green-800 border-green-300',
         MAINTENANCE: 'bg-orange-100 text-orange-800 border-orange-300',
         INFO: 'bg-gray-100 text-gray-800 border-gray-300',
+        UPDATE: 'bg-violet-100 text-violet-800 border-violet-300',
     };
 
     const typeLabels = {
@@ -148,6 +149,7 @@ const AnnouncementManagement: React.FC = () => {
         IMPROVEMENT: 'Amélioration',
         MAINTENANCE: 'Maintenance',
         INFO: 'Information',
+        UPDATE: 'Mise à jour déployée',
     };
 
     if (loading) {
@@ -210,13 +212,14 @@ const AnnouncementManagement: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                             <select
                                 value={formData.type}
-                                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO' })}
+                                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'NEW_FEATURE' | 'IMPROVEMENT' | 'MAINTENANCE' | 'INFO' | 'UPDATE' })}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="NEW_FEATURE">Nouvelle fonctionnalité</option>
                                 <option value="IMPROVEMENT">Amélioration</option>
                                 <option value="MAINTENANCE">Maintenance</option>
                                 <option value="INFO">Information</option>
+                                <option value="UPDATE">⬆️ Mise à jour déployée</option>
                             </select>
                         </div>
 
