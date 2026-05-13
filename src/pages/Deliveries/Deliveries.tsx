@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 // import { AirtableService } from '../../services/airtable.service'; // ✅ SUPPRIMÉ - Migration vers backend My Truck
 import { CommandeMetier } from '../../types/business.types';
 import Pagination from '../../components/Pagination';
@@ -36,7 +37,7 @@ interface DeliveriesProps {
 const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     const { user } = useAuth();
     const { dataService, isOnline } = useOffline();
-    // const airtable = useAirtable();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [data, setData] = useState<CommandeMetier[]>([]);
@@ -48,14 +49,17 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         mode: 'range',
         singleDate: null
     });
-    const [expandedRow, setExpandedRow] = useState<string | null>(null);
+    // Initialisé depuis l'URL : restauré automatiquement lors d'un retour arrière
+    const [expandedRow, setExpandedRow] = useState<string | null>(searchParams.get('detail'));
 
     // ✅ NOUVEAUX ÉTATS pour suppression multiple
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // ✅ NOUVEL ÉTAT pour filtres temporels
-    const [temporalFilter, setTemporalFilter] = useState<'all' | 'today' | 'tomorrow' | 'upcoming' | 'history'>('all');
+    // ✅ NOUVEL ÉTAT pour filtres temporels — initialisé depuis l'URL
+    const [temporalFilter, setTemporalFilter] = useState<'all' | 'today' | 'tomorrow' | 'upcoming' | 'history'>(
+        (searchParams.get('filter') as 'all' | 'today' | 'tomorrow' | 'upcoming' | 'history') || 'all'
+    );
 
     // Filtrer les données selon le rôle de l'utilisateur
     const filteredByRoleData = useMemo(() => {
@@ -231,6 +235,29 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         items: sortedItems,
         itemsPerPage: rowsPerPage
     });
+
+    // ✅ Restaurer la page depuis l'URL après le premier chargement des données
+    const pageRestoredRef = useRef(false);
+    useEffect(() => {
+        if (!loading && data.length > 0 && !pageRestoredRef.current) {
+            pageRestoredRef.current = true;
+            const page = Number(searchParams.get('page')) || 1;
+            if (page > 1) setCurrentPage(page);
+        }
+    }, [loading, data.length]);
+
+    // ✅ Synchroniser état → URL params (replace pour ne pas polluer l'historique)
+    // Permet la restauration automatique lors d'un retour arrière (navigate(-1))
+    const syncMountedRef = useRef(false);
+    useEffect(() => {
+        if (!syncMountedRef.current) { syncMountedRef.current = true; return; }
+        setSearchParams(prev => {
+            if (expandedRow) prev.set('detail', expandedRow); else prev.delete('detail');
+            if (temporalFilter !== 'all') prev.set('filter', temporalFilter); else prev.delete('filter');
+            if (currentPage > 1) prev.set('page', String(currentPage)); else prev.delete('page');
+            return prev;
+        }, { replace: true });
+    }, [expandedRow, temporalFilter, currentPage]);
 
     // ✅ HOOK EXPIRATION AUTOMATIQUE
     const { checkExpiredCommandes } = useCommandeExpiration({
