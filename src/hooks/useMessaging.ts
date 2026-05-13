@@ -99,7 +99,7 @@ export const useMessaging = ({
                           window.location.hostname.includes('mytrucktransport');
 
     const defaultWsUrl = isProduction
-      ? 'https://my-truck-api-production.up.railway.app'
+      ? 'https://mytruckprojectbackend-production.up.railway.app'
       : 'http://localhost:3000';
 
     const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
