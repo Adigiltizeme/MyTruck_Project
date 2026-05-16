@@ -31,7 +31,7 @@ const CessionForm: React.FC<CessionFormProps> = ({
             numeroCommande: '',
             dates: {
                 commande: new Date().toISOString(),
-                livraison: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                livraison: new Date(Date.now() + 86400000).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }),
                 misAJour: {
                     commande: new Date().toISOString(),
                     livraison: ''

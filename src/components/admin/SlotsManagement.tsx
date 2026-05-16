@@ -16,7 +16,7 @@ interface Magasin {
 
 export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = false }) => {
     const { user } = useAuth();
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }));
     const [availability, setAvailability] = useState<SlotAvailability[]>([]);
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
     const [loading, setLoading] = useState(false);
@@ -308,7 +308,7 @@ export const SlotsManagement: React.FC<SlotsManagementProps> = ({ readOnly = fal
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })}
                     className="border border-gray-300 rounded-lg px-3 py-2"
                 />
             </div>

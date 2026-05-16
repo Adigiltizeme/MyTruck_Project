@@ -557,7 +557,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     }, [onChange, updateTarif]);
 
     // ✅ Admin peut sélectionner des dates passées, autres rôles non
-    const minDate = (userRole === 'admin' || userRole === 'direction') ? undefined : new Date().toISOString().split('T')[0];
+    const minDate = (userRole === 'admin' || userRole === 'direction') ? undefined : new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
 
     const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedDate = new Date(e.target.value);
@@ -692,8 +692,8 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         if (!data.dates?.livraison) return false;
 
         // ✅ COMPARAISON CORRECTE : Normaliser les deux dates au format YYYY-MM-DD
-        const livraisonDate = new Date(data.dates.livraison).toISOString().split('T')[0];
-        const todayDate = new Date().toISOString().split('T')[0];
+        const livraisonDate = data.dates.livraison; // déjà YYYY-MM-DD
+        const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
 
         // Si la date de livraison est dans le futur (pas aujourd'hui), tous les créneaux sont disponibles
         if (livraisonDate !== todayDate) {

@@ -90,7 +90,7 @@ export class SlotsService {
 
     // ⏰ VÉRIFIER SI UN CRÉNEAU EST PASSÉ (avec délai de prévenance 2h)
     private isSlotPassed(date: string, endTime: string): boolean {
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' });
         // Si la date n'est pas aujourd'hui, le créneau n'est pas passé
         if (date !== today) return false;
 

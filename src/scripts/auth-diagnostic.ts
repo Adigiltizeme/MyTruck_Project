@@ -1,6 +1,8 @@
 const API_URL = 'http://localhost:3000/api/v1';
 
 class AuthDiagnostic {
+  results: any;
+
   constructor() {
     this.results = {
       backend: {

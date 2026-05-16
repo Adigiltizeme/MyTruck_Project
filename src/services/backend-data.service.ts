@@ -16,7 +16,7 @@ export class BackendDataService {
     private syncInProgress: boolean = false;
     private isNetworkOnline: boolean;
     private isOfflineForced: boolean;
-    private syncInterval: NodeJS.Timeout | null = null;
+    private syncInterval: ReturnType<typeof setInterval> | null = null;
 
     // Flag statique pour éviter les logs multiples
     private static offlineModeLogged: boolean = false;

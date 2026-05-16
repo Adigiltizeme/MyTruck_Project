@@ -162,7 +162,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                             ...draftData,
                             dates: {
                                 ...(draftData.dates || {}),
-                                livraison: tomorrow.toISOString().split('T')[0]
+                                livraison: tomorrow.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
                             }
                         };
 
@@ -176,7 +176,7 @@ export const useCommandeForm = (onSubmit: (data: CommandeMetier) => Promise<void
                                         commande: updatedDraft.dates?.commande || '',
                                         misAJour: {
                                             commande: updatedDraft.dates?.misAJour?.commande || '',
-                                            livraison: tomorrow.toISOString().split('T')[0]
+                                            livraison: tomorrow.toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })
                                         }
                                     }
                                 },

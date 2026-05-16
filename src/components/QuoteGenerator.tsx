@@ -172,7 +172,6 @@ const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
 
         doc.setFontSize(10);
         doc.text(`Date: ${formatDate(new Date(commande.dates.livraison), 'dd/MM/yyyy')}`, 15, 109);
-        doc.text(`Date: ${formatDate(commande.dates.livraison)}`, 15, 109);
         doc.text(`Créneau: ${commande.livraison.creneau}`, 15, 114);
         doc.text(`Véhicule: ${commande.livraison.vehicule}`, 15, 119);
         doc.text(`Équipiers: ${commande.livraison.equipiers}`, 15, 124);
@@ -346,7 +345,7 @@ const QuoteGenerator: React.FC<QuoteGeneratorProps> = ({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <p className="text-gray-600">Date:</p>
-                                    <p>{formatDate(commande.dates.livraison)}</p>
+                                    <p>{formatDate(new Date(commande.dates.livraison), 'dd/MM/yyyy', { locale: fr })}</p>
                                 </div>
                                 <div>
                                     <p className="text-gray-600">Créneau:</p>

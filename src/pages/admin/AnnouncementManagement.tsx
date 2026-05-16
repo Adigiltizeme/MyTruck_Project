@@ -17,8 +17,8 @@ const AnnouncementManagement: React.FC = () => {
         ctaText: '',
         ctaLink: '',
         targetRoles: ['all'],
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        startDate: new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }),
+        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }),
         priority: 2,
         isActive: true,
     });
@@ -118,8 +118,8 @@ const AnnouncementManagement: React.FC = () => {
             ctaText: '',
             ctaLink: '',
             targetRoles: ['all'],
-            startDate: new Date().toISOString().split('T')[0],
-            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            startDate: new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }),
+            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }),
             priority: 2,
             isActive: true,
         });
