@@ -27,3 +27,18 @@ dist-ssr
 .env.production
 .vercel
 .env.development
+
+# Generated build artifacts
+/dev-dist/
+
+# Scripts et fichiers utilitaires ponctuels (non destinés au dépôt)
+/generate-pwa-icons.js
+/create-pwa-icons.html
+/switch-to-*.cmd
+/test-*.ts
+/test-*.html
+/test-*.md
+
+# Archives
+*.tar.gz
+*.zip
