@@ -137,6 +137,22 @@ export const useCommandesRealtime = ({
       onCommandeChauffeurAssignedRef.current?.(data);
     });
 
+    // ✅ ÉVÉNEMENTS AUTRES ENTITÉS — dispatch en CustomEvents pour les pages de gestion
+    // Format: EntityType-EntityAction (ex: chauffeur-created, magasin-updated)
+    ['chauffeur-created', 'chauffeur-updated', 'chauffeur-deleted'].forEach(event => {
+      socket.on(event, (data) => {
+        console.log(`👤 [CommandesRealtime] ${event}:`, data?.entityId);
+        window.dispatchEvent(new CustomEvent('chauffeur-updated', { detail: data }));
+      });
+    });
+
+    ['magasin-created', 'magasin-updated', 'magasin-deleted'].forEach(event => {
+      socket.on(event, (data) => {
+        console.log(`🏪 [CommandesRealtime] ${event}:`, data?.entityId);
+        window.dispatchEvent(new CustomEvent('magasin-updated', { detail: data }));
+      });
+    });
+
     socketRef.current = socket;
   }, [user]); // ✅ Plus besoin des callbacks en dépendances
 

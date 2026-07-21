@@ -101,6 +101,13 @@ export default function ChauffeurManagement() {
         loadChauffeurs();
     }, []);
 
+    // Sync temps réel — rechargement automatique quand un chauffeur est modifié
+    useEffect(() => {
+        const handleUpdate = () => loadChauffeurs();
+        window.addEventListener('chauffeur-updated', handleUpdate);
+        return () => window.removeEventListener('chauffeur-updated', handleUpdate);
+    }, []);
+
     // Initialiser la recherche depuis l'URL
     useEffect(() => {
         const searchFromUrl = searchParams.get('search');

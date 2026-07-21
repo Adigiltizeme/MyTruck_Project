@@ -117,6 +117,13 @@ export default function MagasinManagement() {
         loadMagasins();
     }, []);
 
+    // Sync temps réel — rechargement automatique quand un magasin est modifié
+    useEffect(() => {
+        const handleUpdate = () => loadMagasins();
+        window.addEventListener('magasin-updated', handleUpdate);
+        return () => window.removeEventListener('magasin-updated', handleUpdate);
+    }, []);
+
     // Initialiser la recherche depuis l'URL
     useEffect(() => {
         const searchFromUrl = searchParams.get('search');
