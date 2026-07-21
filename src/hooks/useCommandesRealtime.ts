@@ -107,17 +107,32 @@ export const useCommandesRealtime = ({
     });
 
     // ✅ ÉVÉNEMENTS COMMANDES TEMPS RÉEL
+    // Les noms d'événements correspondent au format EntityType-EntityAction du helper backend
     socket.on('commande-updated', (data) => {
       console.log('📦 [CommandesRealtime] Commande updated:', data);
       onCommandeUpdatedRef.current?.(data);
     });
 
-    socket.on('commande-status-changed', (data) => {
+    // Backend émet 'commande-created' (EntityAction.CREATED = 'created')
+    socket.on('commande-created', (data) => {
+      console.log('📦 [CommandesRealtime] Commande created:', data);
+      onCommandeUpdatedRef.current?.(data);
+    });
+
+    // Backend émet 'commande-deleted' (EntityAction.DELETED = 'deleted')
+    socket.on('commande-deleted', (data) => {
+      console.log('🗑️ [CommandesRealtime] Commande deleted:', data);
+      onCommandeUpdatedRef.current?.(data);
+    });
+
+    // Backend émet 'commande-status_changed' (EntityAction.STATUS_CHANGED = 'status_changed')
+    socket.on('commande-status_changed', (data) => {
       console.log('🔄 [CommandesRealtime] Commande status changed:', data);
       onCommandeStatusChangedRef.current?.(data);
     });
 
-    socket.on('commande-chauffeurs-assigned', (data) => {
+    // Backend émet 'commande-assigned' (EntityAction.ASSIGNED = 'assigned')
+    socket.on('commande-assigned', (data) => {
       console.log('🚛 [CommandesRealtime] Chauffeurs assigned:', data);
       onCommandeChauffeurAssignedRef.current?.(data);
     });
