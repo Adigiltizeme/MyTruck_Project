@@ -119,6 +119,10 @@ export class CessionService {
           telephone: cessionData.magasin_externe.telephone || '',
           email: cessionData.magasin_externe.email || ''
         };
+        // ✅ Transmettre le flag de mise à jour du magasin externe
+        if (cessionData._updateMagasinExterne !== undefined) {
+          dto._updateMagasinExterne = cessionData._updateMagasinExterne;
+        }
       } else {
         console.error('❌ ERREUR: Aucun magasin cédant fourni (ni ID ni magasin externe)');
       }

@@ -519,6 +519,9 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
     const [showRenewalChoiceModal, setShowRenewalChoiceModal] = useState(false);
     const [pendingCommandeData, setPendingCommandeData] = useState<any>(null); // Données en attente de confirmation
     const [originalClientData, setOriginalClientData] = useState<any>(null); // Client original pour comparaison
+    // ✅ Modal de choix cession : mise à jour magasin cédant externe
+    const [showCessionMagasinChoiceModal, setShowCessionMagasinChoiceModal] = useState(false);
+    const [originalMagasinCedantData, setOriginalMagasinCedantData] = useState<any>(null); // Magasin cédant original (cessions)
 
     // ✅ Charger données pré-remplies depuis localStorage (commande OU cession)
     useEffect(() => {
@@ -554,9 +557,25 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
             return;
         }
 
+        // 🔍 DÉTECTION CHANGEMENTS MAGASIN CÉDANT EXTERNE (cessions uniquement, mode MANUEL)
+        // Mode MANUEL = magasinDestination sans id (l'utilisateur a saisi manuellement)
+        const alreadyDecidedMagasin = (commande as any)._updateMagasinExterne !== undefined;
+        if (originalMagasinCedantData && commande.magasinDestination && !commande.magasinDestination.id && !alreadyDecidedMagasin) {
+            const magasinChanged = (
+                originalMagasinCedantData.phone !== commande.magasinDestination.phone ||
+                originalMagasinCedantData.email !== commande.magasinDestination.email
+            );
+            if (magasinChanged) {
+                console.log('⚠️ Changements détectés dans le magasin cédant → Affichage modal de choix cession');
+                setPendingCommandeData(commande);
+                setShowCessionMagasinChoiceModal(true);
+                return;
+            }
+        }
+
         // 🔍 DÉTECTION CHANGEMENTS CLIENT (renouvellement uniquement)
-        // ⚠️ Ne PAS détecter si le flag _forceNewClient est déjà présent (venant de la modal)
-        const alreadyDecided = (commande as any)._forceNewClient !== undefined;
+        // ⚠️ Ne PAS détecter si la décision a déjà été prise (venant de la modal)
+        const alreadyDecided = (commande as any)._forceNewClient !== undefined || (commande as any)._updateClientData !== undefined;
 
         if (originalClientData && commande.client && !alreadyDecided) {
             const clientChanged = (
@@ -632,6 +651,10 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         telephone: commande.magasinDestination.phone || '',
                         email: commande.magasinDestination.email || ''
                     };
+                    // ✅ Transmettre le flag de mise à jour du magasin cédant externe
+                    if ((commande as any)._updateMagasinExterne) {
+                        cessionData._updateMagasinExterne = true;
+                    }
                     console.log('✍️ Mode MANUEL - Cédant:', cessionData.magasin_externe);
                 }
 
@@ -737,12 +760,20 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
             },
         };
 
-        // 🔑 Stocker les données client ORIGINALES pour comparaison ultérieure
+        // 🔑 Stocker les données client ORIGINALES pour comparaison ultérieure (commandes normales)
         if (commande.client) {
             setOriginalClientData(JSON.parse(JSON.stringify(commande.client)));
             console.log('📋 Client original stocké pour détection changements:', commande.client);
         } else {
             setOriginalClientData(null);
+        }
+
+        // 🔑 Stocker les données magasin CÉDANT originales (cessions inter-magasins uniquement)
+        if (commande.type === 'INTER_MAGASIN' && commande.magasinDestination) {
+            setOriginalMagasinCedantData(JSON.parse(JSON.stringify(commande.magasinDestination)));
+            console.log('📋 Magasin cédant original stocké pour détection changements:', commande.magasinDestination);
+        } else {
+            setOriginalMagasinCedantData(null);
         }
 
         // Ouvrir le formulaire avec les données pré-remplies
@@ -1411,9 +1442,10 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                 setPendingCommandeData(null);
                                 setOriginalClientData(null);
 
-                                // Ne pas ajouter le flag _forceNewClient → Met à jour le client existant
+                                // Ajouter le flag _updateClientData pour mettre à jour les données du client existant
                                 if (commandeToCreate) {
-                                    await handleCreateCommande(commandeToCreate);
+                                    const commandeWithUpdate = { ...commandeToCreate, _updateClientData: true };
+                                    await handleCreateCommande(commandeWithUpdate);
                                 }
                             }}
                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
@@ -1465,6 +1497,88 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                         <button
                             onClick={() => {
                                 setShowRenewalChoiceModal(false);
+                                setPendingCommandeData(null);
+                            }}
+                            className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* ✅ Modal de choix cession : Mettre à jour le magasin cédant externe */}
+            <Modal
+                isOpen={showCessionMagasinChoiceModal}
+                onClose={() => {
+                    setShowCessionMagasinChoiceModal(false);
+                    setPendingCommandeData(null);
+                }}
+            >
+                <div className="p-6">
+                    <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                        ⚠️ Changements détectés
+                    </h2>
+                    <p className="mb-6 text-gray-600 dark:text-gray-400">
+                        Vous avez modifié les coordonnées du magasin cédant <span className="font-semibold">{pendingCommandeData?.magasinDestination?.name}</span>.
+                        <br />
+                        <br />
+                        Que souhaitez-vous faire ?
+                    </p>
+
+                    <div className="space-y-3">
+                        {/* Option 1 : Mettre à jour le magasin cédant */}
+                        <button
+                            onClick={async () => {
+                                const commandeToCreate = pendingCommandeData;
+                                setShowCessionMagasinChoiceModal(false);
+                                setPendingCommandeData(null);
+                                setOriginalMagasinCedantData(null);
+                                if (commandeToCreate) {
+                                    await handleCreateCommande({ ...commandeToCreate, _updateMagasinExterne: true });
+                                }
+                            }}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
+                        >
+                            <div className="flex items-start">
+                                <span className="text-2xl mr-3">🏪</span>
+                                <div>
+                                    <div className="font-semibold">Mettre à jour le magasin cédant</div>
+                                    <div className="text-sm text-blue-100 mt-1">
+                                        Les nouvelles coordonnées (téléphone, email) seront enregistrées.
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+
+                        {/* Option 2 : Conserver les anciennes coordonnées */}
+                        <button
+                            onClick={async () => {
+                                const commandeToCreate = pendingCommandeData;
+                                setShowCessionMagasinChoiceModal(false);
+                                setPendingCommandeData(null);
+                                setOriginalMagasinCedantData(null);
+                                if (commandeToCreate) {
+                                    await handleCreateCommande({ ...commandeToCreate, _updateMagasinExterne: false });
+                                }
+                            }}
+                            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-lg transition-colors text-left"
+                        >
+                            <div className="flex items-start">
+                                <span className="text-2xl mr-3">📋</span>
+                                <div>
+                                    <div className="font-semibold">Conserver les anciennes coordonnées</div>
+                                    <div className="text-sm text-green-100 mt-1">
+                                        La cession sera créée sans modifier les infos du magasin cédant.
+                                    </div>
+                                </div>
+                            </div>
+                        </button>
+
+                        {/* Bouton Annuler */}
+                        <button
+                            onClick={() => {
+                                setShowCessionMagasinChoiceModal(false);
                                 setPendingCommandeData(null);
                             }}
                             className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
