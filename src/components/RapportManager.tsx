@@ -61,6 +61,18 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
         loadRapports();
     }, [commande.id]);
 
+    // ✅ Listener temps réel : rafraîchit les photos quand le mobile en ajoute
+    useEffect(() => {
+        const handleCommandeUpdate = (event: Event) => {
+            const data = (event as CustomEvent).detail;
+            if (data?.commandeId === commande.id) {
+                loadRapports();
+            }
+        };
+        window.addEventListener('commande-updated', handleCommandeUpdate);
+        return () => window.removeEventListener('commande-updated', handleCommandeUpdate);
+    }, [commande.id]);
+
     // ✅ Vérifier si rapport obligatoire (statut ECHEC)
     useEffect(() => {
         checkObligationRapport();
