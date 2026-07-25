@@ -1018,7 +1018,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                     name="articles.nombre"
                     type="number"
                     value={String(data.articles?.nombre || '')}
-                    min={0}
+                    min={1}
                     onChange={(e) => {
                         setHasUserInteracted(true);
                         onFormChange(e);
