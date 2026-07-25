@@ -90,7 +90,15 @@ export function formReducer(state: FormState, action: FormAction): FormState {
             }
 
             // Gestion spéciale pour les tableaux comme les dimensions
+            // Calcul atomique du nombre total depuis les dimensions + autresArticles
             if (fieldPath[0] === 'articles' && fieldPath[1] === 'dimensions') {
+                const newDimensions: any[] = Array.isArray(action.payload.value) ? action.payload.value : [];
+                const nombreFromDimensions = newDimensions.reduce(
+                    (sum: number, d: any) => sum + (Number(d.quantite) || 1),
+                    0
+                );
+                const autresArticles = state.data.articles?.autresArticles || 0;
+                const calculatedNombre = nombreFromDimensions + autresArticles;
                 return {
                     ...state,
                     isDirty: true,
@@ -98,8 +106,8 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                         ...state.data,
                         articles: {
                             ...state.data.articles,
-                            dimensions: action.payload.value,
-                            nombre: state.data.articles?.nombre ?? 0
+                            dimensions: newDimensions,
+                            nombre: calculatedNombre > 0 ? calculatedNombre : (state.data.articles?.nombre ?? 0)
                         }
                     }
                 };
