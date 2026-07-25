@@ -741,10 +741,16 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 reserve: false,
                 chauffeurs: [],
             },
-            // ✅ ARCHITECTURE CESSIONS : Cohérence totale BASE/FORMULAIRE/AFFICHAGE
-            // PARTOUT : magasin = CÉDANT (origine), magasinDestination = DEMANDEUR (créateur)
-            magasin: commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined,
-            magasinDestination: commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined,
+            // ✅ ARCHITECTURE CESSIONS — ATTENTION : mapping INVERSÉ entre affichage et formulaire de création
+            // Affichage (cession existante) : magasin = CÉDANT,   magasinDestination = DEMANDEUR
+            // Formulaire création            : magasin = DEMANDEUR, magasinDestination = CÉDANT
+            // → Pour le renouvellement d'une cession, on inverse les rôles.
+            magasin: commande.type === 'INTER_MAGASIN'
+                ? (commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined)
+                : (commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined),
+            magasinDestination: commande.type === 'INTER_MAGASIN'
+                ? (commande.magasin ? JSON.parse(JSON.stringify(commande.magasin)) : undefined)
+                : (commande.magasinDestination ? JSON.parse(JSON.stringify(commande.magasinDestination)) : undefined),
             cession: commande.cession ? JSON.parse(JSON.stringify(commande.cession)) : undefined,
             dates: {
                 commande: new Date().toISOString(),
@@ -769,9 +775,10 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         }
 
         // 🔑 Stocker les données magasin CÉDANT originales (cessions inter-magasins uniquement)
-        if (commande.type === 'INTER_MAGASIN' && commande.magasinDestination) {
-            setOriginalMagasinCedantData(JSON.parse(JSON.stringify(commande.magasinDestination)));
-            console.log('📋 Magasin cédant original stocké pour détection changements:', commande.magasinDestination);
+        // En affichage : commande.magasin = CÉDANT → c'est ce qu'on compare lors du renouvellement
+        if (commande.type === 'INTER_MAGASIN' && commande.magasin) {
+            setOriginalMagasinCedantData(JSON.parse(JSON.stringify(commande.magasin)));
+            console.log('📋 Magasin cédant original stocké pour détection changements:', commande.magasin);
         } else {
             setOriginalMagasinCedantData(null);
         }

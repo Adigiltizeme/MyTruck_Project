@@ -567,9 +567,8 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
             return;
         }
 
-        // Skip si le formulaire a déjà un magasin (restauré depuis brouillon)
-        if (state.data?.magasin?.id) {
-            console.log('⏭️ Magasin déjà présent dans le formulaire (brouillon restauré), skip update');
+        // Skip si le formulaire a déjà ce magasin exact (évite boucle, mais laisse passer un vrai changement de sélection)
+        if (state.data?.magasin?.id && state.data.magasin.id === selectedMagasinId) {
             return;
         }
 
