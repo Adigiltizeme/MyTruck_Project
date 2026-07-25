@@ -173,6 +173,15 @@ export function formReducer(state: FormState, action: FormAction): FormState {
                 restoredData.articles.dimensions = [];
             }
 
+            // Si nombre est 0 mais dimensions non vides, recalculer depuis les dimensions (fix renouvellement cessions)
+            if (restoredData.articles && Array.isArray(restoredData.articles.dimensions) && restoredData.articles.dimensions.length > 0 && !restoredData.articles.nombre) {
+                const nombreFromDims = restoredData.articles.dimensions.reduce(
+                    (sum: number, d: any) => sum + (Number(d.quantite) || 1),
+                    0
+                );
+                restoredData.articles = { ...restoredData.articles, nombre: nombreFromDims };
+            }
+
             // Restaurer correctement les informations de livraison
             if (restoredData.livraison) {
                 // Préserver le véhicule sélectionné en format court
