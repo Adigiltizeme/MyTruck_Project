@@ -14,11 +14,21 @@ interface DriverLocation {
     clientAddress?: string; // ✅ Adresse client pour calcul ETA
 }
 
+interface LastKnownPosition {
+    latitude: number;
+    longitude: number;
+    timestamp: Date | string;
+}
+
 interface LiveTrackingMapProps {
     drivers: DriverLocation[];
     onDriverClick?: (driver: DriverLocation) => void;
     height?: string;
     showRoutes?: boolean;
+    /** Affiche un marqueur grisé pour la dernière position connue (statuts terminaux) */
+    lastKnownPosition?: LastKnownPosition | null;
+    /** Callback déclenché quand l'utilisateur clique sur le bouton de partage */
+    onShare?: () => void;
 }
 
 export // ✅ Utiliser les couleurs des statuts de livraison (selon getStatutLivraisonStyle)
@@ -46,7 +56,9 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
     drivers,
     onDriverClick,
     height = '600px',
-    showRoutes = false
+    showRoutes = false,
+    lastKnownPosition,
+    onShare,
 }) => {
     const [viewport, setViewport] = useState({
         longitude: 2.3488,
@@ -56,20 +68,26 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
 
     const [selectedDriver, setSelectedDriver] = useState<DriverLocation | null>(null);
 
-    // Centrer la carte sur les chauffeurs actifs
+    // Centrer la carte sur les chauffeurs actifs ou la dernière position connue
     useEffect(() => {
         if (drivers.length > 0) {
             const avgLat = drivers.reduce((sum, d) => sum + d.latitude, 0) / drivers.length;
             const avgLng = drivers.reduce((sum, d) => sum + d.longitude, 0) / drivers.length;
-
             setViewport(prev => ({
                 ...prev,
                 latitude: avgLat,
                 longitude: avgLng,
                 zoom: drivers.length === 1 ? 13 : 11
             }));
+        } else if (lastKnownPosition) {
+            setViewport(prev => ({
+                ...prev,
+                latitude: lastKnownPosition.latitude,
+                longitude: lastKnownPosition.longitude,
+                zoom: 13,
+            }));
         }
-    }, [drivers.length]);
+    }, [drivers.length, lastKnownPosition]);
 
     const getDriverIcon = (statut?: string): string => {
         switch (statut) {
@@ -109,6 +127,24 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
                 mapStyle="mapbox://styles/mapbox/streets-v11"
             >
                 <NavigationControl position="top-right" />
+
+                {/* Marqueur dernière position connue (statuts terminaux) */}
+                {lastKnownPosition && (
+                    <Marker
+                        longitude={lastKnownPosition.longitude}
+                        latitude={lastKnownPosition.latitude}
+                        anchor="bottom"
+                    >
+                        <div className="relative">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-full shadow-lg border-2 border-white bg-gray-400">
+                                <span className="text-xl">📍</span>
+                            </div>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-gray-700 text-white text-xs rounded px-2 py-0.5 whitespace-nowrap">
+                                Dernière position connue
+                            </div>
+                        </div>
+                    </Marker>
+                )}
 
                 {/* Markers pour chaque chauffeur */}
                 {drivers.map((driver) => {
@@ -240,6 +276,20 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Bouton de partage du suivi */}
+            {onShare && (
+                <button
+                    onClick={onShare}
+                    title="Partager le lien de suivi"
+                    className="absolute top-4 right-14 bg-white rounded-lg shadow-lg px-3 py-2 z-10 flex items-center gap-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border border-gray-200"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                        <path d="M13 4.5a2.5 2.5 0 1 1 .702 1.737L6.97 9.604a2.518 2.518 0 0 1 0 .792l6.733 3.367a2.5 2.5 0 1 1-.671 1.341l-6.733-3.367a2.5 2.5 0 1 1 0-3.475l6.733-3.366A2.52 2.52 0 0 1 13 4.5Z" />
+                    </svg>
+                    Partager
+                </button>
+            )}
         </div>
     );
 };

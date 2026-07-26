@@ -42,6 +42,10 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
     const [editData, setEditData] = useState<Partial<CommandeMetier>>(commande);
     const [loading, setLoading] = useState(false);
     const [mapVisible, setMapVisible] = useState(false);
+    const [lastKnownPosition, setLastKnownPosition] = useState<{ latitude: number; longitude: number; timestamp: Date } | null>(null);
+    const [shareUrl, setShareUrl] = useState<string | null>(null);
+    const [shareLoading, setShareLoading] = useState(false);
+    const [shareCopied, setShareCopied] = useState(false);
     const [downloading, setDownloading] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
 
@@ -67,6 +71,63 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
         driversCount: drivers.length,
         matchedCount: commandeDrivers.length
     });
+
+    // Charger dernière position connue pour les statuts terminaux
+    const TERMINAL_STATUTS = ['LIVREE', 'ANNULEE', 'ECHEC'];
+    useEffect(() => {
+        if (!TERMINAL_STATUTS.includes(commande.statuts?.livraison || '')) return;
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+        fetch(`${apiUrl}/tracking/commande/${commande.id}/last-position`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data?.latitude) setLastKnownPosition(data); })
+            .catch(() => null);
+    }, [commande.id, commande.statuts?.livraison]);
+
+    // Générer le lien de partage public puis partager via apps natives (WhatsApp, SMS…)
+    const handleShare = async () => {
+        setShareLoading(true);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+            const res = await fetch(`${apiUrl}/tracking/share/${commande.id}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) throw new Error('Erreur génération lien');
+            const data = await res.json() as { url: string };
+            setShareUrl(data.url);
+
+            const creneau = commande.livraison?.creneau;
+            const adresse = commande.adresseLivraison || commande.client?.adresse?.ligne1;
+            const lignes = [
+                `📦 Commande : ${commande.numeroCommande}`,
+                creneau ? `🕐 Créneau : ${creneau}` : null,
+                adresse ? `📍 Livraison : ${adresse}` : null,
+                `\nSuivez en temps réel :`,
+            ].filter(Boolean).join('\n');
+
+            const shareData = {
+                title: `Suivi livraison ${commande.numeroCommande}`,
+                text: lignes,
+                url: data.url,
+            };
+
+            if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+            } else {
+                await navigator.clipboard.writeText(data.url);
+                setShareCopied(true);
+                setTimeout(() => setShareCopied(false), 3000);
+            }
+        } catch (err) {
+            if (err instanceof Error && err.name !== 'AbortError') {
+                alert('Impossible de générer le lien de partage');
+            }
+        } finally {
+            setShareLoading(false);
+        }
+    };
 
     // Utilisation de la gestion des documents
     const handleDocumentDownload = async (type: 'facture' | 'devis') => {
@@ -528,12 +589,26 @@ const CommandeActions: React.FC<CommandeActionsProps> = ({ commande, onUpdate, o
                             {mapVisible ? 'Masquer la carte' : 'Voir sur la carte'}
                         </button>
                     </div>
+                    {/* Notification lien copié */}
+                    {shareCopied && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                            <span>✅</span>
+                            <span>Lien de suivi copié dans le presse-papiers !</span>
+                            {shareUrl && (
+                                <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="underline text-green-800 text-xs ml-auto">
+                                    Ouvrir
+                                </a>
+                            )}
+                        </div>
+                    )}
                     {mapVisible && (
                         <div className="mt-4 rounded-lg overflow-hidden shadow-lg border-2 border-green-200 relative">
-                            {commandeDrivers.length > 0 ? (
+                            {commandeDrivers.length > 0 || lastKnownPosition ? (
                                 <LiveTrackingMap
                                     drivers={commandeDrivers}
                                     height="400px"
+                                    lastKnownPosition={lastKnownPosition}
+                                    onShare={!TERMINAL_STATUTS.includes(commande.statuts?.livraison || '') ? handleShare : undefined}
                                 />
                             ) : (
                                 <div className="h-96 flex items-center justify-center bg-gray-50">

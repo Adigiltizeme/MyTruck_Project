@@ -43,6 +43,7 @@ import MagasinContactMessages from './components/MagasinContactMessages';
 import RealTimeMessaging from './components/RealTimeMessaging';
 import { LiveTracking } from './pages/admin/LiveTracking';
 import AvisClient from './pages/AvisClient';
+import PublicTrackingPage from './pages/PublicTrackingPage';
 import { UpdateAnnouncement } from './components/UpdateAnnouncement';
 import { useCommandesRealtime } from './hooks/useCommandesRealtime';
 
@@ -251,8 +252,9 @@ const App = () => {
         <UpdateAnnouncement />
 
         <Routes>
-          {/* Route publique pour les avis clients */}
+          {/* Routes publiques (sans authentification) */}
           <Route path="/avis/:commandeId" element={<AvisClient />} />
+          <Route path="/suivi/:token" element={<PublicTrackingPage />} />
 
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
