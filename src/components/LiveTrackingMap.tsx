@@ -206,7 +206,7 @@ export const LiveTrackingMap: React.FC<LiveTrackingMapProps> = ({
                                             )}
 
                                             <div className="text-xs text-gray-500">
-                                                Dernière position: {new Date(driver.lastUpdate).toLocaleTimeString('fr-FR')}
+                                                Mis à jour à {new Date(driver.lastUpdate).toLocaleTimeString('fr-FR')}
                                             </div>
                                             {driver.commandeId && (
                                                 <div className="text-xs text-blue-600 mt-1">
