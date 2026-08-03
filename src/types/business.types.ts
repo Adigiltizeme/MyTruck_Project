@@ -300,6 +300,8 @@ export interface CommandeMetier {
             breakdown: string[];
         };
     };
+    // Preuve de livraison — URL Cloudinary de la signature digitale du client/destinataire
+    signatureClient?: string;
     magasin: MagasinInfo;
     chauffeurs: PersonnelInfo[];
     // Champs spécifiques aux cessions inter-magasins

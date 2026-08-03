@@ -550,6 +550,21 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                             </div>
                         )}
 
+                        {/* Signature client */}
+                        {commande.signatureClient && (
+                            <div className="mb-4">
+                                <p className="text-sm text-green-700 mb-2">✍️ Signature de réception</p>
+                                <div className="border border-green-300 rounded bg-white inline-block p-1 cursor-pointer"
+                                    onClick={() => showImageInSameWindow(commande.signatureClient!)}>
+                                    <img
+                                        src={commande.signatureClient}
+                                        alt="Signature de réception"
+                                        className="h-24 object-contain hover:opacity-90"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         {/* Bouton pour ajouter des photos - Seulement chauffeur et admin */}
                         {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
                             <>
