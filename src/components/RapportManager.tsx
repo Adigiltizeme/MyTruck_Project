@@ -112,9 +112,9 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                 onRapportOperationStart();
             }
 
-            // ✅ Validation
-            if (!message.trim()) {
-                alert('Veuillez saisir un message');
+            // ✅ Validation : au moins une photo ou un commentaire requis
+            if (!message.trim() && photos.length === 0) {
+                alert('Veuillez saisir un commentaire ou ajouter au moins une photo');
                 return;
             }
 
@@ -138,13 +138,13 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
 
             console.log('✅ Rapport créé avec succès');
 
-            // ✅ NOTIFICATION RÉSERVE
-            if (!commande.reserve && !commande.livraison?.reserve) {
+            // ✅ NOTIFICATION RÉSERVE : si un commentaire est présent
+            const reserveActivee = message.trim().length > 0;
+            if (reserveActivee && !commande.reserve && !commande.livraison?.reserve) {
                 console.log('📢 Réserve My Truck activée automatiquement');
-                // Optionnel : notification toast
                 if (typeof window !== 'undefined') {
                     const event = new CustomEvent('reserve-activated', {
-                        detail: { message: 'Réserve My Truck activée suite au rapport' }
+                        detail: { message: 'Réserve My Truck activée suite au rapport (photo + commentaire)' }
                     });
                     window.dispatchEvent(event);
                 }
@@ -437,7 +437,6 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                                                 ? "Ex: Client absent, adresse introuvable, refus de livraison, conditions météo dangereuses..."
                                                 : "Ex: Client absent, adresse introuvable, produit refusé, accès impossible..."
                                     }
-                                    required
                                 />
                             </div>
 
@@ -471,7 +470,7 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                                 </button>
                                 <button
                                     onClick={handleCreateRapport}
-                                    disabled={loading || !message.trim()}
+                                    disabled={loading || (photos.length === 0 && !message.trim())}
                                     className={`px-4 py-2 text-white rounded-md ${isObligatoire ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'
                                         } disabled:opacity-50`}
                                 >
