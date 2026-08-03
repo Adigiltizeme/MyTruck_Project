@@ -498,14 +498,14 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                             ✅ Livraison réussie - Photos de preuve
                         </h4>
 
-                        {/* Affichage des photos existantes */}
-                        {rapports?.photos?.livraison && rapports.photos.livraison.length > 0 && (
+                        {/* Photos de preuve : PREUVE_LIVRAISON (nouveau) + LIVRAISON (rétrocompat données existantes) */}
+                        {[...(rapports?.photos?.preuveLivraison || []), ...(rapports?.photos?.livraison || [])].length > 0 && (
                             <div className="mb-4">
                                 <p className="text-sm text-green-700 mb-2">
-                                    📸 {rapports.photos.livraison.length} photo(s) de preuve de livraison
+                                    📸 {[...(rapports?.photos?.preuveLivraison || []), ...(rapports?.photos?.livraison || [])].length} photo(s) de preuve de livraison
                                 </p>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {rapports.photos.livraison.map((photo: any, index: number) => (
+                                    {[...(rapports?.photos?.preuveLivraison || []), ...(rapports?.photos?.livraison || [])].map((photo: any, index: number) => (
                                         <div key={photo.id || index} className="relative group">
                                             <img
                                                 src={photo.url}
