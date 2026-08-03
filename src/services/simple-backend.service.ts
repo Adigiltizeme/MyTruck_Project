@@ -229,6 +229,9 @@ export class SimpleBackendService {
                 // ✅ Vendeur spécifique à cette commande/cession
                 prenomVendeur: backendData.prenomVendeur || '',
 
+                // ✅ Signature digitale du client/destinataire (preuve de livraison)
+                signatureClient: backendData.signatureClient || null,
+
                 createdAt: backendData.createdAt,
                 updatedAt: backendData.updatedAt
             };
