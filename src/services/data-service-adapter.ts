@@ -302,7 +302,7 @@ export class DataServiceAdapter {
     public async addPhotosLivraison(
         commandeId: string,
         photosData: {
-            photos: Array<{ url: string; filename?: string }>;
+            photos: Array<{ url: string; filename?: string; type?: string }>;
         }
     ): Promise<any> {
         try {
@@ -323,6 +323,24 @@ export class DataServiceAdapter {
             }
         } catch (error) {
             console.error('❌ Erreur addPhotosLivraison:', error);
+            throw error;
+        }
+    }
+
+    public async saveSignatureLivraison(commandeId: string, signatureUrl: string): Promise<any> {
+        try {
+            console.log('✍️ saveSignatureLivraison:', { commandeId });
+
+            if (this.dataSource === DataSource.BACKEND_API || this.shouldForceBackend()) {
+                const result = await this.apiService.patch(`/commandes/${commandeId}/signature-livraison`, { signatureUrl });
+                console.log('✅ Signature de livraison enregistrée');
+                await this.invalidateCache();
+                return result;
+            } else {
+                throw new Error('Sauvegarde signature impossible hors ligne');
+            }
+        } catch (error) {
+            console.error('❌ Erreur saveSignatureLivraison:', error);
             throw error;
         }
     }

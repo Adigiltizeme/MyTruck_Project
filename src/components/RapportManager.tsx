@@ -5,7 +5,7 @@
  * qu'une commande a rencontré des problèmes nécessitant une attention particulière.
  *
  * COMPORTEMENT :
- * - Dès qu'un rapport (enlèvement OU livraison) est créé → Réserve = OUI
+ * - Dès qu'un rapport avec photo OU commentaire est créé → Réserve = OUI
  * - Si tous les rapports sont supprimés → Réserve = NON
  * - Visible dans le tableau des commandes (Deliveries.tsx)
  * - Permet à la direction d'identifier rapidement les commandes problématiques
@@ -138,8 +138,8 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
 
             console.log('✅ Rapport créé avec succès');
 
-            // ✅ NOTIFICATION RÉSERVE : si un commentaire est présent
-            const reserveActivee = message.trim().length > 0;
+            // ✅ NOTIFICATION RÉSERVE : si un commentaire OU des photos sont présents
+            const reserveActivee = message.trim().length > 0 || photos.length > 0;
             if (reserveActivee && !commande.reserve && !commande.livraison?.reserve) {
                 console.log('📢 Réserve My Truck activée automatiquement');
                 if (typeof window !== 'undefined') {
