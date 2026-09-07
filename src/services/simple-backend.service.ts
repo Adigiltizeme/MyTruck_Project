@@ -229,6 +229,9 @@ export class SimpleBackendService {
                 // ✅ Vendeur spécifique à cette commande/cession
                 prenomVendeur: backendData.prenomVendeur || '',
 
+                // ✅ Toutes les photos (ARTICLE, ENLEVEMENT, PREUVE_LIVRAISON) au niveau racine
+                photos: backendData.photos || [],
+
                 // ✅ Signature digitale du client/destinataire (preuve de livraison)
                 signatureClient: backendData.signatureClient || null,
 

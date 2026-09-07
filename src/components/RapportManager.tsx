@@ -22,7 +22,7 @@ import { CommandeMetier, PersonnelInfo } from '../types/business.types';
 import { useOffline } from '../contexts/OfflineContext';
 import { useAuth } from '../contexts/AuthContext';
 import PhotoUploader from './PhotoUploader';
-import { AlertTriangle, MessageSquare, Clock, Trash2, Eye } from 'lucide-react';
+import { AlertTriangle, MessageSquare, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -52,9 +52,6 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
     const [rapports, setRapports] = useState<any>(null);
     const [isObligatoire, setIsObligatoire] = useState(false);
 
-    // ✅ État pour photos de preuve de livraison (après LIVREE)
-    const [showAddPhotos, setShowAddPhotos] = useState(false);
-    const [loadingPreuve, setLoadingPreuve] = useState(false);
 
     // ✅ Charger les rapports existants
     useEffect(() => {
@@ -202,36 +199,6 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
         setPhotos(prev => [...prev, ...uploadedPhotos]);
     };
 
-    const handlePreuveLivraisonUpload = async (uploadedPhotos: Array<{ url: string; file: File }>) => {
-        try {
-            setLoadingPreuve(true);
-
-            // ✅ ENVOI IMMÉDIAT des photos (pas d'attente)
-            await dataService.addPhotosLivraison(commande.id, {
-                photos: uploadedPhotos.map(p => ({ url: p.url, filename: p.file?.name }))
-            });
-
-            // ✅ REFRESH pour afficher les nouvelles photos
-            if (onRefresh && typeof onRefresh === 'function') {
-                await onRefresh();
-            } else {
-                const freshCommande = await dataService.getCommande(commande.id);
-                if (freshCommande) {
-                    onUpdate(freshCommande);
-                }
-            }
-
-            await loadRapports();
-
-        } catch (error) {
-            console.error('❌ Erreur ajout preuve livraison:', error);
-            alert(`Erreur: ${error instanceof Error ? error.message : 'Impossible d\'ajouter les photos'}`);
-        } finally {
-            setLoadingPreuve(false);
-        }
-    };
-
-
     const canCreateRapport = (type: 'ENLEVEMENT' | 'LIVRAISON'): boolean => {
         if (!rapports) return false;
 
@@ -245,41 +212,6 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
 
     const formatRapportDate = (date: string): string => {
         return format(new Date(date), 'dd/MM/yyyy - HH:mm');
-    };
-
-    const showImageInSameWindow = (url: string) => {
-        window.open(url, '_blank', 'toolbar=0,location=0,menubar=0')?.focus();
-    };
-
-    const deletePhotoLivraison = async (photoUrl: string) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette photo de preuve de livraison ?')) {
-            return;
-        }
-
-        try {
-            setLoadingPreuve(true);
-
-            // Appeler l'endpoint de suppression de photo
-            await dataService.deletePhoto(commande.id, photoUrl);
-
-            // Refresh
-            if (onRefresh && typeof onRefresh === 'function') {
-                await onRefresh();
-            } else {
-                const freshCommande = await dataService.getCommande(commande.id);
-                if (freshCommande) {
-                    onUpdate(freshCommande);
-                }
-            }
-
-            await loadRapports();
-
-        } catch (error) {
-            console.error('❌ Erreur suppression photo:', error);
-            alert(`Erreur: ${error instanceof Error ? error.message : 'Impossible de supprimer la photo'}`);
-        } finally {
-            setLoadingPreuve(false);
-        }
     };
 
     const renderRapportCard = (rapport: any, type: 'ENLEVEMENT' | 'LIVRAISON') => {
@@ -490,127 +422,6 @@ export const RapportManager: React.FC<RapportManagerProps> = ({
                 </p>
             )}
 
-            {/* ✅ NOUVELLE SECTION : Preuve de livraison (après statut LIVREE) */}
-            {commande.statuts?.livraison === 'LIVREE' && (
-                <div className="mt-6 border-t pt-6">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <h4 className="font-medium text-green-800 flex items-center mb-3">
-                            ✅ Livraison réussie - Photos de preuve
-                        </h4>
-
-                        {/* Photos de preuve + signature — affichage côte à côte */}
-                        {([...(rapports?.photos?.preuveLivraison || []), ...(rapports?.photos?.livraison || [])].length > 0 || commande.signatureClient) && (() => {
-                            const preuves = [...(rapports?.photos?.preuveLivraison || []), ...(rapports?.photos?.livraison || [])];
-                            return (
-                            <div className="mb-4 flex gap-4 flex-wrap items-start">
-                                {/* Grille photos */}
-                                {preuves.length > 0 && (
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-green-700 mb-2">
-                                            📸 {preuves.length} photo(s) de preuve de livraison
-                                        </p>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {preuves.map((photo: any, index: number) => (
-                                                <div key={photo.id || index} className="relative group">
-                                                    <img
-                                                        src={photo.url}
-                                                        alt={`Preuve de livraison ${index + 1}`}
-                                                        className="w-full h-32 object-cover rounded border border-green-300 cursor-pointer hover:opacity-90"
-                                                        onClick={() => showImageInSameWindow(photo.url)}
-                                                    />
-                                                    {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
-                                                        <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={() => showImageInSameWindow(photo.url)}
-                                                                className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                                title="Voir en grand"
-                                                            >
-                                                                <Eye className="w-3 h-3" />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => deletePhotoLivraison(photo.url)}
-                                                                className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
-                                                                title="Supprimer"
-                                                            >
-                                                                <Trash2 className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                    {user?.role === 'magasin' && (
-                                                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <button
-                                                                onClick={() => showImageInSameWindow(photo.url)}
-                                                                className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                                title="Voir en grand"
-                                                            >
-                                                                <Eye className="w-3 h-3" />
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                {/* Signature à droite (ou seule si pas de photos) */}
-                                {commande.signatureClient && (
-                                    <div className="flex-shrink-0 w-44">
-                                        <p className="text-sm text-green-700 mb-2">✍️ Signature de réception</p>
-                                        <div
-                                            className="border border-green-300 rounded bg-white p-1 cursor-pointer hover:border-green-500"
-                                            onClick={() => showImageInSameWindow(commande.signatureClient!)}
-                                        >
-                                            <img
-                                                src={commande.signatureClient}
-                                                alt="Signature de réception"
-                                                className="w-full h-28 object-contain"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                            );
-                        })()}
-
-                        {/* Bouton pour ajouter des photos - Seulement chauffeur et admin */}
-                        {(user?.role === 'chauffeur' || isAdminRole(user?.role)) && (
-                            <>
-                                {!showAddPhotos ? (
-                                    <button
-                                        onClick={() => setShowAddPhotos(true)}
-                                        className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                                    >
-                                        📸 Ajouter des photos
-                                    </button>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center">
-                                            <p className="text-sm text-green-700">
-                                                Ajoutez des photos (signature client, colis déposé, etc.) - Envoi immédiat
-                                            </p>
-                                            <button
-                                                onClick={() => setShowAddPhotos(false)}
-                                                className="text-sm text-gray-600 hover:text-gray-800"
-                                            >
-                                                ✕ Fermer
-                                            </button>
-                                        </div>
-                                        <PhotoUploader
-                                            onUpload={handlePreuveLivraisonUpload}
-                                            existingPhotos={[]}
-                                        />
-                                        {loadingPreuve && (
-                                            <div className="mt-2 text-sm text-blue-600">
-                                                ⏳ Envoi en cours...
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

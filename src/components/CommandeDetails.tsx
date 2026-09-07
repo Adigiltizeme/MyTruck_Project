@@ -20,6 +20,7 @@ import { BackendDataService } from '../services/backend-data.service';
 import { isAdminRole } from '../utils/role-helpers';
 import RapportManager from './RapportManager';
 import PhotosCommentaires from './PhotosCommentaires';
+import ProofPhotosSection from './ProofPhotosSection';
 import { isValidPhone, isValidAddress } from '../utils/contact-links';
 import PhoneLink from './PhoneLink';
 import AddressLink from './AddressLink';
@@ -70,6 +71,10 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
     });
     const [chauffeurs, setChauffeurs] = useState<PersonnelInfo[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [deletingEnlevementUrl, setDeletingEnlevementUrl] = useState<string | null>(null);
+    const [deletingLivraisonUrl, setDeletingLivraisonUrl] = useState<string | null>(null);
+    const [loadingEnlevement, setLoadingEnlevement] = useState(false);
+    const [loadingLivraison, setLoadingLivraison] = useState(false);
     const { user } = useAuth();
 
     // ✅ Ref pour suivre les changements de statuts (évite les boucles de rendu)
@@ -402,6 +407,60 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             }
         };
     }, [commande.id]);
+
+    const handleDeleteEnlevementPhoto = async (photoUrl: string) => {
+        if (!window.confirm('Supprimer cette photo d\'enlèvement définitivement ?')) return;
+        setDeletingEnlevementUrl(photoUrl);
+        try {
+            await dataService.deletePhoto(commande.id, photoUrl);
+            await onRefresh?.();
+        } catch {
+            alert('Erreur lors de la suppression de la photo');
+        } finally {
+            setDeletingEnlevementUrl(null);
+        }
+    };
+
+    const handleAddEnlevementPhotos = async (uploaded: Array<{ url: string; file: File }>) => {
+        setLoadingEnlevement(true);
+        try {
+            await dataService.addPhotosLivraison(commande.id, {
+                photos: uploaded.map(p => ({ url: p.url, filename: p.file?.name, type: 'ENLEVEMENT' }))
+            });
+            await onRefresh?.();
+        } catch {
+            alert('Erreur lors de l\'ajout de photos d\'enlèvement');
+        } finally {
+            setLoadingEnlevement(false);
+        }
+    };
+
+    const handleDeleteLivraisonPhoto = async (photoUrl: string) => {
+        if (!window.confirm('Supprimer cette photo de preuve de livraison définitivement ?')) return;
+        setDeletingLivraisonUrl(photoUrl);
+        try {
+            await dataService.deletePhoto(commande.id, photoUrl);
+            await onRefresh?.();
+        } catch {
+            alert('Erreur lors de la suppression de la photo');
+        } finally {
+            setDeletingLivraisonUrl(null);
+        }
+    };
+
+    const handleAddLivraisonPhotos = async (uploaded: Array<{ url: string; file: File }>) => {
+        setLoadingLivraison(true);
+        try {
+            await dataService.addPhotosLivraison(commande.id, {
+                photos: uploaded.map(p => ({ url: p.url, filename: p.file?.name }))
+            });
+            await onRefresh?.();
+        } catch {
+            alert('Erreur lors de l\'ajout de photos de livraison');
+        } finally {
+            setLoadingLivraison(false);
+        }
+    };
 
     // Gestion des photos
     const handlePhotoUpload = async (uploadedPhotos: Array<{ url: string }>) => {
@@ -842,7 +901,51 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             )}
                         </div>
 
-                        {/* Commentaires/Rapports */}
+                        {/* ── Preuves d'enlèvement ── */}
+                        {(() => {
+                            const enlevementPhotos = ((commande as any).photos || []).filter((p: any) => p.type === 'ENLEVEMENT');
+                            const canActEnlevement = user?.role === 'chauffeur' || isAdminRole(user?.role);
+                            if (enlevementPhotos.length === 0 && !canActEnlevement) return null;
+                            return (
+                                <ProofPhotosSection
+                                    title="📷 Preuves d'enlèvement"
+                                    photos={enlevementPhotos}
+                                    color="purple"
+                                    canDelete={canActEnlevement}
+                                    onDelete={handleDeleteEnlevementPhoto}
+                                    deletingUrl={deletingEnlevementUrl}
+                                    canAdd={canActEnlevement}
+                                    onAdd={handleAddEnlevementPhotos}
+                                    loadingAdd={loadingEnlevement}
+                                    className="lg:col-span-2"
+                                />
+                            );
+                        })()}
+
+                        {/* ── Preuves de livraison (uniquement après LIVREE) ── */}
+                        {commande.statuts?.livraison === 'LIVREE' && (() => {
+                            const livraisonPhotos = ((commande as any).photos || []).filter(
+                                (p: any) => p.type === 'PREUVE_LIVRAISON' || p.type === 'LIVRAISON'
+                            );
+                            const canActLivraison = user?.role === 'chauffeur' || isAdminRole(user?.role);
+                            return (
+                                <ProofPhotosSection
+                                    title="✅ Livraison réussie - Photos de preuve"
+                                    photos={livraisonPhotos}
+                                    color="green"
+                                    canDelete={canActLivraison}
+                                    onDelete={handleDeleteLivraisonPhoto}
+                                    deletingUrl={deletingLivraisonUrl}
+                                    canAdd={canActLivraison}
+                                    onAdd={handleAddLivraisonPhotos}
+                                    loadingAdd={loadingLivraison}
+                                    signature={commande.signatureClient}
+                                    className="lg:col-span-2"
+                                />
+                            );
+                        })()}
+
+                        {/* Rapports/Commentaires (signalements problèmes, réserve My Truck) */}
                         <div className="lg:col-span-2 space-y-4">
                             <RapportManager
                                 commande={commande}
@@ -1251,7 +1354,6 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
             case 'photos-commentaires':
                 return (
                     <div className="space-y-4">
-                        {/* ✅ Photos des rapports via Backend */}
                         <PhotosCommentaires
                             commande={commande}
                             onUpdate={onUpdate}
