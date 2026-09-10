@@ -795,6 +795,19 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
         ...(isAdminRole(user?.role) ? ['tarifHT' as SortableFields] : [])
     ];
 
+    const getCardBgClass = (statut: string | undefined) => {
+        switch (statut) {
+            case 'EN ATTENTE':            return 'bg-blue-50';
+            case 'CONFIRMEE':             return 'bg-indigo-50';
+            case 'ENLEVEE':              return 'bg-purple-50';
+            case 'EN COURS DE LIVRAISON': return 'bg-yellow-50';
+            case 'LIVREE':               return 'bg-green-50';
+            case 'ANNULEE':              return 'bg-red-50';
+            case 'ECHEC':                return 'bg-red-50';
+            default:                     return 'bg-white dark:bg-gray-800';
+        }
+    };
+
     const getClientName = (commande: any): string => {
         if (commande.client?.nom && commande.client?.prenom) {
             return `${commande.client.prenom} ${commande.client.nom}`;
@@ -1165,7 +1178,7 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     {/* Version mobile - cartes */}
                     <div className="block sm:hidden space-y-4">
                         {(paginatedItems as CommandeMetier[]).map((commande: CommandeMetier) => (
-                            <div key={commande.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border">
+                            <div key={commande.id} className={`${getCardBgClass(commande.statuts?.livraison)} rounded-lg shadow p-4 border`}>
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <h3 className="font-medium text-gray-900 dark:text-gray-100">
@@ -1216,6 +1229,18 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                                         <span className="text-gray-500">Créneau:</span>
                                         <div className="font-medium">{commande.livraison?.creneau || 'N/A'}</div>
                                     </div>
+                                    {type !== 'INTER_MAGASIN' && commande.magasin?.name && (
+                                        <div>
+                                            <span className="text-gray-500">Magasin:</span>
+                                            <div className="font-medium secondary">{commande.magasin.name}</div>
+                                        </div>
+                                    )}
+                                    {commande.livraison?.vehicule && (
+                                        <div>
+                                            <span className="text-gray-500">Véhicule:</span>
+                                            <div className="font-medium">{commande.livraison.vehicule}</div>
+                                        </div>
+                                    )}
                                     <div>
                                         <span className="text-gray-500">Statut commande:</span>
                                         <div>
