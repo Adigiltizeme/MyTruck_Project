@@ -127,8 +127,8 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* Section de maintenance (admin uniquement) */}
-            {isAdminRole(user?.role) && (
+            {/* Section de maintenance (Super Admin My Truck uniquement) */}
+            {isAdminRole(user?.role) && !user?.organisationId && (
                 <>
                     <DatabaseHealthDashboard />
                     <DatabaseExplorer />

@@ -16,6 +16,7 @@ interface AuthUser {
     storeEnseigne?: string;
     driverId?: string;
     driverName?: string;
+    organisationId?: string | null;
     token: string;
     lastLogin: Date;
     magasin?: {
@@ -27,7 +28,7 @@ interface AuthUser {
 
 interface AuthContextType {
     user: AuthUser | null;
-    login: (email: string, password: string) => Promise<AuthUser>;
+    login: (email: string, password: string, orgSlug?: string) => Promise<AuthUser>;
     logout: () => void;
     loading: boolean;
     setRole: (role: UserRole, options?: {
@@ -154,6 +155,7 @@ class ApiAuthService {
                 driverName: user.driverName || (user.role?.toLowerCase() === 'chauffeur'
                     ? user.nom || `${user.prenom || ''} ${user.nom || ''}`.trim()
                     : undefined),
+                organisationId: user.organisationId ?? null,
             };
 
             console.log('📦 User restauré depuis localStorage:', {
@@ -211,20 +213,23 @@ class ApiAuthService {
         localStorage.removeItem('userSource');
     }
 
-    static async login(email: string, password: string): Promise<AuthUser> {
+    static async login(email: string, password: string, orgSlug?: string): Promise<AuthUser> {
         try {
             console.log('🔐 Connexion Backend API...');
 
+            const body: Record<string, string> = {
+                email: email.toLowerCase().trim(),
+                password: password,
+            };
+            if (orgSlug) body.orgSlug = orgSlug;
+
             const response = await fetch(`${API_BASE_URL}/auth/login`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'ngrok-skip-browser-warning': 'true'
                 },
-                body: JSON.stringify({
-                    email: email.toLowerCase().trim(),
-                    password: password
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
@@ -267,9 +272,10 @@ class ApiAuthService {
                 storePhone: data.user.magasin?.telephone || data.user.magasin?.phone,
                 // Si c'est un chauffeur, définir driverId et driverName
                 driverId: data.user.role?.toLowerCase() === 'chauffeur' ? data.user.id : undefined,
-                driverName: data.user.role?.toLowerCase() === 'chauffeur' 
-                    ? `${data.user.prenom || ''} ${data.user.nom || ''}`.trim() 
+                driverName: data.user.role?.toLowerCase() === 'chauffeur'
+                    ? `${data.user.prenom || ''} ${data.user.nom || ''}`.trim()
                     : undefined,
+                organisationId: data.user.organisationId ?? null,
             };
 
             console.log('✅ Connexion réussie:', authUser.email);
@@ -378,10 +384,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
     }, []);
 
-    const login = async (email: string, password: string): Promise<AuthUser> => {
+    const login = async (email: string, password: string, orgSlug?: string): Promise<AuthUser> => {
         try {
             setLoading(true);
-            const authenticatedUser = await ApiAuthService.login(email, password);
+            const authenticatedUser = await ApiAuthService.login(email, password, orgSlug);
             setUser(authenticatedUser);
             return authenticatedUser;
         } catch (error) {

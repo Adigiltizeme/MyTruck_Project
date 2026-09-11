@@ -859,13 +859,13 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                 <h1 className="text-xl sm:text-2xl font-bold">
                     {type === 'INTER_MAGASIN' ? (
                         <>
-                            {isAdminRole(user?.role) && 'Direction My Truck - Toutes les cessions'}
+                            {isAdminRole(user?.role) && (user?.organisationId ? 'Direction - Toutes les cessions' : 'Direction My Truck - Toutes les cessions')}
                             {user?.role === 'magasin' && `Cessions ${user.storeName || 'du magasin'}`}
                             {user?.role === 'chauffeur' && `Mes Cessions - ${user.driverName || 'Chauffeur'}`}
                         </>
                     ) : (
                         <>
-                            {isAdminRole(user?.role) && 'Direction My Truck - Toutes les commandes'}
+                            {isAdminRole(user?.role) && (user?.organisationId ? 'Direction - Toutes les commandes' : 'Direction My Truck - Toutes les commandes')}
                             {user?.role === 'magasin' && `Commandes ${user.storeName || 'du magasin'}`}
                             {user?.role === 'chauffeur' && `Mes Livraisons - ${user.driverName || 'Chauffeur'}`}
                         </>

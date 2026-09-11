@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { SPECIAL_ACCOUNTS } from '../services/authService';
@@ -15,7 +15,11 @@ const Login = () => {
 
     const navigate = useNavigate();
     const location = useLocation();
+    const [searchParams] = useSearchParams();
     const { login, user } = useAuth();
+
+    // Slug organisation depuis ?org=
+    const orgSlug = searchParams.get('org') || undefined;
 
     // Vérifier s'il y a un état de redirection
     const from = location.state?.from?.pathname || '/home';
@@ -34,7 +38,7 @@ const Login = () => {
         setIsLoggingIn(true);
 
         try {
-            await login(email, password);
+            await login(email, password, orgSlug);
             navigate('/deliveries');
         } catch (error) {
             if (error instanceof Error && error.message === 'Identifiants incorrects') {
@@ -68,11 +72,12 @@ const Login = () => {
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
                         Connexion
                     </h2>
-                    {/* {!error && (
-                        <p className="mt-2 text-center text-sm text-gray-600">
-                            Utilisez test@admin.com, test@store.com, ou test@driver.com
-                        </p>
-                    )} */}
+                    {orgSlug && (
+                        <div className="mt-3 flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                            <span>🏢</span>
+                            <span>Espace <strong>{orgSlug}</strong></span>
+                        </div>
+                    )}
                 </div>
 
                 {error && (

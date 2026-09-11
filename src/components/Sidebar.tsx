@@ -13,7 +13,8 @@ import {
   BuildingStorefrontIcon,
   ChatBubbleLeftRightIcon,
   MapIcon,
-  MegaphoneIcon
+  MegaphoneIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { Clock, LogOutIcon, MessageCircleIcon } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -183,6 +184,16 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Paramètres',
       icon: CogIcon,
       href: '/settings',
+      roles: ['admin', 'direction'],
+    });
+  }
+
+  // Lien visible uniquement pour le Super Admin My Truck (admin sans organisationId)
+  if (isAdminRole(user?.role) && !user?.organisationId) {
+    baseNavItems.push({
+      name: 'Organisations',
+      icon: BuildingOfficeIcon,
+      href: '/super-admin/organisations',
       roles: ['admin', 'direction'],
     });
   }
