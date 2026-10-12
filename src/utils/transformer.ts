@@ -46,8 +46,9 @@ export function transformAirtableToCommande(record: any): CommandeMetier {
             address: fields['Magasins'][0].fields?.['ADRESSE DU MAGASIN'] || 'Non spécifié',
             phone: fields['Magasins'][0].fields?.['TÉLÉPHONE'] || 'Non spécifié',
             status: fields['Magasins'][0].fields?.['STATUT'] || 'Non spécifié',
+            enseigne: fields['Magasins'][0].fields?.['ENSEIGNE'] || '',
         } : {
-            id: '', name: 'N/A', address: 'N/A', phone: 'N/A', status: 'N/A'
+            id: '', name: 'N/A', address: 'N/A', phone: 'N/A', status: 'N/A', enseigne: ''
         };
 
         const photos = fields['PHOTOS ARTICLES'] ? fields['PHOTOS ARTICLES'].map((photo: any) => ({

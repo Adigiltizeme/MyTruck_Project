@@ -85,6 +85,7 @@ export interface CessionFormData {
     magasin_origine_id: string;
     magasin_destination_id?: string; // Optionnel (mode liste)
     magasin_externe?: ExternalMagasinData; // Optionnel (mode manuel)
+    _updateMagasinExterne?: boolean; // Mettre à jour les coordonnées du magasin externe existant
     adresse_livraison?: string;
     date_livraison_souhaitee: string;
     articles: Array<{

@@ -3,7 +3,10 @@ import { MagasinInfo, PersonnelInfo } from '../types/business.types';
 /**
  * Normalise les données d'un magasin pour utilisation uniforme
  */
-export const normalizeMagasin = (magasin: MagasinInfo): {
+// Le backend renvoie nom/adresse/telephone, le type frontend utilise name/address/phone
+type MagasinBrut = MagasinInfo & { nom?: string; adresse?: string; telephone?: string };
+
+export const normalizeMagasin = (magasin: MagasinBrut): {
     id: string;
     name: string;
     address: string;
@@ -19,7 +22,7 @@ export const normalizeMagasin = (magasin: MagasinInfo): {
         id: magasin.id,
         name: magasin.nom || magasin.name || '',
         address: magasin.adresse || magasin.address || '',
-        enseigne: magasin.enseigne || 'Truffaut',
+        enseigne: magasin.enseigne || '',
         phone: magasin.telephone || magasin.phone || '',
         email: magasin.email || '',
         manager: magasin.manager || '',

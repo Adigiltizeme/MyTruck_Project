@@ -117,11 +117,14 @@ export class ContactService {
 
       console.log('📤 Envoi du formulaire de contact vers:', `${baseUrl}/contacts`);
 
+      // Jeton optionnel : permet au backend de rattacher le message à l'organisation de l'expéditeur
+      const authToken = localStorage.getItem('authToken');
       const response = await fetch(`${baseUrl}/contacts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
+          'ngrok-skip-browser-warning': 'true',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
         body: JSON.stringify(formData),
       });
