@@ -3,7 +3,7 @@ import { motion, useInView, useAnimation } from 'framer-motion';
 import { AnimatedSection, AnimatedTitle, AnimatedCard, AnimatedText } from '../components/animations/AnimatedSection';
 import StakeholdersCarousel from '../components/StakeholdersCarousel';
 import ContactForm from '../components/ContactForm';
-import { href } from 'react-router-dom';
+import { href, Link } from 'react-router-dom';
 
 const HomePage: React.FC = () => {
     const controls = useAnimation();
@@ -283,15 +283,15 @@ const HomePage: React.FC = () => {
                             </p>
                         </div>
                         <div className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-6 text-sm text-gray-400">
-                            <button className="hover:text-white transition-colors">
+                            <Link to="/legal/mentions-legales" className="hover:text-white transition-colors">
                                 Mentions légales
-                            </button>
-                            <button className="hover:text-white transition-colors">
+                            </Link>
+                            <Link to="/legal/cgu" className="hover:text-white transition-colors">
                                 Conditions générales
-                            </button>
-                            <button className="hover:text-white transition-colors">
+                            </Link>
+                            <Link to="/legal/confidentialite" className="hover:text-white transition-colors">
                                 Politique de confidentialité
-                            </button>
+                            </Link>
                         </div>
                     </div>
 

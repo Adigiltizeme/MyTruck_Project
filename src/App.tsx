@@ -45,6 +45,7 @@ import RealTimeMessaging from './components/RealTimeMessaging';
 import { LiveTracking } from './pages/admin/LiveTracking';
 import AvisClient from './pages/AvisClient';
 import PublicTrackingPage from './pages/PublicTrackingPage';
+import LegalPage from './pages/legal/LegalPage';
 import { UpdateAnnouncement } from './components/UpdateAnnouncement';
 import { useCommandesRealtime } from './hooks/useCommandesRealtime';
 
@@ -256,6 +257,7 @@ const App = () => {
           {/* Routes publiques (sans authentification) */}
           <Route path="/avis/:commandeId" element={<AvisClient />} />
           <Route path="/suivi/:token" element={<PublicTrackingPage />} />
+          <Route path="/legal/:doc" element={<LegalPage />} />
 
           <Route path="/" element={<Layout />}>
             <Route path="/login" element={<Login />} />
