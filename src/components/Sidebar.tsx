@@ -14,6 +14,7 @@ import {
   ChatBubbleLeftRightIcon,
   MapIcon,
   MegaphoneIcon,
+  GiftIcon,
   BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { Clock, LogOutIcon, MessageCircleIcon } from 'lucide-react';
@@ -194,6 +195,13 @@ const Sidebar = ({ onCloseMobile, isMobile }: SidebarProps) => {
       name: 'Organisations',
       icon: BuildingOfficeIcon,
       href: '/super-admin/organisations',
+      roles: ['admin', 'direction'],
+    });
+    // Offres commerciales My Truck (ex. sapins de Noël) : gérées par My Truck uniquement
+    baseNavItems.push({
+      name: 'Offres spéciales',
+      icon: GiftIcon,
+      href: '/offres-speciales',
       roles: ['admin', 'direction'],
     });
   }

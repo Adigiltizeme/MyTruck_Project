@@ -94,6 +94,7 @@ export interface ArticlesFormProps extends BaseFormProps {
     };
     errors: any;
     onChange: (e: { target: { name: string; value: any } }) => void;
+    isCession?: boolean;
 }
 export interface LivraisonFormProps extends BaseFormProps {
     showErrors: boolean;

@@ -29,6 +29,8 @@ export interface ValidationErrors {
         vehicule?: string;
         equipiers?: string;
         devis?: string;
+        heureRetrait?: string;
+        offreSpeciale?: string;
     };
     magasin?: {
         id?: string;

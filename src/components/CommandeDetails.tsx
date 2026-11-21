@@ -751,6 +751,9 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                             <div className="space-y-2">
                                 <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Date:</span> <span className="inline-block">{dateFormatter.forDisplay(commande.dates?.livraison)}</span></p>
                                 <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Créneau:</span> <span className="inline-block">{commande.livraison?.creneau || 'Non spécifié'}</span></p>
+                                {commande.livraison?.offreSpecialeId && (
+                                    <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Offre:</span> <span className="inline-block font-medium text-green-700">🎁 {commande.livraison.offreSpecialeNom || 'Offre spéciale'}{commande.livraison.heureRetrait ? ` · retrait ${commande.livraison.heureRetrait}` : ''}</span></p>
+                                )}
                                 <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Véhicule:</span> <span className="inline-block">{commande.livraison?.vehicule || 'Non spécifié'}</span></p>
                                 <p className="break-words"><span className="text-gray-500 dark:text-gray-400 inline-block min-w-[100px]">Équipiers:</span> <span className="inline-block">{commande.livraison?.equipiers || '0'}</span></p>
                             </div>

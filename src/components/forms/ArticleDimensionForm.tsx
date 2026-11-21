@@ -18,6 +18,8 @@ interface ArticleDimensionsFormProps {
     isEditing?: boolean;
     initialAutresArticles?: number;
     initialAutresArticlesPoids?: number;
+    /** Offre spéciale choisie : la hauteur devient obligatoire (elle fixe le tarif) */
+    offreSpeciale?: { nom: string; nomArticle?: string | null; hauteurMaxArticleCm?: number | null } | null;
 }
 
 const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
@@ -26,7 +28,8 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     readOnly = false,
     isEditing = false,
     initialAutresArticles = 0,
-    initialAutresArticlesPoids = 0
+    initialAutresArticlesPoids = 0,
+    offreSpeciale = null
 }) => {
     const [articles, setArticles] = useState<ArticleDimension[]>([]);
     const [showHelpModal, setShowHelpModal] = useState(false);
@@ -38,6 +41,21 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [autresArticlesCount, setAutresArticlesCount] = useState(initialAutresArticles || 0);
     const [autresArticlesPoids, setAutresArticlesPoids] = useState<number>(initialAutresArticlesPoids || 0); // Poids moyen unitaire
     const [showDimensionDetails, setShowDimensionDetails] = useState(false);
+
+    // Avec une offre spéciale, la hauteur fixe le tarif : dimensions dépliées d'office
+    useEffect(() => {
+        if (offreSpeciale) setShowDimensionDetails(true);
+    }, [offreSpeciale]);
+    const hauteurManquante = !!offreSpeciale && !(Number(articles[0]?.hauteur) > 0);
+
+    // Nom d'article proposé par l'offre (ex. « Sapin ») si le champ est vide ; le magasin peut le modifier
+    const nomArticleOffre = offreSpeciale?.nomArticle;
+    useEffect(() => {
+        if (!nomArticleOffre || readOnly) return;
+        setArticles(prev => (prev.length > 0 && !prev[0].nom?.trim()
+            ? [{ ...prev[0], nom: nomArticleOffre }, ...prev.slice(1)]
+            : prev));
+    }, [nomArticleOffre, readOnly]);
 
     // Utiliser une référence pour suivre si les dimensions initiales ont déjà été chargées
     const initializedRef = useRef(false);
@@ -484,18 +502,25 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Hauteur (cm)
+                                            Hauteur (cm){offreSpeciale && <span className="text-red-500"> *</span>}
                                         </label>
                                         <input
                                             type="number"
                                             value={article.hauteur === undefined ? '' : article.hauteur}
                                             onChange={(e) => handleChange(article.id, 'hauteur', e.target.value)}
-                                            className="w-full border border-gray-300 rounded-md px-3 py-2"
+                                            className={`w-full border rounded-md px-3 py-2 ${hauteurManquante ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                                             placeholder="Ex: 180"
                                             min="0"
                                             step="1"
                                             disabled={readOnly}
                                         />
+                                        {offreSpeciale && (
+                                            <p className="text-xs text-gray-600 mt-1">
+                                                Obligatoire pour {offreSpeciale.nom} : la hauteur fixe le tarif
+                                                {offreSpeciale.hauteurMaxArticleCm != null
+                                                    && ` (${offreSpeciale.hauteurMaxArticleCm} cm maximum, au-delà tarification classique)`}.
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -571,6 +596,11 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                     <p className="text-xs text-gray-500 mt-2 text-center">
                         Uniquement si vous avez un article plus lourd que le plus grand
                     </p>
+                    {offreSpeciale && (
+                        <p className="text-xs text-orange-700 mt-1 text-center">
+                            ⚠️ Ajouter un autre article annule {offreSpeciale.nom}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -588,6 +618,11 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                     <p className="text-xs text-gray-500 mt-2 text-center">
                         Cliquez ici si vous avez d'autres articles à livrer
                     </p>
+                    {offreSpeciale && (
+                        <p className="text-xs text-orange-700 mt-1 text-center">
+                            ⚠️ Ajouter d'autres articles annule {offreSpeciale.nom}
+                        </p>
+                    )}
                 </div>
             )}
 

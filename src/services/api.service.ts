@@ -49,6 +49,19 @@ interface PersonnelMap {
   // autres propriétés...
 }
 
+/** Champs de l'offre spéciale pour l'API, absents si la commande n'en a jamais eu. */
+function offreSpecialeToApi(commande: Partial<CommandeMetier>) {
+  const livraison = commande.livraison;
+  if (!livraison || !('offreSpecialeId' in livraison)) return {};
+  return {
+    offreSpecialeId: livraison.offreSpecialeId ?? null,
+    ...(livraison.offreSpecialeId && {
+      heureRetrait: livraison.heureRetrait || undefined,
+      distanceKm: livraison.distanceKm ?? undefined,
+    }),
+  };
+}
+
 export class ApiService {
   private baseUrl: string;
   private token: string | null = null;
@@ -682,6 +695,8 @@ export class ApiService {
         categorieVehicule: commande.livraison?.vehicule,
         optionEquipier: Number(commande.livraison?.equipiers || 0),
         tarifHT: Number(commande.financier?.tarifHT || 0),
+        // Offre spéciale : envoyée seulement si le formulaire l'a touchée (null = retirée) ; le serveur fixe le tarif
+        ...offreSpecialeToApi(commande),
         reserveTransport: commande.livraison?.reserve || false,
         remarques: commande.livraison?.remarques || '',
 
@@ -767,6 +782,8 @@ export class ApiService {
         categorieVehicule: commande.livraison?.vehicule,
         optionEquipier: Number(commande.livraison?.equipiers || 0),
         tarifHT: Number(commande.financier?.tarifHT || 0),
+        // Offre spéciale : envoyée seulement si le formulaire l'a touchée (null = retirée) ; le serveur fixe le tarif
+        ...offreSpecialeToApi(commande),
         reserveTransport: commande.livraison?.reserve || false,
         prenomVendeur: commande.magasin?.manager || null,
         remarques: commande.livraison?.remarques || '',

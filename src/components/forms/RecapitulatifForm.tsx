@@ -307,6 +307,15 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                     <h4 className="font-medium">Livraison</h4>
                     <p>Date: {new Date(data.dates?.livraison || '').toLocaleDateString()}</p>
                     <p>Créneau: {data.livraison?.creneau}</p>
+                    {data.livraison?.offreSpecialeId && (
+                        <>
+                            <p>Retrait en magasin: {data.livraison.heureRetrait || '—'}</p>
+                            <p className="text-green-700 font-medium">
+                                🎁 {data.livraison.offreSpecialeNom || 'Offre spéciale'}
+                                {` · ${data.financier?.tarifHT ?? 0} € HT`}
+                            </p>
+                        </>
+                    )}
                     <p>Véhicule: {data.livraison?.vehicule}</p>
                     <p>Équipiers: {data.livraison?.equipiers}</p>
                     {data.livraison?.remarques && (

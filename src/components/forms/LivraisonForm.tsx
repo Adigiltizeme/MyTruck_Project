@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LivraisonFormProps } from "../../types/form.types";
 import { ERROR_MESSAGES } from "../constants/errorMessages";
 import { CRENEAUX_LIVRAISON, VEHICULES } from "../constants/options";
-import { TarificationService, TypeVehicule } from "../../services/tarification.service";
+import { TarificationService, TarifResponse, TypeVehicule } from "../../services/tarification.service";
+import { useOffresSpeciales } from "../../hooks/useOffresSpeciales";
+import { dateDansPeriode, palierPour } from "../../services/offres-speciales.service";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
@@ -71,6 +73,41 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
     useEffect(() => {
         onChangeRef.current = onChange;
     }, [onChange]);
+
+    // 🎄 Offre spéciale choisie à l'étape Articles (ex. sapin de Noël)
+    const offresSpeciales = useOffresSpeciales(!isCession, data.livraison?.offreSpecialeId);
+    const offre = offresSpeciales.find(o => o.id === data.livraison?.offreSpecialeId) || null;
+    const [offreNotice, setOffreNotice] = useState<string | null>(null);
+    const offreRef = useRef(offre);
+    const hauteurRef = useRef<number>(0);
+    offreRef.current = offre;
+    hauteurRef.current = Number(data.articles?.dimensions?.[0]?.hauteur) || 0;
+
+    // Conditions non remplies : retour à la livraison classique (créneau à rechoisir)
+    const annulerOffre = useCallback((raison: string) => {
+        const courante = offreRef.current;
+        if (!courante) return;
+        const change = onChangeRef.current;
+        change({ target: { name: 'livraison.offreSpecialeId', value: null } });
+        change({ target: { name: 'livraison.offreSpecialeNom', value: null } });
+        change({ target: { name: 'livraison.heureRetrait', value: null } });
+        change({ target: { name: 'livraison.creneau', value: '' } });
+        setOffreNotice(`${courante.nom} annulée (${raison}) : la tarification classique s'applique.`);
+    }, []);
+
+    /** Montant HT : forfait de l'offre si la livraison reste dans son rayon, sinon tarif classique. */
+    const resoudreMontant = useCallback((tarif: TarifResponse): number | 'devis' => {
+        const courante = offreRef.current;
+        const km = tarif.detail.distanceKm;
+        if (km != null) onChangeRef.current({ target: { name: 'livraison.distanceKm', value: km } });
+        if (!courante) return tarif.montantHT;
+        if (km != null && km > courante.rayonMaxKm) {
+            annulerOffre(`livraison à ${km} km, au-delà de ${courante.rayonMaxKm} km`);
+            return tarif.montantHT;
+        }
+        const palier = palierPour(courante, hauteurRef.current);
+        return palier ? palier.tarifHT : tarif.montantHT;
+    }, [annulerOffre]);
 
     // IMPORTANT: Stocker l'adresse du magasin dans un état local pour éviter qu'elle ne soit écrasée
     const [storeAddress, setStoreAddress] = useState<string>('');
@@ -450,12 +487,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             });
 
             setTarifDetails(tarif);
+            const montant = resoudreMontant(tarif);
 
             // Mise à jour du formulaire avec le même format d'événement
             const tarifEvent = {
                 target: {
                     name: 'financier.tarifHT',
-                    value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
+                    value: montant === 'devis' ? 0 : montant
                 }
             };
             onChangeRef.current(tarifEvent); // ✅ Utiliser ref pour éviter boucle
@@ -463,7 +501,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             const devisEvent = {
                 target: {
                     name: 'financier.devisObligatoire',
-                    value: tarif.montantHT === 'devis'
+                    value: montant === 'devis'
                 }
             };
             onChangeRef.current(devisEvent); // ✅ Utiliser ref pour éviter boucle
@@ -479,7 +517,8 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         data.magasinDestination?.address,
         storeAddress,
         isCession,
-        userRole
+        userRole,
+        resoudreMontant
         // ⚠️ onChange et getLatestStoreAddress RETIRÉS pour éviter boucle infinie
         // Ces fonctions sont stables et ne doivent pas déclencher de recalcul
     ]);
@@ -514,6 +553,26 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         isCession
         // ❌ data.dates?.livraison RETIRÉ: Géré manuellement dans handleDateChange pour recalcul immédiat
     ]);
+
+    // 🎄 Offre choisie ou retirée : recalcul du tarif, période et créneau contrôlés
+    useEffect(() => {
+        if (!offre) return;
+        if (!dateDansPeriode(offre, data.dates?.livraison)) {
+            annulerOffre("date de livraison hors de la période de l'offre");
+            return;
+        }
+        if (data.livraison?.creneau && !offre.creneauxLivraison.includes(data.livraison.creneau)) {
+            onChangeRef.current({ target: { name: 'livraison.creneau', value: '' } });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offre?.id, data.dates?.livraison]);
+
+    useEffect(() => {
+        if (offresSpeciales.length === 0) return;
+        const timeoutId = setTimeout(() => updateTarif(), 200);
+        return () => clearTimeout(timeoutId);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offre?.id]);
 
     // Effet pour initialiser le véhicule sélectionné
     useEffect(() => {
@@ -597,11 +656,12 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                     });
 
                     setTarifDetails(tarif);
+                    const montant = resoudreMontant(tarif);
 
                     const tarifEvent = {
                         target: {
                             name: 'financier.tarifHT',
-                            value: tarif.montantHT === 'devis' ? 0 : tarif.montantHT
+                            value: montant === 'devis' ? 0 : montant
                         }
                     };
                     onChangeRef.current(tarifEvent);
@@ -1003,6 +1063,13 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                 </div>
             )}
 
+            {offreNotice && (
+                <div className="bg-orange-50 border border-orange-300 text-orange-800 rounded-lg px-3 py-2 text-sm flex items-start">
+                    <AlertTriangle className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                    {offreNotice}
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                     <label className="block text-sm font-bold text-gray-700">
@@ -1016,11 +1083,58 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         name="dates.livraison"
                         value={data.dates?.livraison?.split('T')[0] || ''}
                         onChange={handleDateChange}
-                        min={minDate}
+                        min={offre ? [minDate, new Date(offre.dateDebut).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' })].filter(Boolean).sort().pop() : minDate}
+                        max={offre ? new Date(offre.dateFin).toLocaleDateString('en-CA', { timeZone: 'Europe/Paris' }) : undefined}
                         className="mt-1 block w-full rounded-md border border-gray-300"
                         required
                     />
                 </div>
+                {offre ? (
+                <div className="space-y-3">
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700">
+                            Créneau de livraison <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="livraison.creneau"
+                            value={data.livraison?.creneau || ''}
+                            onChange={onChange}
+                            className={`mt-1 block w-full rounded-md border px-3 py-2 ${errors.livraison?.creneau ? 'border-red-500' : 'border-gray-300'}`}
+                            required
+                        >
+                            <option value="">Sélectionner un créneau</option>
+                            {offre.creneauxLivraison.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        {errors.livraison?.creneau && (
+                            <p className="text-red-500 text-sm mt-1">{errors.livraison.creneau}</p>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700">
+                            Heure de retrait en magasin <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="livraison.heureRetrait"
+                            value={data.livraison?.heureRetrait || ''}
+                            onChange={onChange}
+                            className={`mt-1 block w-full rounded-md border px-3 py-2 ${errors.livraison?.heureRetrait ? 'border-red-500' : 'border-gray-300'}`}
+                            required
+                        >
+                            <option value="">Sélectionner une heure</option>
+                            {offre.heuresRetrait.map(h => <option key={h} value={h}>{h}</option>)}
+                        </select>
+                        {errors.livraison?.heureRetrait && (
+                            <p className="text-red-500 text-sm mt-1">{errors.livraison.heureRetrait}</p>
+                        )}
+                    </div>
+                    <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded px-2 py-1">
+                        Créneaux et retraits fixés par {offre.nom}.
+                    </p>
+                    {errors.livraison?.offreSpeciale && (
+                        <p className="text-red-500 text-sm">{errors.livraison.offreSpeciale}</p>
+                    )}
+                </div>
+                ) : (
                 <div className="space-y-1">
                     <div className="space-y-1">
                         <label className="block text-sm font-bold text-gray-700">
@@ -1145,6 +1259,7 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* ========== SÉLECTION DE VÉHICULE AVEC VALIDATION ========== */}
                 <div className="space-y-1">
@@ -1329,7 +1444,31 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             </div>
 
             {/* ========== BOUTON AFFICHAGE/MASQUAGE TARIF ========== */}
-            {tarifDetails && !calculatingTarif && (
+            {/* 🎄 Offre spéciale : forfait selon la hauteur (le serveur le recalcule à l'enregistrement) */}
+            {offre && (() => {
+                const palier = palierPour(offre, Number(data.articles?.dimensions?.[0]?.hauteur));
+                return (
+                    <div className="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4 flex items-center justify-between">
+                        <div>
+                            <p className="font-bold text-green-800">{offre.nom}</p>
+                            <p className="text-sm text-green-700">
+                                Forfait tout compris (équipiers inclus), rayon {offre.rayonMaxKm} km
+                                {data.livraison?.distanceKm != null && ` · distance ${data.livraison.distanceKm} km`}
+                            </p>
+                        </div>
+                        {palier ? (
+                            <div className="text-right">
+                                <div className="text-3xl font-bold text-green-700">{palier.tarifHT}€</div>
+                                <div className="text-sm text-green-600 font-medium">HT</div>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-red-600">Hauteur de l'article manquante (étape Articles)</p>
+                        )}
+                    </div>
+                );
+            })()}
+
+            {tarifDetails && !calculatingTarif && !offre && (
                 <div className="mb-6">
                     <button
                         type="button"

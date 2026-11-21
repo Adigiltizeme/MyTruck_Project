@@ -120,6 +120,22 @@ export const useFormValidation = (
                     };
                 }
 
+                // Offre spéciale : heure de retrait imposée et hauteur de l'article (elle fixe le tarif)
+                if (formData.livraison?.offreSpecialeId) {
+                    if (!formData.livraison?.heureRetrait) {
+                        errors.livraison = {
+                            ...errors.livraison,
+                            heureRetrait: ERROR_MESSAGES.required
+                        };
+                    }
+                    if (!(Number(formData.articles?.dimensions?.[0]?.hauteur) > 0)) {
+                        errors.livraison = {
+                            ...errors.livraison,
+                            offreSpeciale: "Hauteur de l'article requise pour l'offre (étape Articles)"
+                        };
+                    }
+                }
+
                 if (!formData.livraison?.vehicule) {
                     errors.livraison = {
                         ...errors.livraison,

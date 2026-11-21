@@ -145,6 +145,11 @@ export interface LivraisonInfo {
     chauffeurs?: PersonnelInfo[];
     remarques?: string;
     details?: DeliveryDetails;
+    // Offre spéciale (ex. sapin de Noël) : tarif fixé par le serveur
+    offreSpecialeId?: string | null;
+    offreSpecialeNom?: string | null;
+    heureRetrait?: string | null;
+    distanceKm?: number | null;
 }
 
 export interface DeliveryDetails {

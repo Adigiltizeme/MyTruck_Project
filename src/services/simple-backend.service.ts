@@ -89,6 +89,9 @@ export class SimpleBackendService {
                     equipiers: backendData.optionEquipier || 0,
                     reserve: backendData.reserveTransport || false,
                     remarques: backendData.remarques || '',
+                    offreSpecialeId: backendData.offreSpeciale?.id ?? backendData.offreSpecialeId ?? null,
+                    offreSpecialeNom: backendData.offreSpeciale?.nom ?? null,
+                    heureRetrait: backendData.heureRetrait ?? null,
                     details: {
                         // Conditions existantes
                         hasElevator: backendData.clientAscenseur || false,

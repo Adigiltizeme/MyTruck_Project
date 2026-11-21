@@ -262,6 +262,7 @@ const AjoutCommande: React.FC<AjoutCommandeProps> = ({
                         isEditing={isEditing}
                         initialCanBeTilted={state.data.articles?.canBeTilted || false}
                         userRole={user?.role}
+                        isCession={isCession}
                     />
                 );
             case 2:

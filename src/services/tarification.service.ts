@@ -21,6 +21,7 @@ export interface TarifResponse {
         distance: number | 'devis';
         equipiers: number | 'devis';
         majorationDimancheFerie?: number; // ✅ Majoration 8€ pour dimanche/jour férié
+        distanceKm?: number; // Distance magasin → livraison (rayon des offres spéciales)
     };
 }
 
@@ -252,6 +253,7 @@ export class TarificationService {
             distance: number | 'devis';
             equipiers: number | 'devis';
             majorationDimancheFerie?: number;
+            distanceKm?: number;
         }
     }> {
         try {
@@ -325,7 +327,8 @@ export class TarificationService {
                     detail: {
                         vehicule: tarifVehicule,
                         distance: 'devis',
-                        equipiers: tarifEquipiers as number
+                        equipiers: tarifEquipiers as number,
+                        distanceKm: distance
                     }
                 };
             }
@@ -350,6 +353,7 @@ export class TarificationService {
                     vehicule: tarifVehicule,
                     distance: fraisKm,
                     equipiers: tarifEquipiers as number,
+                    distanceKm: distance,
                     ...(majorationDimancheFerie !== undefined && { majorationDimancheFerie })
                 }
             };

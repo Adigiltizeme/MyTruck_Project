@@ -37,6 +37,7 @@ import MagasinManagement from './pages/admin/MagasinManagement';
 import AdminManagement from './pages/admin/AdminManagement';
 import ContactsManagement from './pages/admin/ContactsManagement';
 import AnnouncementManagement from './pages/admin/AnnouncementManagement';
+import OffresSpecialesManagement from './pages/admin/OffresSpecialesManagement';
 import OrganisationsManagement from './pages/admin/OrganisationsManagement';
 import ClientManagement from './pages/magasin/ClientManagement';
 import CreneauxDisponibles from './pages/magasin/CreneauxDisponibles';
@@ -344,6 +345,14 @@ const App = () => {
               element={
                 <ProtectedRoute allowedRoles={['admin', 'direction']}>
                   <AnnouncementManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/offres-speciales"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'direction']}>
+                  <OffresSpecialesManagement />
                 </ProtectedRoute>
               }
             />

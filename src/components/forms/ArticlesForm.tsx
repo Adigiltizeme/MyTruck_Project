@@ -9,8 +9,17 @@ import VehicleSelector from "../VehicleSelector";
 import { VehicleType, VehicleValidationService } from "../../services/vehicle-validation.service";
 import { CommandeMetier } from "../../types/business.types";
 import { TarificationService } from "../../services/tarification.service";
+import OffreSpecialeSelector from "./OffreSpecialeSelector";
+import { useOffresSpeciales } from "../../hooks/useOffresSpeciales";
+import { libellesPaliers, palierPour } from "../../services/offres-speciales.service";
 
-export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true, userRole }) => {
+export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ data, errors, onChange: onFormChange, isEditing = true, userRole, isCession = false }) => {
+    // Offres saisonnières (ex. sapin de Noël) : jamais pour une cession
+    const offresSpeciales = useOffresSpeciales(!isCession, data.livraison?.offreSpecialeId);
+    const offreSelectionnee = offresSpeciales.find(o => o.id === data.livraison?.offreSpecialeId) || null;
+    const palierOffre = offreSelectionnee
+        ? palierPour(offreSelectionnee, Number(data.articles?.dimensions?.[0]?.hauteur))
+        : undefined;
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
@@ -607,9 +616,19 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
         <div className="space-y-6 mb-6">
             {/* <h3 className="text-xl font-semibold mb-4">Détails des articles</h3> */}
 
+            {/* Offres spéciales (choisies avant de saisir l'article : elles en limitent le nombre) */}
+            {!isCession && (
+                <OffreSpecialeSelector offres={offresSpeciales} data={data} onChange={onFormChange} />
+            )}
+
             {/* Formulaire de dimensions des articles */}
             <div className="bg-white rounded-lg shadow p-4 mb-6">
                 <ArticleDimensionsForm
+                    offreSpeciale={offreSelectionnee ? {
+                        nom: offreSelectionnee.nom,
+                        nomArticle: offreSelectionnee.nomArticle,
+                        hauteurMaxArticleCm: offreSelectionnee.hauteurMaxArticleCm,
+                    } : null}
                     initialArticles={data.articles?.dimensions || articleDimensions}
                     onChange={handleArticleDimensionsChange}
                     readOnly={false}
@@ -1086,7 +1105,7 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
             {/* Bouton pour afficher/masquer l'estimation */}
             {/* ✅ Afficher dès qu'un véhicule est sélectionné (dimensions FACULTATIVES) */}
-            {estimationTarif && hasUserInteracted && (
+            {(offreSelectionnee || estimationTarif) && hasUserInteracted && (
                     <div className="mb-6">
                         <button
                             type="button"
@@ -1109,7 +1128,43 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
                         </button>
 
                         {/* Estimation de tarif (sans frais kilométriques) */}
-                        {showEstimation && (
+                        {/* Offre spéciale : forfait selon la hauteur (le serveur fixe le tarif définitif) */}
+                        {showEstimation && offreSelectionnee && (
+                            <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 shadow-md">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center">
+                                        <span className="text-3xl mr-3">🎁</span>
+                                        <div>
+                                            <h4 className="text-xl font-bold text-green-800">{offreSelectionnee.nom}</h4>
+                                            <p className="text-sm text-green-700">Forfait tout compris, avec ou sans équipier</p>
+                                        </div>
+                                    </div>
+                                    {palierOffre ? (
+                                        <div className="text-right">
+                                            <div className="text-4xl font-bold text-green-700">{palierOffre.tarifHT}€</div>
+                                            <div className="text-sm text-green-600 font-medium">HT</div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm font-medium text-orange-600 text-right">Saisissez la hauteur</div>
+                                    )}
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-green-200">
+                                    <p className="text-sm font-medium text-green-800 mb-2">Tarifs de l'offre :</p>
+                                    <ul className="text-sm text-gray-700 space-y-1">
+                                        {libellesPaliers(offreSelectionnee).map(l => <li key={l}>• {l}</li>)}
+                                    </ul>
+                                </div>
+                                <div className="mt-4 p-3 bg-orange-100 border border-orange-300 rounded-md flex items-start">
+                                    <span className="text-orange-600 text-xl mr-2">⚠️</span>
+                                    <p className="text-sm text-orange-800">
+                                        Forfait valable dans un rayon de {offreSelectionnee.rayonMaxKm} km, vérifié à l'étape suivante
+                                        après la saisie de l'adresse de livraison.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {showEstimation && !offreSelectionnee && estimationTarif && (
                             <div className="mt-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg p-6 shadow-md">
                                 <div className="flex items-center justify-between mb-3">
                                     <div className="flex items-center">
