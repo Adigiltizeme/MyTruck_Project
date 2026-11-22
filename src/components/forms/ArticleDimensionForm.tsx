@@ -22,6 +22,9 @@ interface ArticleDimensionsFormProps {
     offreSpeciale?: { nom: string; nomArticle?: string | null; hauteurMaxArticleCm?: number | null } | null;
 }
 
+/** Arrondi au centième de kg (évite les restes de division du poids unitaire stocké) */
+const arrondiPoids = (kg: number) => Math.round(kg * 100) / 100;
+
 const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     initialArticles = [],
     onChange,
@@ -39,7 +42,12 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
     const [interactionTracker, setInteractionTracker] = useState<Set<string>>(new Set());
     const [showAutresArticles, setShowAutresArticles] = useState(initialAutresArticles > 0);
     const [autresArticlesCount, setAutresArticlesCount] = useState(initialAutresArticles || 0);
-    const [autresArticlesPoids, setAutresArticlesPoids] = useState<number>(initialAutresArticlesPoids || 0); // Poids moyen unitaire
+    // Le magasin saisit le poids TOTAL des autres articles ; la commande stocke le poids unitaire
+    // (total ÷ nombre), utilisé par les calculs (équipiers, véhicule) et les commandes existantes
+    const [autresArticlesPoidsTotal, setAutresArticlesPoidsTotal] = useState<number>(
+        arrondiPoids((initialAutresArticlesPoids || 0) * (initialAutresArticles || 0))
+    );
+    const autresArticlesPoids = autresArticlesCount > 0 ? autresArticlesPoidsTotal / autresArticlesCount : 0;
     const [showDimensionDetails, setShowDimensionDetails] = useState(false);
 
     // Avec une offre spéciale, la hauteur fixe le tarif : dimensions dépliées d'office
@@ -72,13 +80,13 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
         }
     }, [initialAutresArticles]);
 
-    // Synchroniser autresArticlesPoids avec initialAutresArticlesPoids quand il change
+    // Synchroniser le poids total avec la commande chargée (poids unitaire stocké × nombre)
     useEffect(() => {
-        if (initialAutresArticlesPoids !== autresArticlesPoids && initialAutresArticlesPoids > 0) {
-            console.log(`⚖️ [DIMENSIONS] Synchronisation autresArticlesPoids: ${autresArticlesPoids} → ${initialAutresArticlesPoids}`);
-            setAutresArticlesPoids(initialAutresArticlesPoids);
+        const totalInitial = arrondiPoids((initialAutresArticlesPoids || 0) * (initialAutresArticles || 0));
+        if (totalInitial > 0 && Math.abs(totalInitial - autresArticlesPoidsTotal) > 0.01) {
+            setAutresArticlesPoidsTotal(totalInitial);
         }
-    }, [initialAutresArticlesPoids]);
+    }, [initialAutresArticlesPoids, initialAutresArticles]);
 
     const detectUserInteraction = useCallback((articleId: string, fieldValue: any) => {
         if (fieldValue && fieldValue.toString().trim() !== '') {
@@ -637,7 +645,7 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
                                 onClick={() => {
                                     setShowAutresArticles(false);
                                     setAutresArticlesCount(0);
-                                    setAutresArticlesPoids(0);
+                                    setAutresArticlesPoidsTotal(0);
                                 }}
                                 className="text-red-600 hover:text-red-800 flex items-center text-sm"
                             >
@@ -671,38 +679,23 @@ const ArticleDimensionsForm: React.FC<ArticleDimensionsFormProps> = ({
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Poids moyen unitaire (kg)
+                                Poids total (kg)
                             </label>
                             <input
                                 type="number"
-                                value={autresArticlesPoids === 0 ? '' : autresArticlesPoids}
-                                onChange={(e) => setAutresArticlesPoids(parseFloat(e.target.value) || 0)}
+                                value={autresArticlesPoidsTotal === 0 ? '' : autresArticlesPoidsTotal}
+                                onChange={(e) => setAutresArticlesPoidsTotal(parseFloat(e.target.value) || 0)}
                                 className="w-full border border-gray-300 rounded-md px-3 py-2"
                                 min={0}
                                 step="0.1"
                                 disabled={readOnly}
-                                placeholder="Ex: 2.5"
+                                placeholder="Ex: 25"
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                                Poids moyen d'un de ces articles
+                                Poids de l'ensemble de ces articles réunis
                             </p>
                         </div>
                     </div>
-
-                    {/* Calcul automatique du poids total */}
-                    {autresArticlesCount > 0 && autresArticlesPoids > 0 && (
-                        <div className="mt-3 p-3 bg-white rounded border border-blue-200">
-                            <p className="text-sm text-gray-700">
-                                <span className="font-medium">Poids total des autres articles :</span>{' '}
-                                <span className="text-blue-700 font-bold">
-                                    {(autresArticlesCount * autresArticlesPoids).toFixed(1)} kg
-                                </span>
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                                {autresArticlesCount} article(s) × {autresArticlesPoids} kg = {(autresArticlesCount * autresArticlesPoids).toFixed(1)} kg
-                            </p>
-                        </div>
-                    )}
                 </div>
             )}
 

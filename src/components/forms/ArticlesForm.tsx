@@ -23,6 +23,12 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
     const [existingPhotos, setExistingPhotos] = useState<Array<{ url: string; file?: File }>>([]);
     const [photos, setPhotos] = useState<Array<{ url: string; file: File }>>([]);
     const [articleDimensions, setArticleDimensions] = useState<ArticleDimension[]>([]);
+
+    // Poids total de tous les articles renseignés : articles dimensionnés (poids × quantité) + autres articles
+    const poidsTotalArticles = Math.round((
+        articleDimensions.reduce((sum, a) => sum + (Number(a.poids) || 0) * (Number(a.quantite) || 1), 0)
+        + (data.articles?.autresArticles || 0) * (data.articles?.autresArticlesPoids || 0)
+    ) * 100) / 100;
     // ========== ÉTAT POUR CONTRÔLER L'AFFICHAGE DES VALIDATIONS ==========
     const [hasUserInteracted, setHasUserInteracted] = useState(false);
     const [hasAttemptedValidation, setHasAttemptedValidation] = useState(false);
@@ -1032,23 +1038,33 @@ export const ArticlesForm: React.FC<ArticlesFormProps | CommandeMetier> = ({ dat
 
             {/* Nombre d'articles */}
             <div className="grid grid-cols-1 gap-4">
-                <FormInput
-                    label="Nombre total d'articles"
-                    name="articles.nombre"
-                    type="number"
-                    value={String(data.articles?.nombre || '')}
-                    min={1}
-                    onChange={(e) => {
-                        setHasUserInteracted(true);
-                        onFormChange(e);
-                    }}
-                    error={errors.articles?.nombre}
-                    required
-                    disabled
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormInput
+                        label="Nombre total d'articles"
+                        name="articles.nombre"
+                        type="number"
+                        value={String(data.articles?.nombre || '')}
+                        min={1}
+                        onChange={(e) => {
+                            setHasUserInteracted(true);
+                            onFormChange(e);
+                        }}
+                        error={errors.articles?.nombre}
+                        required
+                        disabled
+                    />
+                    <FormInput
+                        label="Poids total (kg)"
+                        name="articles.poidsTotal"
+                        type="number"
+                        value={poidsTotalArticles > 0 ? String(poidsTotalArticles) : ''}
+                        onChange={() => { }}
+                        disabled
+                    />
+                </div>
 
                 <p className="text-sm text-gray-500 -mt-3">
-                    (Calculé automatiquement à partir des quantités saisies dans les dimensions)
+                    (Calculés automatiquement à partir des quantités et poids saisis, autres articles compris)
                 </p>
 
                 <div className="space-y-1">

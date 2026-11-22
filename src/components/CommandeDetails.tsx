@@ -857,7 +857,7 @@ const CommandeDetails: React.FC<CommandeDetailsProps> = ({ commande, onUpdate, o
                                             </p>
                                             {(commande.articles?.autresArticlesPoids ?? 0) > 0 && (
                                                 <p className="text-sm text-blue-700 ml-2 break-words">
-                                                    → Poids unitaire: {commande.articles.autresArticlesPoids} kg/pièce
+                                                    → Poids total: {(Math.round((commande.articles.autresArticles || 0) * (commande.articles.autresArticlesPoids || 0) * 100) / 100)} kg
                                                 </p>
                                             )}
                                         </>

@@ -252,7 +252,7 @@ export const RecapitulatifForm: React.FC<RecapitulatifFormProps> = ({ data, erro
                             </p>
                             {(data.articles?.autresArticlesPoids ?? 0) > 0 && (
                                 <p className="text-sm text-blue-700 ml-2">
-                                    → Poids unitaire: {data.articles.autresArticlesPoids} kg/pièce
+                                    → Poids total: {(Math.round((data.articles.autresArticles || 0) * (data.articles.autresArticlesPoids || 0) * 100) / 100)} kg
                                 </p>
                             )}
                         </>

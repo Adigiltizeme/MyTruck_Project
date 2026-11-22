@@ -124,7 +124,7 @@ export interface ArticlesType {
     dimensions?: ArticleDimension[];
     nom?: ArticleDimension['nom'][];
     autresArticles?: number; // Nombre d'articles autres que les plus grands/lourds
-    autresArticlesPoids?: number; // Poids moyen unitaire des autres articles (kg)
+    autresArticlesPoids?: number; // Poids unitaire stocké (kg) = poids total saisi ÷ nombre d'autres articles
     newPhotos: Array<{
         url: string;
         file: File
