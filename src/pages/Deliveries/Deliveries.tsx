@@ -622,7 +622,8 @@ const Deliveries: React.FC<DeliveriesProps> = ({ type }) => {
                     largeur: dim.largeur,
                     longueur: dim.profondeur || dim.longueur,
                     poids: dim.poids,
-                    autresArticles: commande.articles?.autresArticles || 0
+                    autresArticles: commande.articles?.autresArticles || 0,
+                    autresArticlesPoids: commande.articles?.autresArticlesPoids || 0
                 })) || [];
 
                 const cessionData: any = {

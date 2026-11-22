@@ -142,7 +142,8 @@ export class CessionService {
           poids: article.poids
         } : undefined,
         poids: article.poids,
-        autresArticles: article.autresArticles || 0
+        autresArticles: article.autresArticles || 0,
+        autresArticlesPoids: article.autresArticlesPoids || 0
       }));
 
       dto.motif = cessionData.motif || '';
