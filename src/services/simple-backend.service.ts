@@ -206,6 +206,9 @@ export class SimpleBackendService {
                     autresArticles: backendData.articles && backendData.articles.length > 0
                         ? backendData.articles[0].autresArticles || 0
                         : 0,
+                    autresArticlesPoids: backendData.articles && backendData.articles.length > 0
+                        ? backendData.articles[0].autresArticlesPoids || 0
+                        : 0,
                     canBeTilted: backendData.articles && backendData.articles.length > 0
                         ? backendData.articles[0].canBeTilted || false
                         : false
