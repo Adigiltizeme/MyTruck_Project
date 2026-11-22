@@ -197,9 +197,6 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
         setRestrictedVehicles(restricted);
 
         // Recommander un véhicule
-        const recommended = VehicleValidationService.recommendVehicle(articleDimensions, canBeTilted);
-        setRecommendedVehicle(recommended);
-
         // 🔥 CORRECTION : Calculer les équipiers avec TOUTES les conditions de livraison
         // ✅ INCLURE LES "AUTRES ARTICLES"
         const quantityFromDimensions = articleDimensions.reduce((sum, article) => sum + (article.quantite || 1), 0);
@@ -239,6 +236,10 @@ export const LivraisonForm: React.FC<LivraisonFormProps> = ({ data, errors, onCh
             complexAccess: currentDeliveryInfo?.complexAccess || false,
             autresArticlesTotalWeight: autresArticlesCount * autresArticlesPoids
         };
+
+        // Le poids des "autres articles" (sans dimensions) compte dans la charge du véhicule
+        const recommended = VehicleValidationService.recommendVehicle(allArticles, canBeTilted);
+        setRecommendedVehicle(recommended);
 
         const crew = VehicleValidationService.getRequiredCrewSize(allArticles, deliveryConditions);
         setRecommendedCrew(crew);

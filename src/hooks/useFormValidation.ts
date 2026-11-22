@@ -147,7 +147,9 @@ export const useFormValidation = (
                 if (formData.articles?.dimensions && formData.articles.dimensions.length > 0 && formData.livraison?.vehicule) {
                     const recommendedVehicle = VehicleValidationService.recommendVehicle(
                         formData.articles.dimensions,
-                        formData.articles.canBeTilted || false
+                        formData.articles.canBeTilted || false,
+                        // Poids des "autres articles" (nombre × poids moyen), absents de la liste des dimensions
+                        (formData.articles?.autresArticles || 0) * (formData.articles?.autresArticlesPoids || 0)
                     );
 
                     if (!recommendedVehicle) {

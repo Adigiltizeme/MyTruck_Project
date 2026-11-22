@@ -159,8 +159,10 @@ export class VehicleValidationService {
      * @returns Le type de véhicule recommandé ou null si aucun ne convient
      */
     public static recommendVehicle(
-        articles: { longueur?: number; largeur?: number; hauteur?: number; poids?: number }[],
-        canBeTilted: boolean = false
+        articles: { longueur?: number; largeur?: number; hauteur?: number; poids?: number; quantite?: number }[],
+        canBeTilted: boolean = false,
+        /** Poids des articles absents de la liste (ex. "autres articles" : nombre × poids moyen) */
+        poidsSupplementaire: number = 0
     ): VehicleType | null {
         // Si aucun article n'est spécifié, recommander le plus petit véhicule
         if (!articles || articles.length === 0) {
@@ -171,13 +173,13 @@ export class VehicleValidationService {
         let maxLength = 0;
         let maxWidth = 0;
         let maxHeight = 0;
-        let totalWeight = 0;
+        let totalWeight = poidsSupplementaire;
 
         articles.forEach(article => {
             maxLength = Math.max(maxLength, article.longueur || 0);
             maxWidth = Math.max(maxWidth, article.largeur || 0);
             maxHeight = Math.max(maxHeight, article.hauteur || 0);
-            totalWeight += article.poids || 0;
+            totalWeight += (article.poids || 0) * (article.quantite || 1);
         });
 
         // Chercher le plus petit véhicule qui peut transporter les articles
@@ -264,9 +266,9 @@ export class VehicleValidationService {
             sum + ((article.poids || 0) * (article.quantite || 1)), 0
         );
 
-        // ✅ INCLURE LE POIDS DES "AUTRES ARTICLES"
-        const autresArticlesTotalWeight = deliveryConditions.autresArticlesTotalWeight || 0;
-        const totalWeight = weightFromDimensions + autresArticlesTotalWeight;
+        // Les "autres articles" figurent déjà dans la liste (quantité × poids moyen) :
+        // autresArticlesTotalWeight n'est pas rajouté, sinon leur poids serait compté deux fois
+        const totalWeight = weightFromDimensions;
 
         const totalItemCount = deliveryConditions.totalItemCount ||
             articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
@@ -509,9 +511,9 @@ export class VehicleValidationService {
             sum + ((article.poids || 0) * (article.quantite || 1)), 0
         );
 
-        // ✅ INCLURE LE POIDS DES "AUTRES ARTICLES"
-        const autresArticlesTotalWeight = conditions.autresArticlesTotalWeight || 0;
-        const totalWeight = weightFromDimensions + autresArticlesTotalWeight;
+        // Les "autres articles" figurent déjà dans la liste (quantité × poids moyen) :
+        // autresArticlesTotalWeight n'est pas rajouté, sinon leur poids serait compté deux fois
+        const totalWeight = weightFromDimensions;
 
         const totalItems = conditions.totalItemCount ||
             articles.reduce((sum, article) => sum + (article.quantite || 1), 0);
